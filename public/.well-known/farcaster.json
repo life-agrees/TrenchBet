@@ -1,0 +1,15 @@
+{
+    "accountAssociation": {
+      "header": "...",
+      "payload": "...",
+      "signature": "..."
+    },
+    "frame": {
+      "version": "1",
+      "name": "TrenchBet",
+      "iconUrl": "https://your-domain.com/icon.png",
+      "splashImageUrl": "https://your-domain.com/splash.png",
+      "splashBackgroundColor": "#4c1d95",
+      "homeUrl": "https://your-domain.com"
+    }
+  }
