@@ -11,7 +11,7 @@ const baseSepoliaWithRPC = {
 };
 
 export const config = getDefaultConfig({
-  appName: 'TrenchBet',
+  appName: 'TrenchyBet',
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
 
   // 🔥 THIS IS WHAT WAS MISSING

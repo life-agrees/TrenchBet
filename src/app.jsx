@@ -681,7 +681,7 @@ const App = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white font-sans p-4 sm:p-8">
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">TrenchBet</h1>
+        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">TrenchyBet</h1>
         <div className="flex items-center gap-4">
           {isOwner && <button onClick={() => setShowAdminPanel(true)} className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"><Settings size={20} className="text-yellow-400" /></button>}
           <ConnectButton />
