@@ -7,8 +7,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /**
- * @title PredictionMarket with Custom Odds
- * @notice Enhanced prediction market with 4 bet types and customizable odds
+ * @title PredictionMarket with Custom Odds - V2
+ * @notice Enhanced prediction market with improved fee model
+ * @dev Fee is deducted from losing pool at resolution, not from individual winners
  */
 contract PredictionMarket is ReentrancyGuard, Ownable {
     IERC20 public immutable usdc;
@@ -33,6 +34,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         bool useFixedOdds;
         uint256 yesMultiplier;  // e.g., 200 = 2.0x (in basis points)
         uint256 noMultiplier;   // e.g., 150 = 1.5x
+        uint256 protocolFee;    // Fee collected from losing pool at resolution
     }
     
     struct MultiChoiceMarket {
@@ -101,7 +103,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     
     event MarketCreated(uint256 indexed marketId, MarketType marketType, string asset, bool useFixedOdds);
     event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount);
-    event MarketResolved(uint256 indexed marketId, uint8 winningChoice);
+    event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee);
     event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount);
     event FeesWithdrawn(address indexed owner, uint256 amount);
     
@@ -157,7 +159,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             totalBets: 0,
             useFixedOdds: useFixedOdds,
             yesMultiplier: yesMultiplier,
-            noMultiplier: noMultiplier
+            noMultiplier: noMultiplier,
+            protocolFee: 0
         });
         
         emit MarketCreated(marketId, MarketType.BINARY, asset, useFixedOdds);
@@ -198,7 +201,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             totalBets: 0,
             useFixedOdds: useFixedOdds,
             yesMultiplier: 0,
-            noMultiplier: 0
+            noMultiplier: 0,
+            protocolFee: 0
         });
         
         MultiChoiceMarket storage mcMarket = multiChoiceMarkets[marketId];
@@ -253,7 +257,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             totalBets: 0,
             useFixedOdds: useFixedOdds,
             yesMultiplier: 0,
-            noMultiplier: 0
+            noMultiplier: 0,
+            protocolFee: 0
         });
         
         RangeMarket storage rMarket = rangeMarkets[marketId];
@@ -306,7 +311,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             totalBets: 0,
             useFixedOdds: useFixedOdds,
             yesMultiplier: 0,
-            noMultiplier: 0
+            noMultiplier: 0,
+            protocolFee: 0
         });
         
         TimeMarket storage tMarket = timeMarkets[marketId];
@@ -384,6 +390,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     
     // ==================== RESOLVE MARKETS ====================
     
+    /**
+     * @notice Resolve binary market - Fee deducted from losing pool here
+     */
     function resolveMarket(uint256 marketId) external {
         Market storage market = markets[marketId];
         require(market.marketType == MarketType.BINARY, "Not a binary market");
@@ -396,11 +405,21 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         
         market.endPrice = endPrice;
         market.priceWentUp = endPrice > market.startPrice;
+        
+        // ✅ NEW: Deduct protocol fee from losing pool at resolution
+        uint256 losingPool = market.priceWentUp ? market.noPool : market.yesPool;
+        uint256 fee = (losingPool * FEE_PERCENTAGE) / 100;
+        market.protocolFee = fee;
+        accumulatedFees += fee;
+        
         market.resolved = true;
         
-        emit MarketResolved(marketId, market.priceWentUp ? 1 : 0);
+        emit MarketResolved(marketId, market.priceWentUp ? 1 : 0, fee);
     }
     
+    /**
+     * @notice Resolve multi-choice market - Fee deducted from losing pools
+     */
     function resolveMultiChoiceMarket(uint256 marketId, uint8 winningOption) external onlyOwner {
         Market storage market = markets[marketId];
         require(market.marketType == MarketType.MULTI_CHOICE, "Not a multi-choice market");
@@ -409,11 +428,28 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(winningOption < multiChoiceMarkets[marketId].options.length, "Invalid option");
         
         multiChoiceMarkets[marketId].winningOption = winningOption;
+        
+        // ✅ NEW: Calculate total losing pool and deduct protocol fee
+        MultiChoiceMarket storage mcMarket = multiChoiceMarkets[marketId];
+        uint256 losingPool = 0;
+        for (uint8 i = 0; i < mcMarket.options.length; i++) {
+            if (i != winningOption) {
+                losingPool += mcMarket.optionPools[i];
+            }
+        }
+        
+        uint256 fee = (losingPool * FEE_PERCENTAGE) / 100;
+        market.protocolFee = fee;
+        accumulatedFees += fee;
+        
         market.resolved = true;
         
-        emit MarketResolved(marketId, winningOption);
+        emit MarketResolved(marketId, winningOption, fee);
     }
     
+    /**
+     * @notice Resolve range market - Fee deducted from losing pools
+     */
     function resolveRangeMarket(uint256 marketId) external {
         Market storage market = markets[marketId];
         require(market.marketType == MarketType.RANGE, "Not a range market");
@@ -438,11 +474,27 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         }
         
         require(foundWinner, "Price not in any range");
+        
+        // ✅ NEW: Calculate total losing pool and deduct protocol fee
+        uint256 losingPool = 0;
+        for (uint8 i = 0; i < rMarket.rangeMins.length; i++) {
+            if (i != rMarket.winningRange) {
+                losingPool += rMarket.rangePools[i];
+            }
+        }
+        
+        uint256 fee = (losingPool * FEE_PERCENTAGE) / 100;
+        market.protocolFee = fee;
+        accumulatedFees += fee;
+        
         market.resolved = true;
         
-        emit MarketResolved(marketId, rMarket.winningRange);
+        emit MarketResolved(marketId, rMarket.winningRange, fee);
     }
     
+    /**
+     * @notice Resolve time-based market - Fee deducted from losing pools
+     */
     function resolveTimeMarket(uint256 marketId) external {
         Market storage market = markets[marketId];
         require(market.marketType == MarketType.TIME_BASED, "Not a time-based market");
@@ -466,12 +518,28 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             tMarket.winningTimeframe = type(uint8).max;
         }
         
+        // ✅ NEW: Calculate total losing pool and deduct protocol fee
+        uint256 losingPool = 0;
+        for (uint8 i = 0; i < tMarket.timeframes.length; i++) {
+            if (i != tMarket.winningTimeframe) {
+                losingPool += tMarket.timeframePools[i];
+            }
+        }
+        
+        uint256 fee = (losingPool * FEE_PERCENTAGE) / 100;
+        market.protocolFee = fee;
+        accumulatedFees += fee;
+        
         market.resolved = true;
-        emit MarketResolved(marketId, tMarket.winningTimeframe);
+        
+        emit MarketResolved(marketId, tMarket.winningTimeframe, fee);
     }
     
-    // ==================== CLAIM WINNINGS WITH ODDS ====================
+    // ==================== CLAIM WINNINGS (NO INDIVIDUAL FEES) ====================
     
+    /**
+     * @notice Claim winnings - No fee deducted here, already taken from losing pool
+     */
     function claimWinnings(uint256 marketId) external nonReentrant {
         Market storage market = markets[marketId];
         require(market.resolved, "Market not resolved yet");
@@ -500,15 +568,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
                         uint256 multiplier = position.predictedUp ? market.yesMultiplier : market.noMultiplier;
                         payout = (position.amount * multiplier) / 100;
                     } else {
-                        // Pool-based payout
+                        // ✅ UPDATED: Pool-based payout using fee-adjusted losing pool
                         uint256 winningPool = position.predictedUp ? market.yesPool : market.noPool;
                         uint256 losingPool = position.predictedUp ? market.noPool : market.yesPool;
                         
+                        // Losing pool after protocol fee deduction
+                        uint256 losingPoolAfterFee = losingPool - market.protocolFee;
+                        
                         if (winningPool > 0) {
-                            uint256 share = (position.amount * losingPool) / winningPool;
-                            uint256 fee = (share * FEE_PERCENTAGE) / 100;
-                            payout = position.amount + share - fee;
-                            accumulatedFees += fee;
+                            uint256 share = (position.amount * losingPoolAfterFee) / winningPool;
+                            payout = position.amount + share;  // ✅ No individual fee!
                         }
                     }
                 }
@@ -578,7 +647,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         emit WinningsClaimed(marketId, msg.sender, totalWinnings);
     }
     
-    function _calculatePoolPayout(uint256 marketId, Position memory position, bool isMultiChoice) internal returns (uint256) {
+    /**
+     * @notice Calculate pool-based payout using fee-adjusted losing pool
+     * @dev Changed to view - no state modification (accumulatedFees handled at resolution)
+     */
+    function _calculatePoolPayout(
+        uint256 marketId,
+        Position memory position,
+        bool isMultiChoice
+    ) internal view returns (uint256) {
+        Market memory market = markets[marketId];
         uint256 winningPool;
         uint256 losingPool;
         
@@ -601,16 +679,24 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         }
         
         if (winningPool > 0) {
-            uint256 share = (position.amount * losingPool) / winningPool;
-            uint256 fee = (share * FEE_PERCENTAGE) / 100;
-            accumulatedFees += fee;
-            return position.amount + share - fee;
+            // ✅ UPDATED: Use losing pool after protocol fee deduction
+            uint256 losingPoolAfterFee = losingPool - market.protocolFee;
+            uint256 share = (position.amount * losingPoolAfterFee) / winningPool;
+            return position.amount + share;  // ✅ No individual fee!
         }
         
         return 0;
     }
     
-    function _calculateTimePoolPayout(uint256 marketId, Position memory position) internal returns (uint256) {
+    /**
+     * @notice Calculate time-based pool payout using fee-adjusted losing pool
+     * @dev Changed to view - no state modification
+     */
+    function _calculateTimePoolPayout(
+        uint256 marketId,
+        Position memory position
+    ) internal view returns (uint256) {
+        Market memory market = markets[marketId];
         TimeMarket storage tMarket = timeMarkets[marketId];
         uint256 winningPool = tMarket.timeframePools[position.choice];
         uint256 losingPool;
@@ -622,10 +708,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         }
         
         if (winningPool > 0) {
-            uint256 share = (position.amount * losingPool) / winningPool;
-            uint256 fee = (share * FEE_PERCENTAGE) / 100;
-            accumulatedFees += fee;
-            return position.amount + share - fee;
+            // ✅ UPDATED: Use losing pool after protocol fee deduction
+            uint256 losingPoolAfterFee = losingPool - market.protocolFee;
+            uint256 share = (position.amount * losingPoolAfterFee) / winningPool;
+            return position.amount + share;  // ✅ No individual fee!
         }
         
         return 0;
@@ -765,9 +851,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
                 
                 if (winningPool == 0) return amount;
                 
-                uint256 share = (amount * losingPool) / winningPool;
-                uint256 fee = (share * FEE_PERCENTAGE) / 100;
-                return amount + share - fee;
+                // ✅ UPDATED: Account for protocol fee in potential payout calculation
+                uint256 losingPoolAfterFee = losingPool - ((losingPool * FEE_PERCENTAGE) / 100);
+                uint256 share = (amount * losingPoolAfterFee) / winningPool;
+                return amount + share;  // ✅ Clean payout, no visible fee
             }
         } else if (market.marketType == MarketType.MULTI_CHOICE) {
             if (market.useFixedOdds) {
@@ -785,9 +872,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
                 uint256 losingPool = totalPool - winningPool;
                 if (winningPool == 0) return amount;
                 
-                uint256 share = (amount * losingPool) / winningPool;
-                uint256 fee = (share * FEE_PERCENTAGE) / 100;
-                return amount + share - fee;
+                // ✅ UPDATED: Account for protocol fee
+                uint256 losingPoolAfterFee = losingPool - ((losingPool * FEE_PERCENTAGE) / 100);
+                uint256 share = (amount * losingPoolAfterFee) / winningPool;
+                return amount + share;
             }
         }
         

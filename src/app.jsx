@@ -101,7 +101,6 @@ const App = () => {
 
   const [userStats, setUserStats] = useState({
     totalBets: 0,
-    totalWinnings: 0n,
     wins: 0,
     losses: 0,
     streak: 0,
@@ -362,13 +361,12 @@ const App = () => {
 
   const fetchUserStats = useCallback(async () => {
     if (!address || userBets.length === 0) {
-      setUserStats(prev => ({ ...prev, totalBets: 0, totalWinnings: 0n, wins: 0, losses: 0, streak: 0 }));
+      setUserStats(prev => ({ ...prev, totalBets: 0, wins: 0, losses: 0, streak: 0 }));
       return;
     }
 
     let wins = 0;
     let losses = 0;
-    let totalWinnings = 0n;
     let currentStreak = 0;
     
     const sortedBets = [...userBets].sort((a, b) => Number(b.market.id) - Number(a.market.id));
@@ -384,7 +382,7 @@ const App = () => {
 
         if (isWinner) {
           wins++;
-          if (bet.claimed) totalWinnings += bet.amount * 2n; 
+           
           
           if (lastOutcome === 'win' || lastOutcome === null) currentStreak++;
           else currentStreak = 1; 
@@ -400,7 +398,6 @@ const App = () => {
 
     setUserStats({
       totalBets: userBets.length,
-      totalWinnings: totalWinnings,
       wins: wins,
       losses: losses,
       streak: Math.abs(currentStreak),
@@ -696,7 +693,7 @@ const App = () => {
             <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Trophy size={24} className="text-yellow-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Wins</span><span className="text-lg font-bold">{userStats.wins}</span></div></div>
             <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><XCircle size={24} className="text-red-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Losses</span><span className="text-lg font-bold">{userStats.losses}</span></div></div>
             <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Clock size={24} className="text-blue-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Streak</span><span className="text-lg font-bold">{userStats.streak}</span></div></div>
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><TrendingUp size={24} className="text-pink-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Net Winnings (Est.)</span><span className="text-lg font-bold">{formatUnits(userStats.totalWinnings, 6)} USDC</span></div></div>
+            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><TrendingUp size={24} className="text-pink-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Win Rate</span><span className="text-lg font-bold">{userStats.totalBets > 0 ? ((userStats.wins / userStats.totalBets) * 100).toFixed(1) : 0}%</span></div></div>
           </div>
         )}
         

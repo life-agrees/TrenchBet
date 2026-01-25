@@ -28,10 +28,15 @@ async function main() {
 
   // Set price feeds
   console.log("\n🔧 Setting price feeds...");
-  await predictionMarket.setPriceFeed("BTC", BTC_PRICE_FEED);
+
+  const btcFeedTx = await predictionMarket.setPriceFeed("BTC", BTC_PRICE_FEED);
+  await btcFeedTx.wait();
   console.log("✅ BTC price feed set");
-  await predictionMarket.setPriceFeed("ETH", ETH_PRICE_FEED);
+
+  const ethFeedTx = await predictionMarket.setPriceFeed("ETH", ETH_PRICE_FEED);
+  await ethFeedTx.wait();
   console.log("✅ ETH price feed set");
+
 
   // Create initial markets
   console.log("\n🎯 Creating initial markets...");
