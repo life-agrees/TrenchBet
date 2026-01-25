@@ -3,7 +3,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicCl
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { parseUnits, formatUnits, parseAbiItem } from 'viem';
 import { TrendingUp, TrendingDown, Clock, Loader2, DollarSign, Users, Wallet, Trophy, Target, Timer, BarChart3, Settings, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { CONTRACTS } from './config/wagmi';
+import { CONTRACTS, config } from './config/wagmi';
 import AdminPanel from './components/AdminPanel';
 import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis'; 
 import { sdk } from '@farcaster/miniapp-sdk';
