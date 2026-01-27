@@ -14,28 +14,30 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-color: #0a0e12;
+  color: #f8f9fa;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Custom scrollbar - now in C Y A N */
+/* Custom scrollbar - Electric Lime */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(15, 20, 25, 0.8);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 209, 255, 0.5); /* Cyan 50% opacity */
+  background: rgba(205, 255, 0, 0.4);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 209, 255, 0.7); /* Cyan 70% opacity */
+  background: rgba(205, 255, 0, 0.6);
 }
 
 /* Custom Animations */
@@ -56,5 +58,27 @@ body {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(205, 255, 0, 0.3);
+  }
+  
+  .glow-success {
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+  }
+  
+  .glow-danger {
+    box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
+  }
+
+  .text-gradient-primary {
+    background: linear-gradient(135deg, #CDFF00 0%, #00FF88 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
   }
 }
