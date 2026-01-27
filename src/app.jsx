@@ -585,19 +585,19 @@ const App = () => {
     const isLive = !market.resolved && Number(market.endTime) > Date.now()/1000;
 
     return (
-      <div key={Number(market.id)} className={`bg-gray-800 p-6 rounded-2xl shadow-xl transition-transform transform hover:scale-[1.01] flex flex-col gap-4 ${market.resolved ? 'opacity-50' : ''}`}>
+      <div key={Number(market.id)} className={`bg-dark-800 p-6 rounded-2xl shadow-xl transition-transform transform hover:scale-[1.01] flex flex-col gap-4 ${market.resolved ? 'opacity-50' : ''}`}>
         <div className="flex justify-between items-start">
           <h3 className="text-xl font-extrabold text-white">{getMarketLabel(market.marketType, market.asset)}</h3>
-          <span className={`px-3 py-1 text-xs font-bold rounded-full ${isLive ? 'bg-green-500 text-white' : market.resolved ? 'bg-gray-500 text-white' : 'bg-red-500 text-white'}`}>
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${isLive ? 'bg-success text-dark-950' : market.resolved ? 'bg-neutral-600 text-white' : 'bg-danger text-white'}`}>
             {market.resolved ? `Resolved` : marketStatus}
           </span>
         </div>
-        <div className="flex justify-between items-end text-sm text-gray-400 border-b border-gray-700 pb-2">
+        <div className="flex justify-between items-end text-sm text-neutral-400 border-b border-dark-700 pb-2">
             <div className="flex flex-col">
                 <span>Start: {formatPrice(market.startPrice)}</span>
                 {/* Display Target Price for Time-Based Markets */}
                 {market.marketType === 3 && (
-                    <span className="text-yellow-400 font-bold mt-1">
+                    <span className="text-secondary font-bold mt-1">
                         Target: {formatPrice(market.targetPrice)}
                     </span>
                 )}
@@ -619,17 +619,17 @@ const App = () => {
               key={choice.choiceIndex}
               onClick={() => setSelectedMarket({...market, betChoice: choice.choiceIndex, choiceLabel: choice.label})}
               disabled={!isLive}
-              className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 ${isLive ? 'bg-purple-600/20 hover:bg-purple-600/40' : 'bg-gray-700/50 cursor-not-allowed'} text-white font-bold text-center border-2 border-transparent hover:border-purple-400`}
+              className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 ${isLive ? 'bg-primary/20 hover:bg-primary/40 hover:glow-primary' : 'bg-dark-700/50 cursor-not-allowed'} text-white font-bold text-center border-2 border-transparent hover:border-primary`}
             >
               <span className="text-lg">{choice.label}</span>
-              <span className="text-sm text-yellow-300 mt-1">{choice.multiplier}X Multiplier</span>
+              <span className="text-sm text-secondary mt-1">{choice.multiplier}X Multiplier</span>
             </button>
           ))}
         </div>
         {isOwner && isLive && market.marketType === 0 && (
           <div className="mt-3 flex gap-2">
             <button onClick={() => handleResolve(market.id, 1)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-xl text-sm">Resolve DOWN (Admin)</button>
-            <button onClick={() => handleResolve(market.id, 0)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl text-sm">Resolve UP (Admin)</button>
+            <button onClick={() => handleResolve(market.id, 0)} className="flex-1 bg-success hover:bg-success-dark text-white font-bold py-3 rounded-xl text-sm">Resolve UP (Admin)</button>
           </div>
         )}
       </div>
@@ -642,22 +642,22 @@ const App = () => {
     const canClaim = bet.isClaimableConfirmed; // FIX: Use the simulation result
 
     return (
-      <div key={bet.txHash} className={`bg-gray-800 p-4 rounded-xl shadow-md flex justify-between items-center transition-all duration-300 ${claimed ? 'opacity-70' : ''}`}>
+      <div key={bet.txHash} className={`bg-dark-800 p-4 rounded-xl shadow-md flex justify-between items-center transition-all duration-300 ${claimed ? 'opacity-70' : ''}`}>
         <div className="flex flex-col">
           <span className="text-lg font-bold text-white">{bet.marketLabel}</span>
-          <span className="text-sm text-gray-400">Bet on: <span className="font-semibold text-purple-300">{bet.choiceLabel}</span></span>
-          <span className="text-sm text-gray-400">Amount: <span className="font-semibold text-green-400">{formatUnits(bet.amount, 6)} USDC</span></span>
+          <span className="text-sm text-neutral-400">Bet on: <span className="font-semibold text-primary">{bet.choiceLabel}</span></span>
+          <span className="text-sm text-neutral-400">Amount: <span className="font-semibold text-success">{formatUnits(bet.amount, 6)} USDC</span></span>
         </div>
         <div className="flex flex-col items-end gap-2">
           {!market.resolved ? (
             <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-500 text-white">{getMarketTimeRemaining(market)}</span>
           ) : canClaim ? ( 
             // FIX: Only show claim button if simulation passed
-            <button onClick={() => handleClaim(market.id)} className="bg-yellow-500 hover:bg-yellow-600 text-gray-900 font-bold py-2 px-4 rounded-lg flex items-center gap-1 text-sm">
+            <button onClick={() => handleClaim(market.id)} className="bg-secondary hover:bg-secondary-500 text-neutral-900 font-bold py-2 px-4 rounded-lg flex items-center gap-1 text-sm">
               <Trophy size={16} /> Claim Winnings
             </button>
           ) : claimed ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-green-500 text-white flex items-center gap-1"><CheckCircle size={14} /> Claimed</span>
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-success text-white flex items-center gap-1"><CheckCircle size={14} /> Claimed</span>
           ) : (
             <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500 text-white flex items-center gap-1"><XCircle size={14} /> Lost</span>
           )}
@@ -667,20 +667,20 @@ const App = () => {
   };
   
   const renderConnectWallet = () => (
-    <div className="flex flex-col items-center justify-center p-10 bg-gray-800 rounded-xl shadow-2xl text-white">
-      <Wallet size={48} className="text-purple-500 mb-4" />
+    <div className="flex flex-col items-center justify-center p-10 bg-dark-800 rounded-xl shadow-2xl text-white">
+      <Wallet size={48} className="text-primary mb-4" />
       <h2 className="text-2xl font-bold mb-2">Connect Your Wallet</h2>
-      <p className="text-gray-400 mb-6 text-center">Join the action and place your first prediction on the Base Sepolia network.</p>
+      <p className="text-neutral-400 mb-6 text-center">Join the action and place your first prediction on the Base Sepolia network.</p>
       <ConnectButton />
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white font-sans p-4 sm:p-8">
+    <div className="min-h-screen bg-dark-950 text-white font-sans p-4 sm:p-8">
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">TrenchyBet</h1>
+        <h1 className="text-4xl font-extrabold text-gradient-primary">TrenchyBet</h1>
         <div className="flex items-center gap-4">
-          {isOwner && <button onClick={() => setShowAdminPanel(true)} className="p-3 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"><Settings size={20} className="text-yellow-400" /></button>}
+          {isOwner && <button onClick={() => setShowAdminPanel(true)} className="p-3 rounded-full bg-dark-700 hover:bg-gray-600 transition-colors"><Settings size={20} className="text-secondary" /></button>}
           <ConnectButton />
         </div>
       </header>
@@ -688,19 +688,19 @@ const App = () => {
       <main className="max-w-7xl mx-auto">
         {isConnected && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Wallet size={24} className="text-purple-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Balance</span><span className="text-lg font-bold">{formatUnits(usdcBalance, 6)} USDC</span></div></div>
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><DollarSign size={24} className="text-green-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Total Bets</span><span className="text-lg font-bold">{userStats.totalBets}</span></div></div>
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Trophy size={24} className="text-yellow-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Wins</span><span className="text-lg font-bold">{userStats.wins}</span></div></div>
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><XCircle size={24} className="text-red-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Losses</span><span className="text-lg font-bold">{userStats.losses}</span></div></div>
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Clock size={24} className="text-blue-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Streak</span><span className="text-lg font-bold">{userStats.streak}</span></div></div>
-            <div className="bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><TrendingUp size={24} className="text-pink-400" /><div className="flex flex-col"><span className="text-sm text-gray-400">Win Rate</span><span className="text-lg font-bold">{userStats.totalBets > 0 ? ((userStats.wins / userStats.totalBets) * 100).toFixed(1) : 0}%</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Wallet size={24} className="text-primary" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Balance</span><span className="text-lg font-bold">{formatUnits(usdcBalance, 6)} USDC</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><DollarSign size={24} className="text-success" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Total Bets</span><span className="text-lg font-bold">{userStats.totalBets}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Trophy size={24} className="text-secondary" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Wins</span><span className="text-lg font-bold">{userStats.wins}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><XCircle size={24} className="text-red-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Losses</span><span className="text-lg font-bold">{userStats.losses}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Clock size={24} className="text-blue-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Streak</span><span className="text-lg font-bold">{userStats.streak}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><TrendingUp size={24} className="text-pink-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Win Rate</span><span className="text-lg font-bold">{userStats.totalBets > 0 ? ((userStats.wins / userStats.totalBets) * 100).toFixed(1) : 0}%</span></div></div>
           </div>
         )}
         
         {isConnected && (
-          <div className="flex border-b border-gray-700 mb-8">
+          <div className="flex border-b border-dark-700 mb-8">
             {['markets', 'myBets', 'leaderboard'].map(view => (
-                <button key={view} onClick={() => setCurrentView(view)} className={`py-3 px-6 text-lg font-semibold transition-colors ${currentView === view ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}>
+                <button key={view} onClick={() => setCurrentView(view)} className={`py-3 px-6 text-lg font-semibold transition-colors ${currentView === view ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-white'}`}>
                     {view === 'markets' ? 'All Markets' : view === 'myBets' ? `My Bets (${userBets.length})` : 'Leaderboard'}
                 </button>
             ))}
@@ -712,13 +712,13 @@ const App = () => {
             {currentView === 'markets' && (
               <>
                 {isLoadingMarkets && markets.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-64 text-purple-400"><Loader2 className="animate-spin" size={48} /><p className="mt-4 text-xl">Loading Prediction Markets...</p></div>
+                  <div className="flex flex-col items-center justify-center h-64 text-primary"><Loader2 className="animate-spin" size={48} /><p className="mt-4 text-xl">Loading Prediction Markets...</p></div>
                 )}
                 {/* FIX: Filter for Active Markets Only */}
                 {(() => {
                     const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
                     if (!isLoadingMarkets && activeMarkets.length === 0) {
-                        return <div className="flex flex-col items-center justify-center h-64 text-gray-400"><AlertTriangle size={48} /><p className="mt-4 text-xl">No active markets. Check back later or use the Admin panel to create one!</p></div>;
+                        return <div className="flex flex-col items-center justify-center h-64 text-neutral-400"><AlertTriangle size={48} /><p className="mt-4 text-xl">No active markets. Check back later or use the Admin panel to create one!</p></div>;
                     }
                     return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">{activeMarkets.map(renderMarketDetails)}</div>;
                 })()}
@@ -727,10 +727,10 @@ const App = () => {
 
             {currentView === 'myBets' && (
               <div className="animate-in fade-in duration-500">
-                <h2 className="text-3xl font-bold mb-6 text-purple-300">My Betting History</h2>
+                <h2 className="text-3xl font-bold mb-6 text-primary">My Betting History</h2>
                 <div className="flex flex-col gap-4">
                   {userBets.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-48 bg-gray-800 rounded-xl text-gray-400"><BarChart3 size={32} /><p className="mt-3 text-lg">You haven't placed any bets yet.</p></div>
+                    <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl text-neutral-400"><BarChart3 size={32} /><p className="mt-3 text-lg">You haven't placed any bets yet.</p></div>
                   ) : (
                     userBets.map(renderUserBet)
                   )}
@@ -740,12 +740,12 @@ const App = () => {
 
             {currentView === 'leaderboard' && (
               <div className="animate-in fade-in duration-500">
-                <h2 className="text-3xl font-bold mb-6 text-purple-300">Top Predictors</h2>
-                <div className="bg-gray-800 p-6 rounded-xl">
-                  <p className="text-gray-400">Leaderboard functionality coming soon!</p>
+                <h2 className="text-3xl font-bold mb-6 text-primary">Top Predictors</h2>
+                <div className="bg-dark-800 p-6 rounded-xl">
+                  <p className="text-neutral-400">Leaderboard functionality coming soon!</p>
                   <ul className="mt-4 space-y-3">
                     {['0x123...456 (50 Wins)', '0xABC...DEF (45 Wins)', '0x789...GHI (40 Wins)'].map((entry, index) => (
-                      <li key={index} className="flex justify-between items-center p-3 bg-gray-700 rounded-lg"><span className="text-lg font-bold">{index + 1}.</span><span className="flex-1 ml-4">{entry}</span><Trophy size={20} className="text-yellow-500" /></li>
+                      <li key={index} className="flex justify-between items-center p-3 bg-dark-700 rounded-lg"><span className="text-lg font-bold">{index + 1}.</span><span className="flex-1 ml-4">{entry}</span><Trophy size={20} className="text-yellow-500" /></li>
                     ))}
                   </ul>
                 </div>
@@ -757,17 +757,17 @@ const App = () => {
       
       {selectedMarket && (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-80 flex items-center justify-center p-4" onClick={() => setSelectedMarket(null)}>
-          <div className="bg-gray-800 rounded-2xl p-6 w-full max-w-lg animate-in fade-in duration-300 zoom-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-dark-800 rounded-2xl p-6 w-full max-w-lg animate-in fade-in duration-300 zoom-in" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold mb-2 text-white">Place Bet on {selectedMarket.asset}</h2>
-            <p className="text-lg font-semibold mb-4 text-purple-400">Choice: {selectedMarket.choiceLabel}</p>
+            <p className="text-lg font-semibold mb-4 text-primary">Choice: {selectedMarket.choiceLabel}</p>
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-400 mb-2">Bet Amount (USDC)</label>
-              <input type="number" value={betAmount} onChange={(e) => setBetAmount(e.target.value)} min="1" step="1" placeholder="Enter amount" className="w-full p-3 bg-gray-700 text-white rounded-lg border-2 border-gray-600 focus:border-purple-500 outline-none" />
-              <div className="grid grid-cols-4 gap-2 mt-3">{[10, 25, 50, 100].map((amount) => (<button key={amount} onClick={() => setBetAmount(amount.toString())} className="bg-white/10 hover:bg-purple-500/30 border border-white/20 hover:border-purple-400 rounded-lg py-3 text-sm font-bold">${amount}</button>))}</div>
+              <label className="block text-sm font-medium text-neutral-400 mb-2">Bet Amount (USDC)</label>
+              <input type="number" value={betAmount} onChange={(e) => setBetAmount(e.target.value)} min="1" step="1" placeholder="Enter amount" className="w-full p-3 bg-dark-700 text-white rounded-lg border-2 border-dark-600 focus:border-primary outline-none" />
+              <div className="grid grid-cols-4 gap-2 mt-3">{[10, 25, 50, 100].map((amount) => (<button key={amount} onClick={() => setBetAmount(amount.toString())} className="bg-white/10 hover:bg-primary/30 border border-white/20 hover:border-primary rounded-lg py-3 text-sm font-bold">${amount}</button>))}</div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setSelectedMarket(null)} className="flex-1 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl">Cancel</button>
-              <button onClick={() => placeBetOnChain(selectedMarket, selectedMarket.betChoice)} disabled={isPending || isConfirming || !betAmount || Number(betAmount) <= 0} className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2">{isPending || isConfirming ? <><Loader2 className="animate-spin" size={20} />{isPending ? 'Confirming...' : 'Processing...'}</> : 'Confirm Bet'}</button>
+              <button onClick={() => setSelectedMarket(null)} className="flex-1 bg-dark-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl">Cancel</button>
+              <button onClick={() => placeBetOnChain(selectedMarket, selectedMarket.betChoice)} disabled={isPending || isConfirming || !betAmount || Number(betAmount) <= 0} className="flex-1 bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-gray-600 disabled:to-gray-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2">{isPending || isConfirming ? <><Loader2 className="animate-spin" size={20} />{isPending ? 'Confirming...' : 'Processing...'}</> : 'Confirm Bet'}</button>
             </div>
           </div>
         </div>
