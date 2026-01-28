@@ -72,8 +72,6 @@ const getMarketLabel = (marketType, asset) => {
   return `${asset} - ${typeMap[marketType] || 'Unknown Market'}`;
 };
 
-const [isPlacingBet, setIsPlacingBet] = useState(false);
-
 //  Updated formatting to remove massive days for Time-Based markets
 const getMarketTimeRemaining = (market) => {
   // For Time-Based markets, we don't show a countdown if it's just a configuration timestamp
