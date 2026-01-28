@@ -171,6 +171,7 @@ const App = () => {
   const [userBets, setUserBets] = useState([]); 
   const [selectedMarket, setSelectedMarket] = useState(null);
   const [betAmount, setBetAmount] = useState('10');
+  const [isPlacingBet, setIsPlacingBet] = useState(false);
 
   const [userStats, setUserStats] = useState({
     totalBets: 0,
