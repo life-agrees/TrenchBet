@@ -101,7 +101,16 @@ const formatDuration = (seconds) => {
   if (seconds >= 3600) return `${(seconds / 3600).toFixed(0)} Hours`;
   return `${(seconds / 60).toFixed(0)} Mins`;
 };
-
+// Asset emoji helper
+const getAssetEmoji = (asset) => {
+  const emojiMap = {
+    'BTC': '₿',
+    'ETH': 'Ξ',
+    'SOL': '◎',
+    'CRYPTO': '💎',
+  };
+  return emojiMap[asset] || '💎';
+};
 const getChoiceLabel = (market, choiceIndex) => {
   if (market.marketType === 0) { // Binary
     return choiceIndex === 0 ? 'UP' : 'DOWN';
@@ -119,6 +128,25 @@ const getChoiceLabel = (market, choiceIndex) => {
   }
   return `Choice ${choiceIndex + 1}`;
 };
+
+// Loading skeleton for markets
+const MarketCardSkeleton = () => (
+  <div className="bg-dark-800 border-2 border-dark-600 rounded-2xl p-6 animate-pulse">
+    <div className="flex items-center gap-4 mb-6">
+      <div className="w-14 h-14 rounded-full bg-dark-700"></div>
+      <div className="flex-1">
+        <div className="h-6 bg-dark-700 rounded w-24 mb-2"></div>
+        <div className="h-4 bg-dark-700 rounded w-32"></div>
+      </div>
+      <div className="h-6 bg-dark-700 rounded w-16"></div>
+    </div>
+    <div className="h-20 bg-dark-700 rounded mb-4"></div>
+    <div className="grid grid-cols-2 gap-3">
+      <div className="h-24 bg-dark-700 rounded"></div>
+      <div className="h-24 bg-dark-700 rounded"></div>
+    </div>
+  </div>
+);
 
 // ==================== MAIN COMPONENT ====================
 
@@ -791,9 +819,22 @@ const App = () => {
   return (
     <div className="min-h-screen bg-dark-950 text-white font-sans p-4 sm:p-8">
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-extrabold text-gradient-primary">TrenchyBet</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-4xl font-extrabold text-gradient-primary">TrenchyBet</h1>
+          <span className="px-3 py-1 bg-secondary/20 border border-secondary text-secondary text-xs font-bold rounded-full animate-pulse-slow">
+            BETA
+          </span>
+        </div>
         <div className="flex items-center gap-4">
-          {isOwner && <button onClick={() => setShowAdminPanel(true)} className="p-3 rounded-full bg-dark-700 hover:bg-gray-600 transition-colors"><Settings size={20} className="text-secondary" /></button>}
+          {isOwner && (
+            <button 
+              onClick={() => setShowAdminPanel(true)} 
+              className="p-3 rounded-full bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 hover:border-secondary transition-all hover:scale-110"
+              title="Open Admin Panel"
+            >
+              <Settings size={20} className="text-secondary" />
+            </button>
+          )}
           <ConnectButton />
         </div>
       </header>
@@ -804,7 +845,10 @@ const App = () => {
     <div className="mb-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         {/* FEATURED Balance Card - Takes full width on mobile, 1/3 on desktop */}
-        <div className="md:col-span-1 bg-gradient-to-br from-primary/20 via-primary/10 to-success/10 border-2 border-primary p-6 rounded-2xl shadow-xl glow-primary hover:scale-105 transition-all duration-300 cursor-pointer">
+        <div 
+          className="md:col-span-1 bg-gradient-to-br from-primary/20 via-primary/10 to-success/10 border-2 border-primary p-6 rounded-2xl shadow-xl glow-primary hover:scale-105 transition-all duration-300 cursor-pointer"
+          title="Your available USDC balance for placing bets"
+        >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-neutral-300 uppercase tracking-wide">Your Balance</h3>
             <Wallet size={32} className="text-primary" />
@@ -821,7 +865,10 @@ const App = () => {
         {/* Win/Loss Summary - 2/3 width on desktop */}
         <div className="md:col-span-2 grid grid-cols-2 gap-4">
           {/* Wins Card */}
-          <div className="bg-dark-800 border border-success/30 p-5 rounded-xl hover:border-success hover:glow-success transition-all duration-300 cursor-pointer">
+          <div 
+            className="bg-dark-800 border border-success/30 p-5 rounded-xl hover:border-success hover:glow-success transition-all duration-300 cursor-pointer"
+            title="Total number of winning bets you've placed"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-400 font-semibold">Wins</span>
               <Trophy size={24} className="text-secondary" />
@@ -833,7 +880,10 @@ const App = () => {
           </div>
 
           {/* Losses Card */}
-          <div className="bg-dark-800 border border-danger/30 p-5 rounded-xl hover:border-danger hover:glow-danger transition-all duration-300 cursor-pointer">
+          <div 
+            className="bg-dark-800 border border-danger/30 p-5 rounded-xl hover:border-danger hover:glow-danger transition-all duration-300 cursor-pointer"
+            title="Total number of losing bets"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-400 font-semibold">Losses</span>
               <XCircle size={24} className="text-danger" />
@@ -845,7 +895,10 @@ const App = () => {
           </div>
 
           {/* Total Bets */}
-          <div className="bg-dark-800 border border-primary/30 p-5 rounded-xl hover:border-primary hover:glow-primary transition-all duration-300 cursor-pointer">
+          <div 
+            className="bg-dark-800 border border-primary/30 p-5 rounded-xl hover:border-primary hover:glow-primary transition-all duration-300 cursor-pointer"
+            title="Total number of bets placed across all markets"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-400 font-semibold">Total Bets</span>
               <DollarSign size={24} className="text-primary" />
@@ -854,7 +907,10 @@ const App = () => {
           </div>
 
           {/* Streak */}
-          <div className="bg-dark-800 border border-secondary/30 p-5 rounded-xl hover:border-secondary hover:glow-secondary transition-all duration-300 cursor-pointer">
+          <div 
+            className="bg-dark-800 border border-secondary/30 p-5 rounded-xl hover:border-secondary hover:glow-secondary transition-all duration-300 cursor-pointer"
+            title="Your current winning or losing streak"
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-400 font-semibold">Streak</span>
               <Clock size={24} className="text-secondary" />
@@ -871,10 +927,26 @@ const App = () => {
   
   {/* Tabs - Only show if connected */}
   {isConnected && (
-    <div className="flex border-b border-dark-600 mb-8">
-      {['markets', 'myBets', 'leaderboard'].map(view => (
-        <button key={view} onClick={() => setCurrentView(view)} className={`py-3 px-6 text-lg font-semibold transition-colors ${currentView === view ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-white'}`}>
-          {view === 'markets' ? 'All Markets' : view === 'myBets' ? `My Bets (${userBets.length})` : 'Leaderboard'}
+    <div className="flex border-b border-dark-600 mb-8 overflow-x-auto">
+      {[
+        { key: 'markets', label: 'All Markets', icon: Target },
+        { key: 'myBets', label: `My Bets (${userBets.length})`, icon: BarChart3 },
+        { key: 'leaderboard', label: 'Leaderboard', icon: Trophy }
+      ].map(({ key, label, icon: Icon }) => (
+        <button 
+          key={key} 
+          onClick={() => setCurrentView(key)} 
+          className={`py-3 px-6 text-lg font-semibold transition-all duration-300 flex items-center gap-2 relative ${
+            currentView === key 
+              ? 'text-primary border-b-2 border-primary' 
+              : 'text-neutral-400 hover:text-white hover:bg-primary/5'
+          }`}
+        >
+          <Icon size={20} className={currentView === key ? 'text-primary' : 'text-neutral-500'} />
+          {label}
+          {currentView === key && (
+            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-success animate-pulse-slow"></span>
+          )}
         </button>
       ))}
     </div>
@@ -882,10 +954,25 @@ const App = () => {
 
   {/* Connect Banner - Show only if not connected */}
   {!isConnected && (
-    <div className="bg-gradient-to-r from-primary/10 to-success/10 border-2 border-primary rounded-2xl p-6 mb-8 text-center">
-      <h3 className="text-2xl font-bold text-white mb-2">Ready to start winning?</h3>
-      <p className="text-neutral-300 mb-4">Connect your wallet to place bets and track your performance</p>
-      <ConnectButton />
+    <div className="bg-gradient-to-r from-primary/10 to-success/10 border-2 border-primary rounded-2xl p-8 mb-8 text-center relative overflow-hidden glow-primary animate-in slide-in-from-top-4">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-success/5 animate-pulse-slow"></div>
+      
+      <div className="relative z-10">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center animate-pulse-slow">
+          <Wallet size={32} className="text-primary" />
+        </div>
+        <h3 className="text-3xl font-black text-white mb-3">Ready to start winning?</h3>
+        <p className="text-lg text-neutral-300 mb-6 max-w-2xl mx-auto">
+          Connect your wallet to place bets, track your performance, and join the action
+        </p>
+        <div className="flex justify-center">
+          <ConnectButton />
+        </div>
+        <p className="text-xs text-neutral-500 mt-4">
+          🔒 Secure connection via RainbowKit • Base Sepolia Network
+        </p>
+      </div>
     </div>
   )}
 
@@ -893,9 +980,10 @@ const App = () => {
   {(!isConnected || currentView === 'markets') && (
     <>
       {isLoadingMarkets && markets.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-64 text-primary">
-          <Loader2 className="animate-spin" size={48} />
-          <p className="mt-4 text-xl">Loading Prediction Markets...</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <MarketCardSkeleton />
+          <MarketCardSkeleton />
+          <MarketCardSkeleton />
         </div>
       )}
       {(() => {
@@ -964,7 +1052,7 @@ const App = () => {
             {/* Asset Header */}
             <div className="text-center mb-8">
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-5xl animate-pulse-slow">
-                {selectedMarket.asset === 'BTC' ? '₿' : selectedMarket.asset === 'ETH' ? 'Ξ' : selectedMarket.asset === 'SOL' ? '◎' : '💎'}
+                {getAssetEmoji(selectedMarket.asset)}
               </div>
               <h2 className="text-3xl font-black text-white mb-2">{selectedMarket.asset} Market</h2>
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full border border-primary">

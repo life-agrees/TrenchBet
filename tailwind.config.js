@@ -76,6 +76,19 @@ export default {
         fontFamily: {
           sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'sans-serif'],
           mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'monospace'],
+        },
+        keyframes: {
+          'slide-in-from-top-4': {
+            '0%': { opacity: '0', transform: 'translateY(-16px)' },
+            '100%': { opacity: '1', transform: 'translateY(0)' }
+          },
+          'fade-out': {
+            '0%': { opacity: '1' },
+            '100%': { opacity: '0' }
+          }
+        },
+        backdropBlur: {
+          xs: '2px',
         }
       },
     },

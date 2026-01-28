@@ -609,37 +609,77 @@ useEffect(() => {
               </div>
             </div>
 
-            {/* Wallet & Contract Info */}
+            {/* Enhanced Revenue Section */}
+            <div className="bg-gradient-to-br from-secondary/10 via-primary/10 to-success/10 border-2 border-secondary rounded-2xl p-6 mb-6 relative overflow-hidden">
+              {/* Animated background glow */}
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-secondary/20 rounded-full blur-3xl animate-pulse-slow"></div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-secondary/20 border-2 border-secondary flex items-center justify-center">
+                    <DollarSign className="text-secondary" size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">💰 Revenue Ready to Claim</h3>
+                    <p className="text-sm text-neutral-400">Accumulated platform fees</p>
+                  </div>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-5xl font-black text-secondary mb-2">
+                      ${Number(formatUnits(stats.pendingFees || 0n, 6)).toFixed(2)}
+                    </p>
+                    <p className="text-sm text-neutral-400 mb-4">Available to withdraw now</p>
+                    
+                    <div className="bg-dark-900/50 rounded-xl p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Total Volume</span>
+                        <span className="font-bold text-white">${stats.totalVolume.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-neutral-400">Platform Fee</span>
+                        <span className="font-bold text-success">~2-5%</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col justify-center">
+                    <button 
+                      onClick={handleWithdraw}
+                      disabled={isPending || isConfirming || stats.pendingFees === 0n}
+                      className="bg-secondary hover:bg-secondary-500 disabled:bg-neutral-600 text-dark-950 font-bold py-4 px-6 rounded-xl text-lg shadow-lg glow-secondary hover:scale-105 transition-all flex items-center justify-center gap-2 mb-3"
+                    >
+                      {isPending || isConfirming ? (
+                        <><Loader2 className="animate-spin" size={24}/> Processing...</>
+                      ) : (
+                        <><Wallet size={24}/> Withdraw Revenue</>
+                      )}
+                    </button>
+                    <p className="text-xs text-neutral-500 text-center">
+                      Note: 48h delay may apply if timelock is active
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contract Info - Moved below */}
             <div className="bg-white/5 rounded-xl p-6 border border-white/10">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Wallet size={20} className="text-primary"/> Contract Management
+                <Wallet size={20} className="text-primary"/> Contract Information
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <p className="text-gray-400 text-sm mb-1">Contract Address</p>
-                  <p className="font-mono text-sm bg-black/30 p-2 rounded">{contractAddress}</p>
-                  
-                  <div className="mt-4">
-                    <p className="text-gray-400 text-sm mb-1">Total Value Locked (TVL)</p>
-                    <p className="text-2xl font-bold">${Number(formatUnits(stats.contractBalance || 0n, 6)).toFixed(2)} USDC</p>
-                  </div>
+                  <p className="text-neutral-400 text-sm mb-1">Contract Address</p>
+                  <p className="font-mono text-sm bg-dark-900/50 p-3 rounded-lg border border-dark-600 break-all">{contractAddress}</p>
                 </div>
-
-                <div className="flex flex-col justify-center items-start border-l border-white/10 pl-6">
-                  <p className="text-gray-300 mb-4">
-                    Withdraw accumulated fees to your wallet.
-                    <br/><span className="text-xs text-gray-500">Note: 48h delay may apply if timelock is active.</span>
-                  </p>
-                  
-                  <button 
-                    onClick={handleWithdraw}
-                    disabled={isPending || isConfirming || stats.pendingFees === 0n}
-                    className="bg-success hover:bg-success-dark disabled:bg-neutral-600 text-dark-950 font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all hover:glow-success"
-                  >
-                    {isPending || isConfirming ? <Loader2 className="animate-spin" size={20}/> : <DollarSign size={20}/>}
-                    Withdraw Revenue
-                  </button>
+                
+                <div>
+                  <p className="text-neutral-400 text-sm mb-1">Total Value Locked (TVL)</p>
+                  <p className="text-3xl font-bold text-success">${Number(formatUnits(stats.contractBalance || 0n, 6)).toFixed(2)}</p>
+                  <p className="text-xs text-neutral-500 mt-1">USDC in contract</p>
                 </div>
               </div>
             </div>
@@ -856,8 +896,15 @@ useEffect(() => {
               </div>
             )}
 
-            <button onClick={handleCreate} disabled={isPending || isConfirming} className="w-full bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-neutral-600 disabled:to-neutral-600 text-dark-950 font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg shadow-lg glow-primary transition-all hover:scale-105">
-              {isPending ? (<><Loader2 className="animate-spin" size={24} />Confirm in Wallet...</>) : isConfirming ? (<><Loader2 className="animate-spin" size={24} />Creating Market...</>) : (<><Plus size={24} />Create Market</>)}
+            <button 
+              onClick={handleCreate} 
+              disabled={isPending || isConfirming} 
+              className="w-full bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-neutral-600 disabled:to-neutral-600 text-dark-950 font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg shadow-lg glow-primary transition-all hover:scale-105 relative overflow-hidden group"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
+              <span className="relative z-10 flex items-center gap-2">
+                {isPending ? (<><Loader2 className="animate-spin" size={24} />Confirm in Wallet...</>) : isConfirming ? (<><Loader2 className="animate-spin" size={24} />Creating Market...</>) : (<><Plus size={24} />Create Market</>)}
+              </span>
             </button>
           </div>
         )}
