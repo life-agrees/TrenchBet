@@ -8,7 +8,7 @@ import AdminPanel from './components/AdminPanel';
 import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis'; 
 import { sdk } from '@farcaster/miniapp-sdk';
 
-// ==================== UTILITY FUNCTIONS ====================
+// = UTILITY FUNCTIONS =
 
 // Hero Section Component
 const LandingHero = ({ isConnected }) => (
@@ -72,7 +72,9 @@ const getMarketLabel = (marketType, asset) => {
   return `${asset} - ${typeMap[marketType] || 'Unknown Market'}`;
 };
 
-// FIX: Updated formatting to remove massive days for Time-Based markets
+const [isPlacingBet, setIsPlacingBet] = useState(false);
+
+//  Updated formatting to remove massive days for Time-Based markets
 const getMarketTimeRemaining = (market) => {
   // For Time-Based markets, we don't show a countdown if it's just a configuration timestamp
   if (market.marketType === 3) {
@@ -95,7 +97,7 @@ const getMarketTimeRemaining = (market) => {
   return `${minutes}m ${seconds}s`;
 };
 
-// FIX: Helper to format seconds into readable duration (e.g. "24 Hours")
+//  Helper to format seconds into readable duration (e.g. "24 Hours")
 const formatDuration = (seconds) => {
   if (seconds >= 86400) return `${(seconds / 86400).toFixed(0)} Days`;
   if (seconds >= 3600) return `${(seconds / 3600).toFixed(0)} Hours`;
@@ -177,8 +179,7 @@ const App = () => {
     streak: 0,
   });
 
-  // ==================== WAGMI & DATA FETCHING ====================
-
+  // ==== WAGMI & DATA FETCHING ====
   const checkIsOwner = useCallback(async () => {
     if (!address || !publicClient) {
       setIsOwner(false);
@@ -378,7 +379,7 @@ const App = () => {
           } catch (e) {}
         }
 
-        // 💥 ENHANCED FIX: Verify claimability via simulation AND logic
+        //  Verify claimability via simulation AND logic
         let isClaimableConfirmed = false;
         if (market && market.resolved && !position.claimed) {
             
@@ -447,7 +448,7 @@ const App = () => {
       const market = bet.market;
       
       if (market.resolved) {
-        // 💥 Logic Update: If it was claimable (verified by simulation) OR claimed, it's a WIN.
+        //  Logic Update: If it was claimable (verified by simulation) OR claimed, it's a WIN.
         // Otherwise, it is a LOSS.
         const isWinner = bet.isClaimableConfirmed || bet.claimed;
 
@@ -485,7 +486,7 @@ const App = () => {
     }
   }, [fetchMarkets, isConnected, fetchUSDCBalance, fetchUserBets, checkIsOwner]);
 
-  // ==================== HANDLERS (Approve, Bet, Resolve, Claim) ====================
+  //  HANDLERS (Approve, Bet, Resolve, Claim) 
 
   const handleApprove = async (amount) => {
     try {
@@ -508,33 +509,119 @@ const App = () => {
       alert('Please connect your wallet to place bets!');
       return; 
     }
+
+    // Prevent multiple simultaneous bets
+    if (isPlacingBet) {
+      console.log('Bet already in progress');
+      return;
+    }
+
+    setIsPlacingBet(true);
+
     const betAmountBigInt = parseUnits(betAmount, 6);
     
-    try {
-      const allowance = await publicClient.readContract({
-        address: CONTRACTS.USDC,
-        abi: ERC20_ABI,
-        functionName: 'allowance',
-        args: [address, CONTRACTS.PREDICTION_MARKET],
-      });
+    // Validation
+    if (betAmountBigInt <= 0n) {
+      alert('Please enter a valid bet amount');
+      return;
+    }
 
-      if (allowance < betAmountBigInt) {
-        const approveHash = await handleApprove(betAmount);
-        if (!approveHash) return; 
-        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+    try {
+      // Check USDC balance first
+      let currentBalance;
+      try {
+        currentBalance = await publicClient.readContract({
+          address: CONTRACTS.USDC,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [address],
+        });
+      } catch (balanceError) {
+        console.error('Error checking balance:', balanceError);
+        alert('Network error: Unable to check your balance. Please try again or check your RPC connection.');
+        return;
       }
 
-      const txHash = await writeContractAsync({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'placeBet',
-        args: [market.id, choiceIndex, betAmountBigInt], 
-      });
-      
-      lastBetRef.current = txHash;
+      if (currentBalance < betAmountBigInt) {
+        alert(`Insufficient balance. You have ${formatUnits(currentBalance, 6)} USDC but trying to bet ${betAmount} USDC.`);
+        return;
+      }
+
+      // Check and request approval if needed
+      let allowance;
+      try {
+        allowance = await publicClient.readContract({
+          address: CONTRACTS.USDC,
+          abi: ERC20_ABI,
+          functionName: 'allowance',
+          args: [address, CONTRACTS.PREDICTION_MARKET],
+        });
+      } catch (allowanceError) {
+        console.error('Error checking allowance:', allowanceError);
+        alert('Network error: Unable to check token allowance. Please try again.');
+        return;
+      }
+
+      // If allowance is insufficient, request approval
+      if (allowance < betAmountBigInt) {
+        try {
+          const approveHash = await handleApprove(betAmount);
+          if (!approveHash) {
+            console.log('Approval cancelled or failed');
+            return;
+          }
+          
+          // Wait for approval to be mined
+          await publicClient.waitForTransactionReceipt({ 
+            hash: approveHash,
+            timeout: 60000 // 60 second timeout
+          });
+          
+          // Small delay to ensure state is updated on-chain
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+        } catch (approveError) {
+          console.error('Approval error:', approveError);
+          alert('Token approval failed: ' + (approveError.shortMessage || approveError.message));
+          return;
+        }
+      }
+
+      // Place the bet
+      try {
+        const txHash = await writeContractAsync({
+          address: CONTRACTS.PREDICTION_MARKET,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'placeBet',
+          args: [market.id, choiceIndex, betAmountBigInt], 
+        });
+        
+        lastBetRef.current = txHash;
+        
+      } catch (betError) {
+        console.error('Bet placement error:', betError);
+        
+        // User rejected transaction
+        if (betError.message?.includes('User rejected') || betError.message?.includes('user rejected')) {
+          alert('Transaction cancelled');
+          return;
+        }
+        
+        // Network/RPC error
+        if (betError.message?.includes('503') || betError.message?.includes('rate limit')) {
+          alert('Network error: RPC rate limit reached. Please wait a moment and try again.');
+          return;
+        }
+        
+        // Generic error
+        alert('Failed to place bet: ' + (betError.shortMessage || betError.message || 'Unknown error'));
+      }
       
     } catch (error) {
-      alert(`Bet failed: ${error.shortMessage || error.message}`);
+      console.error('Unexpected error in placeBetOnChain:', error);
+      alert('An unexpected error occurred. Please refresh the page and try again.');
+    } finally {
+      setIsPlacingBet(false);
     }
   };
 
@@ -580,7 +667,32 @@ const App = () => {
     }
   };
 
-  // ==================== EFFECTS ====================
+  //  EFFECTS 
+
+  // Global error handler for unhandled promise rejections
+  useEffect(() => {
+    const handleUnhandledRejection = (event) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      
+      // Check if it's an RPC error
+      if (event.reason?.message?.includes('503') || 
+          event.reason?.message?.includes('rate limit') ||
+          event.reason?.message?.includes('Too Many Requests')) {
+        
+        // Show user-friendly error
+        alert('Network congestion detected. Please wait a moment and try again.');
+        
+        // Prevent the error from crashing the app
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
 
   useEffect(() => { refreshData(); }, [isConnected, refreshData]);
   useEffect(() => { if (userBets.length > 0 || !isConnected) fetchUserStats(); }, [userBets, isConnected, fetchUserStats]);
@@ -620,7 +732,7 @@ const App = () => {
     }
   }, []);
 
-  // ==================== RENDER HELPERS ====================
+  //  RENDER HELPERS 
 
   const renderMarketDetails = (market) => {
     // Asset emoji mapping
@@ -1134,13 +1246,13 @@ const App = () => {
               </button>
               <button 
                 onClick={() => placeBetOnChain(selectedMarket, selectedMarket.betChoice)}
-                disabled={isPending || isConfirming || !betAmount || Number(betAmount) <= 0}
+                disabled={isPending || isConfirming || isPlacingBet || !betAmount || Number(betAmount) <= 0}
                 className="bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-neutral-600 disabled:to-neutral-600 text-dark-950 font-bold py-4 rounded-xl shadow-lg glow-primary hover:scale-105 transition-all flex items-center justify-center gap-2"
               >
-                {isPending || isConfirming ? (
+                {isPending || isConfirming || isPlacingBet ? (
                   <>
                     <Loader2 className="animate-spin" size={20} />
-                    {isPending ? 'Confirming...' : 'Processing...'}
+                    {isPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Placing Bet...'}
                   </>
                 ) : (
                   <>
