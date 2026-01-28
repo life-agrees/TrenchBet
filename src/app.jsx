@@ -688,12 +688,12 @@ const App = () => {
       <main className="max-w-7xl mx-auto">
         {isConnected && (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Wallet size={24} className="text-primary" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Balance</span><span className="text-lg font-bold">{formatUnits(usdcBalance, 6)} USDC</span></div></div>
-            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><DollarSign size={24} className="text-success" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Total Bets</span><span className="text-lg font-bold">{userStats.totalBets}</span></div></div>
-            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Trophy size={24} className="text-secondary" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Wins</span><span className="text-lg font-bold">{userStats.wins}</span></div></div>
-            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><XCircle size={24} className="text-red-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Losses</span><span className="text-lg font-bold">{userStats.losses}</span></div></div>
-            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><Clock size={24} className="text-blue-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Streak</span><span className="text-lg font-bold">{userStats.streak}</span></div></div>
-            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3"><TrendingUp size={24} className="text-pink-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Win Rate</span><span className="text-lg font-bold">{userStats.totalBets > 0 ? ((userStats.wins / userStats.totalBets) * 100).toFixed(1) : 0}%</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3 glow-primary hover:scale-105 transition-all duration-300 cursor-pointer"><Wallet size={24} className="text-primary" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Balance</span><span className="text-lg font-bold">{formatUnits(usdcBalance, 6)} USDC</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3 hover:glow-primary transition-all duration-300 cursor-pointer"><DollarSign size={24} className="text-success" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Total Bets</span><span className="text-lg font-bold">{userStats.totalBets}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3 hover:glow-primary transition-all duration-300 cursor-pointer"><Trophy size={24} className="text-secondary" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Wins</span><span className="text-lg font-bold">{userStats.wins}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3 hover:glow-primary transition-all duration-300 cursor-pointer"><XCircle size={24} className="text-red-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Losses</span><span className="text-lg font-bold">{userStats.losses}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3 hover:glow-primary transition-all duration-300 cursor-pointer"><Clock size={24} className="text-blue-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Streak</span><span className="text-lg font-bold">{userStats.streak}</span></div></div>
+            <div className="bg-dark-800 p-4 rounded-xl shadow-lg flex items-center gap-3 hover:glow-primary transition-all duration-300 cursor-pointer"><TrendingUp size={24} className="text-pink-400" /><div className="flex flex-col"><span className="text-sm text-neutral-400">Win Rate</span><span className="text-lg font-bold">{userStats.totalBets > 0 ? ((userStats.wins / userStats.totalBets) * 100).toFixed(1) : 0}%</span></div></div>
           </div>
         )}
         
@@ -718,7 +718,7 @@ const App = () => {
                 {(() => {
                     const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
                     if (!isLoadingMarkets && activeMarkets.length === 0) {
-                        return <div className="flex flex-col items-center justify-center h-64 text-neutral-400"><AlertTriangle size={48} /><p className="mt-4 text-xl">No active markets. Check back later or use the Admin panel to create one!</p></div>;
+                        return <div className="flex flex-col items-center justify-center h-64 text-neutral-400"><AlertTriangle size={48} className="text-primary" /><p className="mt-4 text-xl">No active markets. Check back later or use the Admin panel to create one!</p></div>;
                     }
                     return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">{activeMarkets.map(renderMarketDetails)}</div>;
                 })()}

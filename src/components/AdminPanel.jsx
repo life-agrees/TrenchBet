@@ -544,12 +544,12 @@ useEffect(() => {
 
   return (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 rounded-3xl p-8 max-w-4xl w-full border-2 border-purple-500/50 my-8 max-h-[90vh] overflow-y-auto">
+      <div className="bg-gradient-to-br from-dark-800 via-dark-700 to-dark-800 rounded-3xl p-8 max-w-4xl w-full border-2 border-primary/50 shadow-[0_0_40px_rgba(205,255,0,0.2)] my-8 max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <Settings className="text-purple-400" size={32} />
+            <Settings className="text-primary" size={32} />
             <h2 className="text-3xl font-bold">Admin Dashboard</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors"><X size={32} /></button>
@@ -557,7 +557,7 @@ useEffect(() => {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6 border-b border-white/20 pb-2 overflow-x-auto">
-          <button onClick={() => setCurrentTab('dashboard')} className={`px-4 py-2 font-semibold rounded-t-lg transition-all flex items-center gap-2 ${currentTab === 'dashboard' ? 'bg-purple-500/30 text-white border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}>
+          <button onClick={() => setCurrentTab('dashboard')} className={`px-4 py-2 font-semibold rounded-t-lg transition-all flex items-center gap-2 ${currentTab === 'dashboard' ? 'bg-primary/20 text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-white'}`}>
             <Activity size={18} /> Dashboard
           </button>
           <button onClick={() => setCurrentTab('create')} className={`px-4 py-2 font-semibold rounded-t-lg transition-all flex items-center gap-2 ${currentTab === 'create' ? 'bg-purple-500/30 text-white border-b-2 border-purple-400' : 'text-gray-400 hover:text-white'}`}>
@@ -577,7 +577,7 @@ useEffect(() => {
               <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-gray-400 text-sm font-semibold">Total Unique Users</h3>
-                  <Users className="text-blue-400" size={20} />
+                  <Users className="text-primary" size={20} />
                 </div>
                 {isLoadingStats ? <Loader2 className="animate-spin" /> : 
                   <div className="text-3xl font-bold text-white">{stats.totalUsers}</div>
@@ -588,10 +588,10 @@ useEffect(() => {
               <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-gray-400 text-sm font-semibold">Total Volume (USDC)</h3>
-                  <BarChart3 className="text-green-400" size={20} />
+                  <BarChart3 className="text-success" size={20} />
                 </div>
                 {isLoadingStats ? <Loader2 className="animate-spin" /> : 
-                  <div className="text-3xl font-bold text-green-400">${stats.totalVolume.toLocaleString()}</div>
+                  <div className="text-3xl font-bold text-success">${stats.totalVolume.toLocaleString()}</div>
                 }
                 <div className="text-xs text-gray-500 mt-1">{stats.totalBets} total bets placed</div>
               </div>
@@ -600,10 +600,10 @@ useEffect(() => {
               <div className="bg-white/5 rounded-xl p-6 border border-white/10">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-gray-400 text-sm font-semibold">Pending Revenue</h3>
-                  <DollarSign className="text-yellow-400" size={20} />
+                  <DollarSign className="text-secondary" size={20} />
                 </div>
                 {isLoadingStats ? <Loader2 className="animate-spin" /> : 
-                  <div className="text-3xl font-bold text-yellow-400">${Number(formatUnits(stats.pendingFees || 0n, 6)).toFixed(2)}</div>
+                  <div className="text-3xl font-bold text-secondary">${Number(formatUnits(stats.pendingFees || 0n, 6)).toFixed(2)}</div>
                 }
                 <div className="text-xs text-gray-500 mt-1">Available to withdraw</div>
               </div>
@@ -612,7 +612,7 @@ useEffect(() => {
             {/* Wallet & Contract Info */}
             <div className="bg-white/5 rounded-xl p-6 border border-white/10">
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <Wallet size={20} className="text-purple-400"/> Contract Management
+                <Wallet size={20} className="text-primary"/> Contract Management
               </h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -635,7 +635,7 @@ useEffect(() => {
                   <button 
                     onClick={handleWithdraw}
                     disabled={isPending || isConfirming || stats.pendingFees === 0n}
-                    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all"
+                    className="bg-success hover:bg-success-dark disabled:bg-neutral-600 text-dark-950 font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-all hover:glow-success"
                   >
                     {isPending || isConfirming ? <Loader2 className="animate-spin" size={20}/> : <DollarSign size={20}/>}
                     Withdraw Revenue
@@ -656,7 +656,7 @@ useEffect(() => {
                 { type: 'range', icon: Target, label: 'Range' },
                 { type: 'time', icon: Timer, label: 'Time-Based' },
               ].map(({ type, icon: Icon, label }) => (
-                <button key={type} onClick={() => setMarketType(type)} className={`p-4 rounded-xl border-2 transition-all ${marketType === type ? 'bg-purple-500/30 border-purple-400' : 'bg-white/5 border-white/10 hover:border-purple-400/50'}`}>
+                <button key={type} onClick={() => setMarketType(type)} className={`p-4 rounded-xl border-2 transition-all ${marketType === type ? 'bg-primary/20 border-primary glow-primary' : 'bg-white/5 border-white/10 hover:border-primary/50'}`}>
                   <Icon className="mx-auto mb-2" size={24} />
                   <div className="text-sm font-semibold">{label}</div>
                 </button>
@@ -673,7 +673,7 @@ useEffect(() => {
                     {isPriceLoading ? (
                       <span className="text-gray-400 flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Fetching price...</span>
                     ) : currentAssetPrice ? (
-                      <span className="text-yellow-400 font-mono font-bold">Current Price: ${currentAssetPrice.toLocaleString()}</span>
+                      <span className="text-secondary font-mono font-bold">Current Price: ${currentAssetPrice.toLocaleString()}</span>
                     ) : (
                       <span className="text-red-400 text-sm">Could not fetch live price (Check Asset)</span>
                     )}
@@ -681,7 +681,7 @@ useEffect(() => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-300 mb-2">Asset</label>
-                      <select value={binaryForm.asset} onChange={(e) => setBinaryForm({ ...binaryForm, asset: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500">
+                      <select value={binaryForm.asset} onChange={(e) => setBinaryForm({ ...binaryForm, asset: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary">
                         <option value="BTC">Bitcoin (BTC)</option>
                         <option value="ETH">Ethereum (ETH)</option>
                         <option value="SOL">Solana (SOL)</option>
@@ -689,12 +689,12 @@ useEffect(() => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-300 mb-2">Duration (mins)</label>
-                      <input type="number" value={binaryForm.duration} onChange={(e) => setBinaryForm({ ...binaryForm, duration: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+                      <input type="number" value={binaryForm.duration} onChange={(e) => setBinaryForm({ ...binaryForm, duration: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" />
                     </div>
                   </div>
                   
                   {/* Odds Toggle & Inputs  */}
-                  <div className="flex items-center gap-3 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/30 rounded-lg">
                     <input type="checkbox" id="binaryFixedOdds" checked={binaryForm.useFixedOdds} onChange={(e) => setBinaryForm({ ...binaryForm, useFixedOdds: e.target.checked })} className="w-5 h-5 rounded border-gray-500 text-purple-600 focus:ring-purple-500" />
                     <label htmlFor="binaryFixedOdds" className="text-sm font-semibold cursor-pointer select-none">Use Fixed Odds (Casino Mode)</label>
                   </div>
@@ -724,21 +724,21 @@ useEffect(() => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-2">Question</label>
-                    <input type="text" value={multiChoiceForm.question} onChange={(e) => setMultiChoiceForm({ ...multiChoiceForm, question: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="Which coin will pump?" />
+                    <input type="text" value={multiChoiceForm.question} onChange={(e) => setMultiChoiceForm({ ...multiChoiceForm, question: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" placeholder="Which coin will pump?" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-2">Duration (mins)</label>
-                    <input type="number" value={multiChoiceForm.duration} onChange={(e) => setMultiChoiceForm({ ...multiChoiceForm, duration: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+                    <input type="number" value={multiChoiceForm.duration} onChange={(e) => setMultiChoiceForm({ ...multiChoiceForm, duration: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-2">Options</label>
                     {multiChoiceForm.options.map((option, idx) => (
                       <div key={idx} className="flex gap-2 mb-2">
-                        <input type="text" value={option} onChange={(e) => { const n = [...multiChoiceForm.options]; n[idx] = e.target.value; setMultiChoiceForm({ ...multiChoiceForm, options: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder={`Option ${idx + 1}`} />
+                        <input type="text" value={option} onChange={(e) => { const n = [...multiChoiceForm.options]; n[idx] = e.target.value; setMultiChoiceForm({ ...multiChoiceForm, options: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary" placeholder={`Option ${idx + 1}`} />
                         {idx >= 2 && <button onClick={() => { const n = multiChoiceForm.options.filter((_, i) => i !== idx); setMultiChoiceForm({ ...multiChoiceForm, options: n }); }} className="px-4 py-2 bg-red-500/20 rounded-lg hover:bg-red-500/40 transition-colors">✕</button>}
                       </div>
                     ))}
-                    {multiChoiceForm.options.length < 10 && <button onClick={() => setMultiChoiceForm({ ...multiChoiceForm, options: [...multiChoiceForm.options, ''], multipliers: [...multiChoiceForm.multipliers, 200] })} className="w-full py-2 bg-purple-500/20 rounded-lg text-sm font-semibold hover:bg-purple-500/30 transition-colors">+ Add Option</button>}
+                    {multiChoiceForm.options.length < 10 && <button onClick={() => setMultiChoiceForm({ ...multiChoiceForm, options: [...multiChoiceForm.options, ''], multipliers: [...multiChoiceForm.multipliers, 200] })} className="w-full py-2 bg-primary/20 rounded-lg text-sm font-semibold hover:bg-primary/30 transition-colors border border-primary/30 hover:border-primary">+ Add Option</button>}
                   </div>
                 </div>
               </div>
@@ -769,7 +769,7 @@ useEffect(() => {
                     {isPriceLoading ? (
                       <span className="text-gray-400 flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Fetching price...</span>
                     ) : currentAssetPrice ? (
-                      <span className="text-yellow-400 font-mono font-bold">Current Price: ${currentAssetPrice.toLocaleString()}</span>
+                      <span className="text-secondary font-mono font-bold">Current Price: ${currentAssetPrice.toLocaleString()}</span>
                     ) : (
                       <span className="text-red-400 text-sm">Could not fetch live price (Check Asset)</span>
                     )}
@@ -777,7 +777,7 @@ useEffect(() => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-300 mb-2">Asset</label>
-                      <select value={rangeForm.asset} onChange={(e) => setRangeForm({ ...rangeForm, asset: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500">
+                      <select value={rangeForm.asset} onChange={(e) => setRangeForm({ ...rangeForm, asset: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary">
                         <option value="BTC">Bitcoin (BTC)</option>
                         <option value="ETH">Ethereum (ETH)</option>
                         <option value="SOL">Solana (SOL)</option>
@@ -785,20 +785,20 @@ useEffect(() => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-300 mb-2">Duration (mins)</label>
-                      <input type="number" value={rangeForm.duration} onChange={(e) => setRangeForm({ ...rangeForm, duration: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" />
+                      <input type="number" value={rangeForm.duration} onChange={(e) => setRangeForm({ ...rangeForm, duration: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-2">Price Ranges</label>
                     {rangeForm.ranges.map((range, idx) => (
                       <div key={idx} className="flex gap-2 mb-2 items-center">
-                        <input type="number" value={range.min} onChange={(e) => { const n = [...rangeForm.ranges]; n[idx].min = parseFloat(e.target.value); setRangeForm({ ...rangeForm, ranges: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Min" />
+                        <input type="number" value={range.min} onChange={(e) => { const n = [...rangeForm.ranges]; n[idx].min = parseFloat(e.target.value); setRangeForm({ ...rangeForm, ranges: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary" placeholder="Min" />
                         <span className="text-gray-400 font-bold">-</span>
-                        <input type="number" value={range.max} onChange={(e) => { const n = [...rangeForm.ranges]; n[idx].max = parseFloat(e.target.value); setRangeForm({ ...rangeForm, ranges: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Max" />
+                        <input type="number" value={range.max} onChange={(e) => { const n = [...rangeForm.ranges]; n[idx].max = parseFloat(e.target.value); setRangeForm({ ...rangeForm, ranges: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary" placeholder="Max" />
                         {idx >= 2 && <button onClick={() => { const n = rangeForm.ranges.filter((_, i) => i !== idx); setRangeForm({ ...rangeForm, ranges: n }); }} className="px-3 py-2 bg-red-500/20 rounded-lg hover:bg-red-500/40 transition-colors">✕</button>}
                       </div>
                     ))}
-                    {rangeForm.ranges.length < 10 && <button onClick={() => setRangeForm({ ...rangeForm, ranges: [...rangeForm.ranges, { min: 0, max: 0 }] })} className="w-full py-2 bg-purple-500/20 rounded-lg text-sm font-semibold hover:bg-purple-500/30 transition-colors">+ Add Range</button>}
+                    {rangeForm.ranges.length < 10 && <button onClick={() => setRangeForm({ ...rangeForm, ranges: [...rangeForm.ranges, { min: 0, max: 0 }] })} className="w-full py-2 bg-primary/20 rounded-lg text-sm font-semibold hover:bg-primary/30 transition-colors border border-primary/30 hover:border-primary">+ Add Range</button>}
                   </div>
                 </div>
               </div>
@@ -814,7 +814,7 @@ useEffect(() => {
                     {isPriceLoading ? (
                       <span className="text-gray-400 flex items-center justify-center gap-2"><Loader2 className="animate-spin" size={14}/> Fetching price...</span>
                     ) : currentAssetPrice ? (
-                      <span className="text-yellow-400 font-mono font-bold">Current Price: ${currentAssetPrice.toLocaleString()}</span>
+                      <span className="text-secondary font-mono font-bold">Current Price: ${currentAssetPrice.toLocaleString()}</span>
                     ) : (
                       <span className="text-red-400 text-sm">Could not fetch live price (Check Asset)</span>
                     )}
@@ -822,27 +822,27 @@ useEffect(() => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-300 mb-2">Asset</label>
-                      <select value={timeForm.asset} onChange={(e) => setTimeForm({ ...timeForm, asset: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500">
-                        <option value="BTC">Bitcoin (BTC)</option>
+                      <select value={timeForm.asset} onChange={(e) => setTimeForm({ ...timeForm, asset: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white ">
+                        <option value="BTC">Bitcoin (BTC)</option>focus:outline-none focus:border-primary
                         <option value="ETH">Ethereum (ETH)</option>
                         <option value="SOL">Solana (SOL)</option>
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-300 mb-2">Target Price ($)</label>
-                      <input type="number" value={timeForm.targetPrice} onChange={(e) => setTimeForm({ ...timeForm, targetPrice: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500" placeholder="e.g. 100000" />
+                      <input type="number" value={timeForm.targetPrice} onChange={(e) => setTimeForm({ ...timeForm, targetPrice: e.target.value })} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-primary" placeholder="e.g. 100000" />
                     </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-300 mb-2">Timeframes</label>
                     {timeForm.timeframes.map((tf, idx) => (
                       <div key={idx} className="flex gap-2 mb-2">
-                        <input type="text" value={tf.label} onChange={(e) => { const n = [...timeForm.timeframes]; n[idx].label = e.target.value; setTimeForm({ ...timeForm, timeframes: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Label (e.g. 24h)" />
-                        <input type="number" value={tf.seconds} onChange={(e) => { const n = [...timeForm.timeframes]; n[idx].seconds = parseInt(e.target.value); setTimeForm({ ...timeForm, timeframes: n }); }} className="w-32 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500" placeholder="Seconds" />
+                        <input type="text" value={tf.label} onChange={(e) => { const n = [...timeForm.timeframes]; n[idx].label = e.target.value; setTimeForm({ ...timeForm, timeframes: n }); }} className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary" placeholder="Label (e.g. 24h)" />
+                        <input type="number" value={tf.seconds} onChange={(e) => { const n = [...timeForm.timeframes]; n[idx].seconds = parseInt(e.target.value); setTimeForm({ ...timeForm, timeframes: n }); }} className="w-32 bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary" placeholder="Seconds" />
                         {idx >= 2 && <button onClick={() => { const n = timeForm.timeframes.filter((_, i) => i !== idx); setTimeForm({ ...timeForm, timeframes: n }); }} className="px-3 py-2 bg-red-500/20 rounded-lg hover:bg-red-500/40 transition-colors">✕</button>}
                       </div>
                     ))}
-                    {timeForm.timeframes.length < 5 && <button onClick={() => setTimeForm({ ...timeForm, timeframes: [...timeForm.timeframes, { label: '', seconds: 0 }] })} className="w-full py-2 bg-purple-500/20 rounded-lg text-sm font-semibold hover:bg-purple-500/30 transition-colors">+ Add Timeframe</button>}
+                    {timeForm.timeframes.length < 5 && <button onClick={() => setTimeForm({ ...timeForm, timeframes: [...timeForm.timeframes, { label: '', seconds: 0 }] })} className="w-full py-2 bg-primary/20 rounded-lg text-sm font-semibold hover:bg-primary/30 transition-colors border border-primary/30 hover:border-primary">+ Add Timeframe</button>}
                   </div>
                 </div>
               </div>
@@ -851,12 +851,12 @@ useEffect(() => {
             {/* Create Status & Button */}
             {createStatus.show && (
               <div className={`p-4 rounded-xl border-2 flex items-center gap-3 mb-4 ${createStatus.success ? 'bg-green-500/10 border-green-500/50' : 'bg-red-500/10 border-red-500/50'}`}>
-                {createStatus.success ? <CheckCircle className="text-green-400" size={24} /> : <XCircle className="text-red-400" size={24} />}
+                {createStatus.success ? <CheckCircle className="text-success" size={24} /> : <XCircle className="text-danger" size={24} />}
                 <span className="flex-1">{createStatus.message}</span>
               </div>
             )}
 
-            <button onClick={handleCreate} disabled={isPending || isConfirming} className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:from-gray-600 disabled:to-gray-600 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg shadow-lg shadow-purple-500/20 transition-all">
+            <button onClick={handleCreate} disabled={isPending || isConfirming} className="w-full bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-neutral-600 disabled:to-neutral-600 text-dark-950 font-bold py-4 rounded-xl flex items-center justify-center gap-2 text-lg shadow-lg glow-primary transition-all hover:scale-105">
               {isPending ? (<><Loader2 className="animate-spin" size={24} />Confirm in Wallet...</>) : isConfirming ? (<><Loader2 className="animate-spin" size={24} />Creating Market...</>) : (<><Plus size={24} />Create Market</>)}
             </button>
           </div>
@@ -873,11 +873,11 @@ useEffect(() => {
               markets.map(market => {
                 if(!market) return null;
                 const isExpired = Date.now() > market.endTime;
-                const statusColor = market.resolved ? 'bg-gray-600' : isExpired ? 'bg-yellow-500 text-black' : 'bg-green-500';
+                const statusColor = market.resolved ? 'bg-neutral-600' : isExpired ? 'bg-secondary text-dark-950' : 'bg-success text-dark-950';
                 const statusText = market.resolved ? 'Resolved' : isExpired ? 'Pending Resolution' : 'Active';
 
                 return ( 
-                  <div key={market.id} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-purple-500/30 transition-colors">
+                  <div key={market.id} className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-primary/50 hover:glow-primary transition-all duration-300">
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
@@ -893,7 +893,7 @@ useEffect(() => {
                         <div className="flex flex-col items-end gap-2">
                           {market.marketType === 1 && (
                             <select 
-                              className="bg-slate-800 text-white text-sm p-2 rounded border border-gray-600 focus:border-purple-400 outline-none"
+                              className="bg-slate-800 text-white text-sm p-2 rounded border border-dark-600 focus:border-primary outline-none"
                               onChange={(e) => setMultiChoiceAnswers({...multiChoiceAnswers, [market.id]: e.target.value})}
                               value={multiChoiceAnswers[market.id] || ""}
                             >
@@ -906,7 +906,7 @@ useEffect(() => {
                           <button
                             onClick={() => handleResolve(market)}
                             disabled={resolvingId === market.id || isPending || isConfirming}
-                            className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-orange-500/20"
+                            className="bg-gradient-to-r from-secondary to-danger hover:from-secondary-500 hover:to-danger-dark text-dark-950 px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-2 disabled:opacity-50 shadow-lg glow-secondary hover:scale-105 transition-all"
                           >
                             {resolvingId === market.id ? <Loader2 className="animate-spin" size={16}/> : <CheckCircle size={16}/>}
                             Resolve
