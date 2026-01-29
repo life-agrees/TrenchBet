@@ -183,16 +183,22 @@ const App = () => {
   // ==== WAGMI & DATA FETCHING ====
   const checkIsOwner = useCallback(async () => {
     if (!address || !publicClient) {
+      console.log('checkIsOwner: No address or publicClient', { address, publicClient });
       setIsOwner(false);
       return;
     }
     try {
+      console.log('checkIsOwner: Fetching owner for address:', address);
       const ownerAddress = await publicClient.readContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'owner',
       });
-      setIsOwner(ownerAddress.toLowerCase() === address.toLowerCase());
+      console.log('checkIsOwner: Contract owner:', ownerAddress);
+      console.log('checkIsOwner: User address:', address);
+      const isOwnerCheck = ownerAddress.toLowerCase() === address.toLowerCase();
+      console.log('checkIsOwner: Is owner?', isOwnerCheck);
+      setIsOwner(isOwnerCheck);
     } catch (error) {
       console.error('Error fetching owner:', error);
       setIsOwner(false);
@@ -715,6 +721,15 @@ const App = () => {
     return () => clearInterval(interval);
   }, [isConnected, refreshData, fetchMarkets, fetchUSDCBalance]);
 
+  // Auto-update market status every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Force re-render to update "LIVE" badges
+      setMarkets(prev => [...prev]);
+    }, 10000); // 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (userBets.length > 0 || !isConnected) fetchUserStats();
   }, [userBets, isConnected, fetchUserStats]);
@@ -812,8 +827,11 @@ const App = () => {
       }));
     }
 
+    const now = Date.now();
     const marketStatus = getMarketTimeRemaining(market);
-    const isLive = !market.resolved && Number(market.endTime) > Date.now()/1000;
+    const isLive = !market.resolved && Number(market.endTime) * 1000 > now;
+    const isExpired = !market.resolved && Number(market.endTime) * 1000 <= now;
+    const isResolved = market.resolved;
 
     return (
       <div 
@@ -834,9 +852,14 @@ const App = () => {
           </div>
           
           {/* Live Badge with Pulse */}
-          <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1 ${isLive ? 'bg-success/20 text-success' : market.resolved ? 'bg-neutral-600 text-white' : 'bg-danger/20 text-danger'}`}>
+          <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1 ${
+            isLive ? 'bg-success/20 text-success border border-success' : 
+            isExpired ? 'bg-secondary/20 text-secondary border border-secondary' : 
+            'bg-neutral-600 text-white'
+          }`}>
             {isLive && <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>}
-            {market.resolved ? 'Resolved' : isLive ? 'LIVE' : marketStatus}
+            {isExpired && <Clock size={14} />}
+            {isResolved ? 'RESOLVED' : isLive ? 'LIVE' : isExpired ? 'ENDED' : marketStatus}
           </span>
         </div>
 
@@ -851,7 +874,7 @@ const App = () => {
               </span>
             )}
           </div>
-          
+
           <div className="flex flex-col items-end">
             <span className="text-xs text-neutral-500">Pool Size</span>
             <span className="font-bold text-success flex items-center gap-1">
@@ -859,40 +882,92 @@ const App = () => {
               {formatUnits(market.totalPool, 6)}
             </span>
             <span className="text-xs text-primary mt-1">
-              Ends: {new Date(Number(market.endTime)).toLocaleString(undefined, { 
-                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+              Ends: {new Date(Number(market.endTime)).toLocaleString(undefined, {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
               })}
             </span>
           </div>
         </div>
 
-        {/* Betting Options - Enhanced */}
+        {/* Admin Notice for Expired Markets */}
+        {isOwner && isExpired && (
+          <div className="bg-secondary/10 border-2 border-secondary rounded-xl p-4 mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle size={16} className="text-secondary" />
+              <span className="text-sm font-bold text-secondary">Admin Action Required</span>
+            </div>
+            <p className="text-xs text-neutral-400 mb-3">
+              This market has ended and needs resolution. Go to Admin Panel to resolve.
+            </p>
+            <button
+              onClick={() => setShowAdminPanel(true)}
+              className="w-full bg-secondary hover:bg-secondary-500 text-dark-950 font-bold py-2 px-4 rounded-lg text-sm transition-all hover:scale-105"
+            >
+              Open Admin Panel
+            </button>
+          </div>
+        )}
+
+        {/* Betting Options -  */}
         <div className="grid grid-cols-2 gap-3 mb-4">
           {choices.map((choice) => (
             <button
               key={choice.choiceIndex}
               onClick={() => {
+                if (!isLive) {
+                  if (isExpired) {
+                    alert('This market has ended and is awaiting resolution by the admin.');
+                  } else {
+                    alert('This market has been resolved.');
+                  }
+                  return;
+                }
+    
                 if (!address) {
                   alert('Please connect your wallet first!');
                   return;
-                }
+               }
+    
+               try {
+                const balance = Number(formatUnits(usdcBalance, 6));
+                const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
+                setBetAmount(defaultBet);
+      
                 setSelectedMarket({...market, betChoice: choice.choiceIndex, choiceLabel: choice.label, multiplier: choice.multiplier});
-              }}
-              disabled={!isLive}
-              className={`relative overflow-hidden group/button bg-gradient-to-br from-dark-700 to-dark-800 hover:from-primary/20 hover:to-success/20 border-2 p-6 rounded-xl transition-all duration-300 ${isLive ? 'border-dark-600 hover:border-primary cursor-pointer' : 'border-dark-700 cursor-not-allowed opacity-50'}`}
-            >
-              <div className="relative z-10">
-                <div className="text-xl font-black mb-2 text-white group-hover/button:text-primary transition-colors">
-                  {choice.label}
-                </div>
-                <div className="text-3xl font-black text-primary group-hover/button:scale-110 transition-transform">
-                  {choice.multiplier}x
-                </div>
+              } catch (error) {
+                console.error('Error opening bet modal:', error);
+                alert('Failed to open bet modal. Please try again.');
+              }
+            }}
+            disabled={!isLive}
+            className={`relative overflow-hidden group/button bg-gradient-to-br from-dark-700 to-dark-800 hover:from-primary/20 hover:to-success/20 border-2 p-6 rounded-xl transition-all duration-300 ${
+              isLive ? 'border-dark-600 hover:border-primary cursor-pointer' : 
+              isExpired ? 'border-secondary/30 cursor-not-allowed opacity-60' :
+              'border-dark-700 cursor-not-allowed opacity-50'
+            }`}
+          >
+            <div className="relative z-10">
+              <div className={`text-xl font-black mb-2 transition-colors ${
+                isLive ? 'text-white group-hover/button:text-primary' : 
+                isExpired ? 'text-neutral-400' : 
+                'text-neutral-500'
+              }`}>
+                {choice.label}
               </div>
-              {isLive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-primary/0 via-primary/10 to-primary/0 translate-x-[-100%] group-hover/button:translate-x-[100%] transition-transform duration-700"></div>
+              <div className={`text-3xl font-black transition-transform ${
+                isLive ? 'text-primary group-hover/button:scale-110' : 
+                isExpired ? 'text-neutral-500' : 
+                'text-neutral-600'
+              }`}>
+                {choice.multiplier}x
+              </div>
+              {isExpired && (
+                <div className="absolute inset-0 flex items-center justify-center bg-dark-900/80 rounded-xl">
+                  <span className="text-secondary font-bold text-sm">ENDED</span>
+                </div>
               )}
-            </button>
+            </div>
+          </button>
           ))}
         </div>
 
@@ -1149,7 +1224,8 @@ const App = () => {
           <div className="flex items-center gap-2">
             <span className="text-sm text-neutral-400 mr-2">Filter by:</span>
             {['ALL', 'BTC', 'ETH', 'SOL'].map((asset) => {
-              const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
+              const now = Date.now();
+              const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) * 1000 > now);
               const count = asset === 'ALL' 
                 ? activeMarkets.length 
                 : activeMarkets.filter(m => m.asset === asset).length;
@@ -1191,7 +1267,21 @@ const App = () => {
     )}
     
     {(() => {
-      const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
+      const now = Date.now();
+
+      // Separate markets by status
+      const liveMarkets = markets.filter(m =>
+        !m.resolved && Number(m.endTime) * 1000 > now
+      );
+
+      const expiredMarkets = markets.filter(m =>
+        !m.resolved && Number(m.endTime) * 1000 <= now
+      );
+
+      const resolvedMarkets = markets.filter(m => m.resolved);
+
+      // For "All Markets" tab, show only LIVE markets
+      const activeMarkets = liveMarkets;
       
       // Apply asset filter
       let filteredMarkets = selectedAssetFilter === 'ALL'
@@ -1243,6 +1333,47 @@ const App = () => {
         );
       }
       
+      {/* Admin: Show Expired Markets Awaiting Resolution */}
+      {isOwner && expiredMarkets.length > 0 && (
+        <div className="mb-8 bg-secondary/10 border-2 border-secondary rounded-2xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle size={24} className="text-secondary" />
+              <div>
+                <h3 className="text-xl font-bold text-white">Markets Pending Resolution</h3>
+                <p className="text-sm text-neutral-400">{expiredMarkets.length} market{expiredMarkets.length !== 1 ? 's' : ''} need admin action</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setShowAdminPanel(true);
+                // You can add logic to auto-open the "Manage" tab
+              }}
+              className="bg-secondary hover:bg-secondary-500 text-dark-950 font-bold py-3 px-6 rounded-xl transition-all hover:scale-105"
+            >
+              Resolve Now
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {expiredMarkets.slice(0, 3).map(market => (
+              <div key={market.id} className="bg-dark-800 border border-secondary/30 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{getAssetEmoji(market.asset)}</span>
+                  <div className="flex-1">
+                    <p className="font-bold text-white text-sm">{market.asset} Market</p>
+                    <p className="text-xs text-neutral-400">ID: #{market.id}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-secondary font-semibold">
+                  Ended {new Date(market.endTime).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
           {filteredMarkets.map(renderMarketDetails)}
