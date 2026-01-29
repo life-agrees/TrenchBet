@@ -1155,122 +1155,187 @@ const App = () => {
 </main>
       
       {selectedMarket && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4" onClick={() => setSelectedMarket(null)}>
-          <div className="bg-gradient-to-br from-dark-800 to-dark-700 border-2 border-primary rounded-3xl p-8 w-full max-w-lg shadow-2xl glow-primary animate-in zoom-in duration-300" onClick={(e) => e.stopPropagation()}>
-            
-            {/* Close Button */}
-            <button 
-              onClick={() => setSelectedMarket(null)}
-              className="absolute top-4 right-4 text-neutral-400 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
-
-            {/* Asset Header */}
-            <div className="text-center mb-8">
-              <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-5xl animate-pulse-slow">
-                {getAssetEmoji(selectedMarket.asset)}
-              </div>
-              <h2 className="text-3xl font-black text-white mb-2">{selectedMarket.asset} Market</h2>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/20 rounded-full border border-primary">
-                <TrendingUp size={16} className="text-primary" />
-                <span className="text-lg font-bold text-primary">Betting on: {selectedMarket.choiceLabel}</span>
-              </div>
-            </div>
-            
-            {/* Potential Payout Display */}
-            <div className="bg-dark-900 border-2 border-primary/30 rounded-2xl p-6 mb-6 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl"></div>
-              <div className="relative z-10">
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-dark-600">
-                  <span className="text-neutral-400 text-sm font-semibold">Your Bet Amount</span>
-                  <span className="text-2xl font-black text-white">${betAmount || '0'} USDC</span>
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-neutral-400 text-sm font-semibold">Multiplier</span>
-                  <span className="text-xl font-bold text-secondary">{selectedMarket.multiplier || '2.00'}x</span>
-                </div>
-                <div className="flex justify-between items-center text-2xl font-black pt-4 border-t border-primary/30">
-                  <span className="text-primary flex items-center gap-2">
-                    <Trophy size={24} />
-                    Potential Win
-                  </span>
-                  <span className="text-success">
-                    ${(parseFloat(betAmount || 0) * parseFloat(selectedMarket.multiplier || 2)).toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Amount Input */}
-            <div className="mb-6">
-              <label className="block text-sm font-bold text-neutral-300 mb-3 flex items-center gap-2">
-                <DollarSign size={16} className="text-primary" />
-                Bet Amount (USDC)
-              </label>
-              <input 
-                type="number" 
-                value={betAmount} 
-                onChange={(e) => setBetAmount(e.target.value)}
-                min="1"
-                step="1"
-                className="w-full p-5 bg-dark-900 text-white text-3xl font-black text-center rounded-2xl border-2 border-dark-600 focus:border-primary outline-none transition-all"
-                placeholder="0.00"
-                autoFocus
-              />
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-2 sm:p-4 overflow-y-auto" 
+          onClick={() => setSelectedMarket(null)}
+        >
+          <div 
+            className="bg-gradient-to-br from-dark-800 to-dark-700 border-2 border-primary rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 w-full max-w-lg shadow-2xl glow-primary animate-in zoom-in duration-300 my-auto relative" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxHeight: 'calc(100vh - 2rem)' }}
+          >
+            {/* Scrollable content wrapper */}
+            <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 10rem)' }}>
               
-              {/* Quick Bet Buttons */}
-              <div className="grid grid-cols-4 gap-2 mt-4">
-                {[10, 25, 50, 100].map((amount) => (
-                  <button 
-                    key={amount}
-                    onClick={() => setBetAmount(amount.toString())}
-                    className="bg-dark-700 hover:bg-primary/20 border-2 border-dark-600 hover:border-primary rounded-xl py-3 text-sm font-bold transition-all hover:scale-105"
-                  >
-                    ${amount}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Balance Check */}
-            {isConnected && (
-              <div className="bg-dark-900/50 rounded-xl p-3 mb-6 flex items-center justify-between">
-                <span className="text-sm text-neutral-400">Your Balance:</span>
-                <span className="text-sm font-bold text-white">{formatUnits(usdcBalance, 6)} USDC</span>
-              </div>
-            )}
-            
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-4">
+              {/* Close Button - Fixed at top */}
               <button 
                 onClick={() => setSelectedMarket(null)}
-                className="bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 hover:border-neutral-500 text-white font-bold py-4 rounded-xl transition-all"
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 text-neutral-400 hover:text-white transition-colors z-10"
+              >
+                <X size={24} />
+              </button>
+
+              {/* Asset Header - COMPACT */}
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-4xl sm:text-5xl animate-pulse-slow">
+                  {selectedMarket.asset === 'BTC' ? '₿' : selectedMarket.asset === 'ETH' ? 'Ξ' : selectedMarket.asset === 'SOL' ? '◎' : '💎'}
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white mb-2">{selectedMarket.asset} Market</h2>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/20 rounded-full border border-primary">
+                  <TrendingUp size={14} className="text-primary" />
+                  <span className="text-sm sm:text-base font-bold text-primary">Betting on: {selectedMarket.choiceLabel}</span>
+                </div>
+              </div>
+              
+              {/* Potential Payout - COMPACT */}
+              <div className="bg-dark-900 border-2 border-primary/30 rounded-xl p-4 mb-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl"></div>
+                <div className="relative z-10">
+                  <div className="flex justify-between items-center mb-3 pb-3 border-b border-dark-600">
+                    <span className="text-neutral-400 text-xs sm:text-sm font-semibold">Your Bet</span>
+                    <span className="text-xl sm:text-2xl font-black text-white">${betAmount || '0'}</span>
+                  </div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-neutral-400 text-xs sm:text-sm font-semibold">Multiplier</span>
+                    <span className="text-lg sm:text-xl font-bold text-secondary">{selectedMarket.multiplier || '2.00'}x</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xl sm:text-2xl font-black pt-3 border-t border-primary/30">
+                    <span className="text-primary flex items-center gap-2 text-sm sm:text-base">
+                      <Trophy size={20} />
+                      Potential Win
+                    </span>
+                    <span className="text-success">
+                      ${(parseFloat(betAmount || 0) * parseFloat(selectedMarket.multiplier || 2)).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Amount Input - COMPACT */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs sm:text-sm font-bold text-neutral-300 flex items-center gap-2">
+                    <DollarSign size={14} className="text-primary" />
+                    Bet Amount (USDC)
+                  </label>
+                  <button
+                    onClick={() => setBetAmount(formatUnits(usdcBalance, 6))}
+                    className="text-xs font-bold px-2 py-1 bg-secondary/20 border border-secondary text-secondary rounded-lg hover:bg-secondary/30 transition-all"
+                  >
+                    MAX
+                  </button>
+                </div>
+                <input 
+                  type="number" 
+                  value={betAmount} 
+                  onChange={(e) => setBetAmount(e.target.value)}
+                  min="0.01"
+                  step="0.1"
+                  className="w-full p-4 bg-dark-900 text-white text-2xl sm:text-3xl font-black text-center rounded-xl border-2 border-dark-600 focus:border-primary outline-none transition-all"
+                  placeholder="0.00"
+                  autoFocus
+                />
+                
+                {/* Quick Bet Buttons - COMPACT */}
+                <div className="grid grid-cols-4 gap-2 mt-3">
+                  {(() => {
+                    const balance = Number(formatUnits(usdcBalance, 6));
+                    let amounts;
+                    
+                    if (balance < 5) {
+                      amounts = [0.5, 1, 1.5, balance > 0 ? Math.floor(balance * 10) / 10 : 2];
+                    } else if (balance < 20) {
+                      amounts = [1, 5, 10, Math.floor(balance)];
+                    } else if (balance < 100) {
+                      amounts = [10, 25, 50, Math.floor(balance)];
+                    } else {
+                      amounts = [10, 25, 50, 100];
+                    }
+                    
+                    return amounts.map((amount, idx) => {
+                      const isMax = idx === 3 && balance < 100;
+                      const isDisabled = amount > balance;
+                      
+                      return (
+                        <button 
+                          key={amount}
+                          onClick={() => setBetAmount(amount.toString())}
+                          disabled={isDisabled}
+                          className={`border-2 rounded-lg py-2 text-xs sm:text-sm font-bold transition-all ${
+                            isDisabled 
+                              ? 'bg-dark-800 border-dark-700 text-neutral-600 cursor-not-allowed'
+                              : 'bg-dark-700 hover:bg-primary/20 border-dark-600 hover:border-primary hover:scale-105'
+                          } ${isMax ? 'border-secondary text-secondary' : ''}`}
+                        >
+                          {isMax ? 'MAX' : `$${amount}`}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Balance Check with Validation - COMPACT */}
+              {isConnected && (
+                <div className={`rounded-xl p-3 mb-4 border-2 transition-all ${
+                  betAmount && parseUnits(betAmount, 6) > usdcBalance 
+                    ? 'bg-danger/10 border-danger' 
+                    : 'bg-dark-900/50 border-dark-600'
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs sm:text-sm font-semibold text-neutral-300">Your Balance:</span>
+                    <span className="text-base sm:text-lg font-bold text-white">{formatUnits(usdcBalance, 6)} USDC</span>
+                  </div>
+                  
+                  {betAmount && parseUnits(betAmount, 6) > usdcBalance && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-danger/30">
+                      <AlertTriangle size={14} className="text-danger flex-shrink-0" />
+                      <span className="text-xs font-bold text-danger">
+                        Insufficient balance! Need {betAmount} USDC.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            
+            {/* Action Buttons - STICKY at bottom */}
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-dark-600 bg-gradient-to-br from-dark-800 to-dark-700 sticky bottom-0">
+              <button 
+                onClick={() => setSelectedMarket(null)}
+                className="bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 hover:border-neutral-500 text-white font-bold py-3 rounded-xl transition-all text-sm sm:text-base"
               >
                 Cancel
               </button>
               <button 
                 onClick={() => placeBetOnChain(selectedMarket, selectedMarket.betChoice)}
-                disabled={isPending || isConfirming || isPlacingBet || !betAmount || Number(betAmount) <= 0}
-                className="bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-neutral-600 disabled:to-neutral-600 text-dark-950 font-bold py-4 rounded-xl shadow-lg glow-primary hover:scale-105 transition-all flex items-center justify-center gap-2"
+                disabled={
+                  isPending || 
+                  isConfirming || 
+                  isPlacingBet || 
+                  !betAmount || 
+                  Number(betAmount) <= 0 ||
+                  (isConnected && parseUnits(betAmount, 6) > usdcBalance)
+                }
+                className="bg-gradient-to-r from-primary to-success hover:from-primary-400 hover:to-success-dark disabled:from-neutral-600 disabled:to-neutral-600 text-dark-950 font-bold py-3 rounded-xl shadow-lg glow-primary hover:scale-105 transition-all flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 {isPending || isConfirming || isPlacingBet ? (
                   <>
-                    <Loader2 className="animate-spin" size={20} />
-                    {isPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Placing Bet...'}
+                    <Loader2 className="animate-spin" size={18} />
+                    {isPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Placing...'}
                   </>
                 ) : (
                   <>
-                    <TrendingUp size={20} />
+                    <TrendingUp size={18} />
                     Place Bet
                   </>
                 )}
               </button>
             </div>
 
-            {/* Disclaimer */}
-            <p className="text-xs text-neutral-500 text-center mt-4">
-              This is real money. Only bet what you can afford to lose.
+            {/* Disclaimer - COMPACT */}
+            <p className="text-xs text-neutral-500 text-center mt-3">
+              Real money. Bet responsibly.
             </p>
           </div>
         </div>
