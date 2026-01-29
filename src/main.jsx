@@ -11,7 +11,16 @@ import { Analytics } from '@vercel/analytics/react';
 import '@rainbow-me/rainbowkit/styles.css';
 import './index.css';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000, // Data stays fresh for 30 seconds
+      cacheTime: 5 * 60_000, // Cache for 5 minutes
+      refetchOnWindowFocus: false, // Don't refetch on tab focus
+      retry: 2, // Retry failed requests twice
+    },
+  },
+});
 
 // Initialize Farcaster SDK
 const initFarcaster = async () => {

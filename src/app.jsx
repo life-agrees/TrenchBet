@@ -162,6 +162,7 @@ const App = () => {
   const [isOwner, setIsOwner] = useState(false);
 
   const [markets, setMarkets] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [currentView, setCurrentView] = useState('markets');
   const [farcasterUser, setFarcasterUser] = useState(null);
@@ -170,6 +171,7 @@ const App = () => {
   const [selectedMarket, setSelectedMarket] = useState(null);
   const [betAmount, setBetAmount] = useState('10');
   const [isPlacingBet, setIsPlacingBet] = useState(false);
+  const [selectedAssetFilter, setSelectedAssetFilter] = useState('ALL');
 
   const [userStats, setUserStats] = useState({
     totalBets: 0,
@@ -699,9 +701,24 @@ const App = () => {
     };
   }, []);
 
-  useEffect(() => { refreshData(); }, [isConnected, refreshData]);
-  useEffect(() => { if (userBets.length > 0 || !isConnected) fetchUserStats(); }, [userBets, isConnected, fetchUserStats]);
-  
+  useEffect(() => {
+    refreshData();
+
+    // Auto-refresh markets every 30 seconds
+    const interval = setInterval(() => {
+      if (isConnected) {
+        fetchMarkets();
+        fetchUSDCBalance();
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, [isConnected, refreshData, fetchMarkets, fetchUSDCBalance]);
+
+  useEffect(() => {
+    if (userBets.length > 0 || !isConnected) fetchUserStats();
+  }, [userBets, isConnected, fetchUserStats]);
+
   useEffect(() => {
     if (isSuccess && lastBetRef.current === hash) {
       // Show success message
@@ -1093,29 +1110,147 @@ const App = () => {
     </div>
   )}
 
+    {/* Search Bar */}
+    {!isLoadingMarkets && markets.length > 0 && (
+      <div className="mb-6">
+        <div className="relative max-w-xl">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search markets by asset or type..."
+            className="w-full px-5 py-4 pl-12 bg-dark-800 border-2 border-dark-600 rounded-xl text-white placeholder-neutral-500 focus:border-primary focus:outline-none transition-all"
+          />
+          <div className="absolute left-4 top-1/2 -translate-y-1/2">
+            <svg className="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
+      </div>
+    )}
+
   {/* Markets View - ALWAYS VISIBLE */}
   {(!isConnected || currentView === 'markets') && (
     <>
-      {isLoadingMarkets && markets.length === 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <MarketCardSkeleton />
-          <MarketCardSkeleton />
-          <MarketCardSkeleton />
+    {/* Market Filters */}
+    {!isLoadingMarkets && markets.length > 0 && (
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-white">Active Markets</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-neutral-400 mr-2">Filter by:</span>
+            {['ALL', 'BTC', 'ETH', 'SOL'].map((asset) => {
+              const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
+              const count = asset === 'ALL' 
+                ? activeMarkets.length 
+                : activeMarkets.filter(m => m.asset === asset).length;
+              
+              return (
+                <button
+                  key={asset}
+                  onClick={() => setSelectedAssetFilter(asset)}
+                  className={`px-4 py-2 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 ${
+                    selectedAssetFilter === asset
+                      ? 'bg-primary text-dark-950 scale-105 glow-primary'
+                      : 'bg-dark-800 border-2 border-dark-600 text-neutral-400 hover:border-primary hover:text-white'
+                  }`}
+                >
+                  {asset === 'BTC' && '₿'}
+                  {asset === 'ETH' && 'Ξ'}
+                  {asset === 'SOL' && '◎'}
+                  {asset === 'ALL' && '🌐'}
+                  <span>{asset}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                    selectedAssetFilter === asset ? 'bg-dark-950/30' : 'bg-dark-700'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      )}
-      {(() => {
-        const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
-        if (!isLoadingMarkets && activeMarkets.length === 0) {
-          return <LandingHero isConnected={isConnected} />;
-        }
+      </div>
+    )}
+
+    {isLoadingMarkets && markets.length === 0 && (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <MarketCardSkeleton />
+        <MarketCardSkeleton />
+        <MarketCardSkeleton />
+      </div>
+    )}
+    
+    {(() => {
+      const activeMarkets = markets.filter(m => !m.resolved && Number(m.endTime) > Date.now()/1000);
+      
+      // Apply asset filter
+      let filteredMarkets = selectedAssetFilter === 'ALL'
+        ? activeMarkets
+        : activeMarkets.filter(m => m.asset === selectedAssetFilter);
+
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        filteredMarkets = filteredMarkets.filter(m =>
+          m.asset.toLowerCase().includes(query) ||
+          getMarketLabel(m.marketType, m.asset).toLowerCase().includes(query) ||
+          (m.options && m.options.some(opt => opt.toLowerCase().includes(query)))
+        );
+      }
+      
+      if (!isLoadingMarkets && activeMarkets.length === 0) {
+        return <LandingHero isConnected={isConnected} />;
+      }
+      
+      if (!isLoadingMarkets && filteredMarkets.length === 0) {
         return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-            {activeMarkets.map(renderMarketDetails)}
+          <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600">
+            <AlertTriangle size={48} className="text-primary mb-4" />
+            <p className="text-xl text-neutral-400 mb-2">
+              {searchQuery
+                ? `No markets found for "${searchQuery}"`
+                : `No ${selectedAssetFilter} markets available`}
+            </p>
+            <div className="flex gap-3 mt-4">
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="px-6 py-2 bg-secondary text-dark-950 font-bold rounded-xl hover:scale-105 transition-all"
+                >
+                  Clear Search
+                </button>
+              )}
+              {selectedAssetFilter !== 'ALL' && (
+                <button
+                  onClick={() => setSelectedAssetFilter('ALL')}
+                  className="px-6 py-2 bg-primary text-dark-950 font-bold rounded-xl hover:scale-105 transition-all"
+                >
+                  View All Markets
+                </button>
+              )}
+            </div>
           </div>
         );
-      })()}
-    </>
-  )}
+      }
+      
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
+          {filteredMarkets.map(renderMarketDetails)}
+        </div>
+      );
+    })()}
+  </>
+)}
 
   {/* My Bets - Only if connected */}
   {isConnected && currentView === 'myBets' && (
