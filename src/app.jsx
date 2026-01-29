@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { parseUnits, formatUnits, parseAbiItem } from 'viem';
-import { TrendingUp, TrendingDown, Clock, Loader2, DollarSign, Users, Wallet, Trophy, Target, Timer, BarChart3, Settings, AlertTriangle, CheckCircle, XCircle, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, Loader2, DollarSign, Users, Wallet, Trophy, Target, Timer, BarChart3, Settings, AlertTriangle, CheckCircle, XCircle, X, Copy } from 'lucide-react';
 import { CONTRACTS, config } from './config/wagmi';
 import AdminPanel from './components/AdminPanel';
 import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis'; 
@@ -152,13 +152,14 @@ const MarketCardSkeleton = () => (
 
 const App = () => {
   const lastBetRef = useRef(null);
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chain } = useAccount();
   const publicClient = usePublicClient();
   
   const { writeContractAsync, data: hash, isPending } = useWriteContract();
   
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
 
   const [markets, setMarkets] = useState([]);
@@ -484,30 +485,50 @@ const App = () => {
     
   }, [address, userBets]);
 
-  const refreshData = useCallback(async () => {
-    await fetchMarkets(); 
-    if (isConnected) {
-      await fetchUSDCBalance();
-      await fetchUserBets(); 
-      await checkIsOwner();
-    }
-  }, [fetchMarkets, isConnected, fetchUSDCBalance, fetchUserBets, checkIsOwner]);
+const refreshData = useCallback(async () => {
+  if (isConnected && address) {
+    await Promise.all([
+      fetchMarkets(),
+      fetchUSDCBalance(),
+      // checkIsOwner removed - only check on wallet connect
+      fetchUserBets()
+    ]);
+  }
+}, [isConnected, address, fetchMarkets, fetchUSDCBalance, fetchUserBets]);
 
   //  HANDLERS (Approve, Bet, Resolve, Claim) 
 
   const handleApprove = async (amount) => {
+    if (!address || !publicClient) {
+      console.error('Wallet not connected');
+      return null;
+    }
+
     try {
-      const parsedAmount = parseUnits(amount.toString(), 6);
-      const txHash = await writeContractAsync({
-        address: CONTRACTS.USDC, 
+      console.log('🔓 Requesting approval for:', amount, 'USDC');
+
+      const hash = await writeContractAsync({
+        address: CONTRACTS.USDC,
         abi: ERC20_ABI,
         functionName: 'approve',
-        args: [CONTRACTS.PREDICTION_MARKET, parsedAmount],
+        args: [CONTRACTS.PREDICTION_MARKET, parseUnits(amount, 6)],
       });
-      return txHash;
+
+      console.log('✅ Approval transaction sent:', hash);
+      return hash;
+
     } catch (error) {
-      alert(`Approval failed: ${error.shortMessage || error.message}`);
-      return null;
+      console.error('❌ Approval error:', error);
+
+      // Handle user rejection
+      if (error.message?.includes('User rejected') || error.message?.includes('user rejected')) {
+        console.log('User cancelled approval');
+        return null;
+      }
+
+      // Log the actual error for debugging
+      console.error('Approval failed:', error.message || error);
+      throw error; // Re-throw so placeBetOnChain can handle it
     }
   };
 
@@ -575,25 +596,42 @@ const App = () => {
       // If allowance is insufficient, request approval
       if (allowance < betAmountBigInt) {
         try {
+          console.log('💰 Insufficient allowance. Requesting approval...');
           const approveHash = await handleApprove(betAmount);
+
           if (!approveHash) {
-            console.log('Approval cancelled or failed');
+            console.log('Approval was cancelled by user');
             setIsPlacingBet(false);
             return;
           }
-          
-          // Wait for approval to be mined
-          await publicClient.waitForTransactionReceipt({ 
+
+          console.log('⏳ Waiting for approval to be mined...');
+          await publicClient.waitForTransactionReceipt({
             hash: approveHash,
-            timeout: 60000 // 60 second timeout
+            timeout: 60000,
+            confirmations: 1,
           });
-          
-          // Small delay to ensure state is updated on-chain
+
+          console.log('✅ Approval confirmed! Waiting 2s before placing bet...');
           await new Promise(resolve => setTimeout(resolve, 2000));
-          
+
         } catch (approveError) {
-          console.error('Approval error:', approveError);
-          alert('Token approval failed: ' + (approveError.shortMessage || approveError.message));
+          console.error('❌ Approval error:', approveError);
+
+          // Better error messages
+          let errorMessage = 'Token approval failed';
+
+          if (approveError.message?.includes('User rejected')) {
+            errorMessage = 'You cancelled the approval';
+          } else if (approveError.message?.includes('insufficient funds')) {
+            errorMessage = 'Insufficient ETH for gas fees';
+          } else if (approveError.message?.includes('getChainId')) {
+            errorMessage = 'Wallet connection error. Please reconnect your wallet and try again.';
+          } else {
+            errorMessage = `Approval failed: ${approveError.shortMessage || approveError.message || 'Unknown error'}`;
+          }
+
+          alert(errorMessage);
           setIsPlacingBet(false);
           return;
         }
@@ -733,6 +771,15 @@ const App = () => {
   useEffect(() => {
     if (userBets.length > 0 || !isConnected) fetchUserStats();
   }, [userBets, isConnected, fetchUserStats]);
+
+  // Check if user is owner - ONLY when wallet connects/changes
+  useEffect(() => {
+    if (address && publicClient) {
+      checkIsOwner();
+    } else {
+      setIsOwner(false);
+    }
+  }, [address, publicClient, checkIsOwner]);
 
   useEffect(() => {
     if (isSuccess && lastBetRef.current === hash) {
@@ -1021,7 +1068,7 @@ const App = () => {
       <Wallet size={48} className="text-primary mb-4" />
       <h2 className="text-2xl font-bold mb-2">Connect Your Wallet</h2>
       <p className="text-neutral-400 mb-6 text-center">Join the action and place your first prediction on the Base Sepolia network.</p>
-      <ConnectButton />
+      <ConnectButton />  
     </div>
   );
 
@@ -1065,7 +1112,10 @@ const App = () => {
           <div className="text-4xl md:text-5xl font-black text-white mb-4">
             {formatUnits(usdcBalance, 6)} <span className="text-2xl text-primary">USDC</span>
           </div>
-          <button className="w-full bg-primary hover:bg-primary-400 text-dark-950 font-bold py-3 rounded-xl text-sm transition-all hover:scale-105 flex items-center justify-center gap-2">
+          <button
+            onClick={() => setShowAddFundsModal(true)}
+            className="w-full bg-primary hover:bg-primary-400 text-dark-950 font-bold py-3 rounded-xl text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
+          >
             <DollarSign size={16} />
             Add Funds
           </button>
@@ -1607,6 +1657,11 @@ const App = () => {
         </div>
       )}
       {showAdminPanel && <AdminPanel onClose={() => { setShowAdminPanel(false); refreshData(); }} />}
+      <AddFundsModal
+        isOpen={showAddFundsModal}
+        onClose={() => setShowAddFundsModal(false)}
+        network={chain?.name || 'Base Sepolia'}
+      />
     </div>
   );
 };
