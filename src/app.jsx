@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { parseUnits, formatUnits, parseAbiItem } from 'viem';
-import { TrendingUp, TrendingDown, Clock, Loader2, DollarSign, Users, Wallet, Trophy, Target, Timer, BarChart3, Settings, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Clock, Loader2, DollarSign, Users, Wallet, Trophy, Target, Timer, BarChart3, Settings, AlertTriangle, CheckCircle, XCircle, X } from 'lucide-react';
 import { CONTRACTS, config } from './config/wagmi';
 import AdminPanel from './components/AdminPanel';
 import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis'; 
