@@ -7,6 +7,7 @@ import { sdk } from '@farcaster/miniapp-sdk';
 import App from './app';
 import ErrorBoundary from './components/ErrorBoundary';
 import { config } from './config/wagmi';
+import { Analytics } from '@vercel/analytics/react';
 import '@rainbow-me/rainbowkit/styles.css';
 import './index.css';
 
@@ -42,6 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             })}
           >
             <App />
+            <Analytics />
           </RainbowKitProvider>
         </QueryClientProvider>
       </WagmiProvider>
