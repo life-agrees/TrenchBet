@@ -829,8 +829,8 @@ const App = () => {
 
     const now = Date.now();
     const marketStatus = getMarketTimeRemaining(market);
-    const isLive = !market.resolved && Number(market.endTime) * 1000 > now;
-    const isExpired = !market.resolved && Number(market.endTime) * 1000 <= now;
+    const isLive = !market.resolved && Number(market.endTime) > now;
+    const isExpired = !market.resolved && Number(market.endTime) <= now;
     const isResolved = market.resolved;
 
     return (
@@ -852,10 +852,10 @@ const App = () => {
           </div>
           
           {/* Live Badge with Pulse */}
-          <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1 ${
-            isLive ? 'bg-success/20 text-success border border-success' : 
-            isExpired ? 'bg-secondary/20 text-secondary border border-secondary' : 
-            'bg-neutral-600 text-white'
+          <span className={`px-3 py-1 text-xs font-bold rounded-full flex items-center gap-1 border ${
+            isLive ? 'bg-success/20 text-success border-success' :
+            isExpired ? 'bg-secondary/20 text-secondary border-secondary' :
+            'bg-neutral-600 text-white border-neutral-600'
           }`}>
             {isLive && <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>}
             {isExpired && <Clock size={14} />}
@@ -1271,11 +1271,11 @@ const App = () => {
 
       // Separate markets by status
       const liveMarkets = markets.filter(m =>
-        !m.resolved && Number(m.endTime) * 1000 > now
+        !m.resolved && Number(m.endTime) > now
       );
 
       const expiredMarkets = markets.filter(m =>
-        !m.resolved && Number(m.endTime) * 1000 <= now
+        !m.resolved && Number(m.endTime) <= now
       );
 
       const resolvedMarkets = markets.filter(m => m.resolved);
