@@ -538,11 +538,13 @@ const App = () => {
       } catch (balanceError) {
         console.error('Error checking balance:', balanceError);
         alert('Network error: Unable to check your balance. Please try again or check your RPC connection.');
+        setIsPlacingBet(false);
         return;
       }
 
       if (currentBalance < betAmountBigInt) {
         alert(`Insufficient balance. You have ${formatUnits(currentBalance, 6)} USDC but trying to bet ${betAmount} USDC.`);
+        setIsPlacingBet(false);
         return;
       }
 
@@ -558,6 +560,7 @@ const App = () => {
       } catch (allowanceError) {
         console.error('Error checking allowance:', allowanceError);
         alert('Network error: Unable to check token allowance. Please try again.');
+        setIsPlacingBet(false);
         return;
       }
 
@@ -567,6 +570,7 @@ const App = () => {
           const approveHash = await handleApprove(betAmount);
           if (!approveHash) {
             console.log('Approval cancelled or failed');
+            setIsPlacingBet(false);
             return;
           }
           
@@ -582,6 +586,7 @@ const App = () => {
         } catch (approveError) {
           console.error('Approval error:', approveError);
           alert('Token approval failed: ' + (approveError.shortMessage || approveError.message));
+          setIsPlacingBet(false);
           return;
         }
       }
@@ -603,6 +608,7 @@ const App = () => {
         // User rejected transaction
         if (betError.message?.includes('User rejected') || betError.message?.includes('user rejected')) {
           alert('Transaction cancelled');
+          setIsPlacingBet(false);
           return;
         }
         
