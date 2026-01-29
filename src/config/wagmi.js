@@ -1,6 +1,9 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { baseSepolia } from 'wagmi/chains';
+import { baseSepolia, base } from 'wagmi/chains';
 import { http } from 'wagmi';
+
+// Alchemy RPC endpoints
+const ALCHEMY_API_KEY = import.meta.env.VITE_ALCHEMY_API_KEY;
 
 const baseSepoliaWithRPC = {
   ...baseSepolia,
@@ -19,10 +22,21 @@ export const config = getDefaultConfig({
     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
   },
 
-  chains: [baseSepoliaWithRPC],
+  chains: [baseSepoliaWithRPC, base],
 
   transports: {
-    [baseSepoliaWithRPC.id]: http('https://sepolia.base.org'),
+    [baseSepoliaWithRPC.id]: http(`https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`, {
+      batch: true,
+      retryCount: 3,
+      retryDelay: 1000,
+      timeout: 10000,
+    }),
+    [base.id]: http(`https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`, {
+      batch: true,
+      retryCount: 3,
+      retryDelay: 1000,
+      timeout: 10000,
+    }),
   },
 
   ssr: false,
