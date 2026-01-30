@@ -5,7 +5,8 @@ import { parseUnits, formatUnits, parseAbiItem } from 'viem';
 import { TrendingUp, TrendingDown, Clock, Loader2, DollarSign, Users, Wallet, Trophy, Target, Timer, BarChart3, Settings, AlertTriangle, CheckCircle, XCircle, X, Copy } from 'lucide-react';
 import { CONTRACTS, config } from './config/wagmi';
 import AdminPanel from './components/AdminPanel';
-import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis'; 
+import AddFundsModal from './components/AddFundsModal';
+import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 // = UTILITY FUNCTIONS =
