@@ -1019,13 +1019,12 @@ const App = () => {
     let wins = 0;
     let losses = 0;
     let currentStreak = 0;
-    
+
     const sortedBets = [...userBets].sort((a, b) => Number(b.market.id) - Number(a.market.id));
-    let lastOutcome = null;
 
     for (const bet of sortedBets) {
       const market = bet.market;
-      
+
       if (market.resolved) {
         //  Logic Update: If it was claimable (verified by simulation) OR claimed, it's a WIN.
         // Otherwise, it is a LOSS.
@@ -1033,16 +1032,10 @@ const App = () => {
 
         if (isWinner) {
           wins++;
-           
-          
-          if (lastOutcome === 'win' || lastOutcome === null) currentStreak++;
-          else currentStreak = 1; 
-          lastOutcome = 'win';
-        } else { 
+          currentStreak++; // Increment streak on win
+        } else {
           losses++;
-          if (lastOutcome === 'loss' || lastOutcome === null) currentStreak = currentStreak < 0 ? currentStreak - 1 : -1;
-          else currentStreak = -1; 
-          lastOutcome = 'loss';
+          currentStreak = 0; // Reset streak on loss
         }
       }
     }
@@ -1051,9 +1044,9 @@ const App = () => {
       totalBets: userBets.length,
       wins: wins,
       losses: losses,
-      streak: Math.abs(currentStreak),
+      streak: currentStreak, // No Math.abs needed, streak is always positive
     });
-    
+
   }, [address, userBets]);
 
   // Fetch leaderboard data
@@ -1950,9 +1943,9 @@ const refreshData = useCallback(async () => {
           </div>
 
           {/* Streak */}
-          <div 
+          <div
             className="bg-dark-800 border border-secondary/30 p-5 rounded-xl hover:border-secondary hover:glow-secondary transition-all duration-300 cursor-pointer"
-            title="Your current winning or losing streak"
+            title="Your current winning streak"
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-neutral-400 font-semibold">Streak</span>
