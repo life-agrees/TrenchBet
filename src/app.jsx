@@ -729,6 +729,7 @@ const App = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(true);
   const [currentView, setCurrentView] = useState('markets');
+  const [betView, setBetView] = useState('ongoing');
   const [farcasterUser, setFarcasterUser] = useState(null);
   const [usdcBalance, setUsdcBalance] = useState(0n);
   const [userBets, setUserBets] = useState([]); 
@@ -2249,16 +2250,65 @@ const refreshData = useCallback(async () => {
   {/* My Bets - Only if connected */}
   {isConnected && currentView === 'myBets' && (
     <div className="animate-in fade-in duration-500">
-      <h2 className="text-3xl font-bold mb-6 text-primary">My Betting History</h2>
+      <h2 className="text-3xl font-bold mb-6 text-primary">My Bets</h2>
+
+      {/* Sub-tabs for bet views */}
+      <div className="flex border-b border-dark-600 mb-6 overflow-x-auto">
+        {[
+          { key: 'ongoing', label: 'Ongoing Markets', icon: Clock },
+          { key: 'wins', label: 'Wins', icon: Trophy },
+          { key: 'losses', label: 'Losses', icon: XCircle }
+        ].map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setBetView(key)}
+            className={`py-3 px-6 text-lg font-semibold transition-all duration-300 flex items-center gap-2 relative ${
+              betView === key
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-neutral-400 hover:text-white hover:bg-primary/5'
+            }`}
+          >
+            <Icon size={20} className={betView === key ? 'text-primary' : 'text-neutral-500'} />
+            {label}
+            {betView === key && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-success animate-pulse-slow"></span>
+            )}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-4">
-        {userBets.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl text-neutral-400">
-            <BarChart3 size={32} />
-            <p className="mt-3 text-lg">You haven't placed any bets yet.</p>
-          </div>
-        ) : (
-          userBets.map(renderUserBet)
-        )}
+        {(() => {
+          // Filter bets based on current view
+          const filteredBets = userBets.filter(bet => {
+            const market = bet.market;
+            if (!market) return false;
+
+            if (betView === 'ongoing') {
+              return !market.resolved;
+            } else if (betView === 'wins') {
+              return market.resolved && (bet.claimed || bet.isClaimableConfirmed);
+            } else if (betView === 'losses') {
+              return market.resolved && !bet.claimed && !bet.isClaimableConfirmed;
+            }
+            return true;
+          });
+
+          if (filteredBets.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl text-neutral-400">
+                <BarChart3 size={32} />
+                <p className="mt-3 text-lg">
+                  {betView === 'ongoing' ? 'No ongoing bets' :
+                   betView === 'wins' ? 'No winning bets yet' :
+                   'No losing bets'}
+                </p>
+              </div>
+            );
+          }
+
+          return filteredBets.map(renderUserBet);
+        })()}
       </div>
     </div>
   )}
