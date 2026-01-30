@@ -5,7 +5,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
   if (!isOpen) return null;
 
   const handleCopyAddress = (address) => {
-    navigator.clipboard.writeText(address);
+    navigator.clipboard.writeText(address)
     alert('Address copied!');
   };
 

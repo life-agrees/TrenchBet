@@ -149,6 +149,361 @@ const MarketCardSkeleton = () => (
   </div>
 );
 
+
+
+// Leaderboard Component
+const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <Loader2 className="animate-spin text-primary" size={48} />
+        <p className="mt-4 text-neutral-400">Loading leaderboard...</p>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600">
+        <Trophy size={48} className="text-primary mb-4" />
+        <p className="text-xl text-white mb-2">No Rankings Yet</p>
+        <p className="text-neutral-400">Be the first to place a bet and climb the leaderboard!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Top 3 Podium */}
+      {data.length >= 3 && (
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {/* 2nd Place */}
+          <div className="pt-8">
+            <div className="bg-gradient-to-br from-neutral-600 to-neutral-700 border-2 border-neutral-500 rounded-2xl p-6 text-center relative">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-neutral-500 rounded-full flex items-center justify-center text-2xl font-black border-4 border-dark-950">
+                2
+              </div>
+              <div className="text-4xl mb-2">🥈</div>
+              <p className="font-mono text-sm text-white mb-2">{data[1].displayAddress}</p>
+              <div className="space-y-1">
+                <p className="text-2xl font-black text-white">{data[1].wins} Wins</p>
+                <p className="text-sm text-neutral-300">{data[1].winRate}% Win Rate</p>
+                <p className="text-xs text-neutral-400">${data[1].totalVolume.toFixed(2)} Volume</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 1st Place */}
+          <div className="pt-0">
+            <div className="bg-gradient-to-br from-primary to-success border-2 border-primary rounded-2xl p-8 text-center relative glow-primary">
+              <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-16 h-16 bg-primary rounded-full flex items-center justify-center text-3xl font-black border-4 border-dark-950 animate-pulse-slow">
+                1
+              </div>
+              <div className="text-5xl mb-3">👑</div>
+              <p className="font-mono text-sm text-dark-950 mb-3 font-bold">{data[0].displayAddress}</p>
+              <div className="space-y-1">
+                <p className="text-3xl font-black text-dark-950">{data[0].wins} Wins</p>
+                <p className="text-sm text-dark-950 font-semibold">{data[0].winRate}% Win Rate</p>
+                <p className="text-xs text-dark-900 font-medium">${data[0].totalVolume.toFixed(2)} Volume</p>
+              </div>
+            </div>
+          </div>
+
+          {/* 3rd Place */}
+          <div className="pt-8">
+            <div className="bg-gradient-to-br from-amber-700 to-amber-800 border-2 border-amber-600 rounded-2xl p-6 text-center relative">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-amber-600 rounded-full flex items-center justify-center text-2xl font-black border-4 border-dark-950">
+                3
+              </div>
+              <div className="text-4xl mb-2">🥉</div>
+              <p className="font-mono text-sm text-white mb-2">{data[2].displayAddress}</p>
+              <div className="space-y-1">
+                <p className="text-2xl font-black text-white">{data[2].wins} Wins</p>
+                <p className="text-sm text-neutral-200">{data[2].winRate}% Win Rate</p>
+                <p className="text-xs text-neutral-300">${data[2].totalVolume.toFixed(2)} Volume</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rest of Rankings */}
+      <div className="bg-dark-800 rounded-2xl border-2 border-dark-600 overflow-hidden">
+        <div className="bg-dark-700 px-6 py-4 border-b border-dark-600">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <Trophy className="text-secondary" size={24} />
+            Full Rankings
+          </h3>
+        </div>
+
+        <div className="divide-y divide-dark-600">
+          {data.slice(data.length >= 3 ? 3 : 0).map((user, index) => {
+            const rank = (data.length >= 3 ? 3 : 0) + index + 1;
+            const isCurrentUser = currentUserAddress && user.address.toLowerCase() === currentUserAddress.toLowerCase();
+
+            return (
+              <div
+                key={user.address}
+                className={`px-6 py-4 flex items-center justify-between transition-all ${
+                  isCurrentUser ? 'bg-primary/10 border-l-4 border-primary' : 'hover:bg-dark-700'
+                }`}
+              >
+                <div className="flex items-center gap-4 flex-1">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
+                    isCurrentUser ? 'bg-primary text-dark-950' : 'bg-dark-700 text-neutral-400'
+                  }`}>
+                    {rank}
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className={`font-mono font-semibold ${isCurrentUser ? 'text-primary' : 'text-white'}`}>
+                        {user.displayAddress}
+                      </p>
+                      {isCurrentUser && (
+                        <span className="px-2 py-0.5 bg-primary/20 border border-primary text-primary text-xs font-bold rounded-full">
+                          YOU
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-neutral-500">{user.totalBets} total bets</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-8">
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-success">{user.wins} Wins</p>
+                    <p className="text-xs text-neutral-500">{user.losses} Losses</p>
+                  </div>
+
+                  <div className="text-right">
+                    <p className="text-lg font-bold text-white">{user.winRate}%</p>
+                    <p className="text-xs text-neutral-500">Win Rate</p>
+                  </div>
+
+                  <div className="text-right min-w-[100px]">
+                    <p className="text-lg font-bold text-secondary">${user.totalVolume.toFixed(2)}</p>
+                    <p className="text-xs text-neutral-500">Volume</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Share Modal Component
+const ShareModal = ({ market, isOpen, onClose }) => {
+  if (!isOpen || !market) return null;
+
+  const shareUrl = `${window.location.origin}/?market=${market.id}`;
+  const shareText = `Check out this prediction market on TrenchyBet!\n\n${market.asset} - ${getMarketLabel(market.marketType, market.asset)}\n\nPool: $${formatUnits(market.totalPool, 6)}\nEnds: ${new Date(Number(market.endTime) * 1000).toLocaleDateString()}`;
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      // Show success feedback
+      const button = document.getElementById('copy-button');
+      const originalText = button.innerHTML;
+      button.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!';
+      setTimeout(() => {
+        button.innerHTML = originalText;
+      }, 2000);
+    } catch (err) {
+      alert('Failed to copy link');
+    }
+  };
+
+  const shareToTwitter = () => {
+    const tweetText = encodeURIComponent(`${shareText}\n\n${shareUrl} #TrenchyBet #PredictionMarket #Crypto`);
+    window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
+  };
+
+  const shareToTelegram = () => {
+    const telegramText = encodeURIComponent(`${shareText}\n\n${shareUrl}`);
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${telegramText}`, '_blank');
+  };
+
+  const shareToWhatsApp = () => {
+    const whatsappText = encodeURIComponent(`${shareText}\n\n${shareUrl}`);
+    window.open(`https://wa.me/?text=${whatsappText}`, '_blank');
+  };
+
+  const shareToFarcaster = () => {
+    const farcasterText = encodeURIComponent(shareText);
+    window.open(`https://warpcast.com/~/compose?text=${farcasterText}&embeds[]=${encodeURIComponent(shareUrl)}`, '_blank');
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gradient-to-br from-dark-800 to-dark-700 border-2 border-primary rounded-3xl p-8 w-full max-w-lg shadow-2xl glow-primary animate-in zoom-in duration-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-neutral-400 hover:text-white transition-colors"
+        >
+          <X size={24} />
+        </button>
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
+            <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-black text-white mb-2">Share Market</h2>
+          <p className="text-neutral-400">Spread the word and compete with friends!</p>
+        </div>
+
+        {/* Market Preview */}
+        <div className="bg-dark-900 border border-primary/30 rounded-xl p-4 mb-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-2xl">
+              {getAssetEmoji(market.asset)}
+            </div>
+            <div>
+              <h3 className="font-bold text-white">{market.asset} Market</h3>
+              <p className="text-sm text-neutral-400">{getMarketLabel(market.marketType, market.asset)}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <p className="text-neutral-500">Pool Size</p>
+              <p className="font-bold text-success">${formatUnits(market.totalPool, 6)}</p>
+            </div>
+            <div>
+              <p className="text-neutral-500">Ends</p>
+              <p className="font-bold text-white">{new Date(Number(market.endTime) * 1000).toLocaleDateString()}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Copy Link */}
+        <div className="mb-6">
+          <label className="block text-sm font-bold text-neutral-300 mb-2">Share Link</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={shareUrl}
+              readOnly
+              className="flex-1 px-4 py-3 bg-dark-900 border border-dark-600 rounded-xl text-white font-mono text-sm"
+            />
+            <button
+              id="copy-button"
+              onClick={copyToClipboard}
+              className="px-6 py-3 bg-primary hover:bg-primary-400 text-dark-950 font-bold rounded-xl transition-all hover:scale-105 flex items-center gap-2"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Copy
+            </button>
+          </div>
+        </div>
+
+        {/* Social Share Buttons */}
+        <div className="space-y-3">
+          <p className="text-sm font-bold text-neutral-300 mb-3">Share on Social Media</p>
+
+          {/* Twitter/X */}
+          <button
+            onClick={shareToTwitter}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-black hover:bg-neutral-900 border border-neutral-700 hover:border-neutral-500 rounded-xl transition-all group"
+          >
+            <div className="w-10 h-10 rounded-full bg-neutral-800 group-hover:bg-neutral-700 flex items-center justify-center transition-all">
+              <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+              </svg>
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-white">Share on X (Twitter)</p>
+              <p className="text-xs text-neutral-400">Post to your timeline</p>
+            </div>
+            <svg className="w-5 h-5 text-neutral-500 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Telegram */}
+          <button
+            onClick={shareToTelegram}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#0088cc] hover:bg-[#0077b3] border border-[#0077b3] rounded-xl transition-all group"
+          >
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+              <svg className="w-6 h-6 text-[#0088cc]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161c-.18 1.897-.962 6.502-1.359 8.627-.168.9-.5 1.201-.82 1.23-.697.064-1.226-.461-1.901-.903-1.056-.693-1.653-1.124-2.678-1.8-1.185-.781-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.139-5.062 3.345-.479.329-.913.489-1.302.481-.428-.009-1.252-.242-1.865-.442-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.831-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635.099-.002.321.023.465.14.121.099.155.232.171.326.016.094.036.308.02.475z"/>
+              </svg>
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-white">Share on Telegram</p>
+              <p className="text-xs text-blue-200">Send to groups or channels</p>
+            </div>
+            <svg className="w-5 h-5 text-blue-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* WhatsApp */}
+          <button
+            onClick={shareToWhatsApp}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#25D366] hover:bg-[#1fc555] border border-[#1fc555] rounded-xl transition-all group"
+          >
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+              <svg className="w-6 h-6 text-[#25D366]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+              </svg>
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-white">Share on WhatsApp</p>
+              <p className="text-xs text-green-200">Send to contacts</p>
+            </div>
+            <svg className="w-5 h-5 text-green-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+
+          {/* Farcaster */}
+          <button
+            onClick={shareToFarcaster}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-[#8a63d2] hover:bg-[#7952c4] border border-[#7952c4] rounded-xl transition-all group"
+          >
+            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+              <svg className="w-6 h-6 text-[#8a63d2]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.24 4.32l-3.12 15.6h-6.24l-3.12-15.6h2.88l2.4 12l2.4-12h2.88z"/>
+              </svg>
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-white">Share on Farcaster</p>
+              <p className="text-xs text-purple-200">Cast to your feed</p>
+            </div>
+            <svg className="w-5 h-5 text-purple-200 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="w-full mt-6 bg-dark-700 hover:bg-dark-600 text-white font-bold py-3 rounded-xl transition-all"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ==================== MAIN COMPONENT ====================
 
 const App = () => {
@@ -174,6 +529,7 @@ const App = () => {
   const [betAmount, setBetAmount] = useState('10');
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [selectedAssetFilter, setSelectedAssetFilter] = useState('ALL');
+  const [shareModalData, setShareModalData] = useState(null);
 
   const [userStats, setUserStats] = useState({
     totalBets: 0,
@@ -181,6 +537,9 @@ const App = () => {
     losses: 0,
     streak: 0,
   });
+
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
 
   // ==== WAGMI & DATA FETCHING ====
   const checkIsOwner = useCallback(async () => {
@@ -485,6 +844,116 @@ const App = () => {
     });
     
   }, [address, userBets]);
+
+  // Fetch leaderboard data
+  const fetchLeaderboard = useCallback(async () => {
+    if (!publicClient) return;
+
+    setIsLoadingLeaderboard(true);
+
+    try {
+      // Get all unique bettors from events
+      // This is a simplified version - in production you'd use The Graph or indexing
+      const userBetsMap = new Map();
+
+      // Aggregate data from userBets (we'll need to fetch ALL bets, not just current user)
+      // For now, let's create a leaderboard from available data
+
+      // Get recent bet events from the contract
+      const betPlacedEvents = await publicClient.getLogs({
+        address: CONTRACTS.PREDICTION_MARKET,
+        event: {
+          type: 'event',
+          name: 'BetPlaced',
+          inputs: [
+            { type: 'uint256', name: 'marketId', indexed: true },
+            { type: 'address', name: 'user', indexed: true },
+            { type: 'uint256', name: 'choiceIndex', indexed: false },
+            { type: 'uint256', name: 'amount', indexed: false },
+          ],
+        },
+        fromBlock: 'earliest',
+        toBlock: 'latest',
+      });
+
+      // Aggregate by user
+      betPlacedEvents.forEach(log => {
+        const user = log.args.user;
+        const amount = Number(formatUnits(log.args.amount || 0n, 6));
+
+        if (!userBetsMap.has(user)) {
+          userBetsMap.set(user, {
+            address: user,
+            totalBets: 0,
+            totalVolume: 0,
+            wins: 0,
+            losses: 0,
+          });
+        }
+
+        const userData = userBetsMap.get(user);
+        userData.totalBets += 1;
+        userData.totalVolume += amount;
+      });
+
+      // Get win events
+      const betResolvedEvents = await publicClient.getLogs({
+        address: CONTRACTS.PREDICTION_MARKET,
+        event: {
+          type: 'event',
+          name: 'BetResolved',
+          inputs: [
+            { type: 'uint256', name: 'marketId', indexed: true },
+            { type: 'address', name: 'user', indexed: true },
+            { type: 'uint256', name: 'payout', indexed: false },
+          ],
+        },
+        fromBlock: 'earliest',
+        toBlock: 'latest',
+      });
+
+      // Update wins
+      betResolvedEvents.forEach(log => {
+        const user = log.args.user;
+        const payout = Number(formatUnits(log.args.payout || 0n, 6));
+
+        if (userBetsMap.has(user)) {
+          const userData = userBetsMap.get(user);
+          if (payout > 0) {
+            userData.wins += 1;
+          } else {
+            userData.losses += 1;
+          }
+        }
+      });
+
+      // Convert to array and calculate win rates
+      const leaderboard = Array.from(userBetsMap.values()).map(user => ({
+        ...user,
+        winRate: user.totalBets > 0 ? ((user.wins / user.totalBets) * 100).toFixed(1) : '0.0',
+        displayAddress: `${user.address.slice(0, 6)}...${user.address.slice(-4)}`,
+      }));
+
+      // Sort by wins (you can change sorting criteria)
+      leaderboard.sort((a, b) => {
+        // Primary: Most wins
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        // Secondary: Highest win rate
+        if (parseFloat(b.winRate) !== parseFloat(a.winRate))
+          return parseFloat(b.winRate) - parseFloat(a.winRate);
+        // Tertiary: Most volume
+        return b.totalVolume - a.totalVolume;
+      });
+
+      setLeaderboardData(leaderboard.slice(0, 50)); // Top 50
+
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+      setLeaderboardData([]);
+    } finally {
+      setIsLoadingLeaderboard(false);
+    }
+  }, [publicClient]);
 
 const refreshData = useCallback(async () => {
   if (isConnected && address) {
@@ -816,6 +1285,13 @@ const refreshData = useCallback(async () => {
       sdk.getUserContext().then(setFarcasterUser).catch(e => console.error(e));
     }
   }, []);
+
+  // Fetch leaderboard data when leaderboard tab is selected
+  useEffect(() => {
+    if (isConnected && currentView === 'leaderboard') {
+      fetchLeaderboard();
+    }
+  }, [isConnected, currentView, fetchLeaderboard]);
 
   //  RENDER HELPERS 
 
@@ -1185,32 +1661,39 @@ const refreshData = useCallback(async () => {
     </div>
   )}
   
-  {/* Tabs - Only show if connected */}
-  {isConnected && (
-    <div className="flex border-b border-dark-600 mb-8 overflow-x-auto">
-      {[
+  {/* Tabs - Show always (leaderboard is public) */}
+  <div className="flex border-b border-dark-600 mb-8 overflow-x-auto">
+    {(isConnected ? (
+      // Full tabs when connected
+      [
         { key: 'markets', label: 'All Markets', icon: Target },
         { key: 'myBets', label: `My Bets (${userBets.length})`, icon: BarChart3 },
         { key: 'leaderboard', label: 'Leaderboard', icon: Trophy }
-      ].map(({ key, label, icon: Icon }) => (
-        <button 
-          key={key} 
-          onClick={() => setCurrentView(key)} 
-          className={`py-3 px-6 text-lg font-semibold transition-all duration-300 flex items-center gap-2 relative ${
-            currentView === key 
-              ? 'text-primary border-b-2 border-primary' 
-              : 'text-neutral-400 hover:text-white hover:bg-primary/5'
-          }`}
-        >
-          <Icon size={20} className={currentView === key ? 'text-primary' : 'text-neutral-500'} />
-          {label}
-          {currentView === key && (
-            <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-success animate-pulse-slow"></span>
-          )}
-        </button>
-      ))}
-    </div>
-  )}
+      ]
+    ) : (
+      // Limited tabs when not connected
+      [
+        { key: 'markets', label: 'All Markets', icon: Target },
+        { key: 'leaderboard', label: 'Leaderboard', icon: Trophy }
+      ]
+    )).map(({ key, label, icon: Icon }) => (
+      <button
+        key={key}
+        onClick={() => setCurrentView(key)}
+        className={`py-3 px-6 text-lg font-semibold transition-all duration-300 flex items-center gap-2 relative ${
+          currentView === key
+            ? 'text-primary border-b-2 border-primary'
+            : 'text-neutral-400 hover:text-white hover:bg-primary/5'
+        }`}
+      >
+        <Icon size={20} className={currentView === key ? 'text-primary' : 'text-neutral-500'} />
+        {label}
+        {currentView === key && (
+          <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary to-success animate-pulse-slow"></span>
+        )}
+      </button>
+    ))}
+  </div>
 
   {/* Connect Banner - Show only if not connected */}
   {!isConnected && (
@@ -1451,22 +1934,29 @@ const refreshData = useCallback(async () => {
     </div>
   )}
 
-  {/* Leaderboard - Only if connected */}
-  {isConnected && currentView === 'leaderboard' && (
+  {/* Leaderboard */}
+  {currentView === 'leaderboard' && (
     <div className="animate-in fade-in duration-500">
-      <h2 className="text-3xl font-bold mb-6 text-primary">Top Predictors</h2>
-      <div className="bg-dark-800 p-6 rounded-xl">
-        <p className="text-neutral-400">Leaderboard functionality coming soon!</p>
-        <ul className="mt-4 space-y-3">
-          {['0x123...456 (50 Wins)', '0xABC...DEF (45 Wins)', '0x789...GHI (40 Wins)'].map((entry, index) => (
-            <li key={index} className="flex justify-between items-center p-3 bg-dark-700 rounded-lg">
-              <span className="text-lg font-bold">{index + 1}.</span>
-              <span className="flex-1 ml-4">{entry}</span>
-              <Trophy size={20} className="text-secondary" />
-            </li>
-          ))}
-        </ul>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold text-primary flex items-center gap-3">
+          <Trophy size={32} className="text-secondary" />
+          Top Predictors
+        </h2>
+        <button
+          onClick={() => fetchLeaderboard()}
+          disabled={isLoadingLeaderboard}
+          className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 hover:border-primary rounded-xl transition-all"
+        >
+          <RefreshCw size={16} className={isLoadingLeaderboard ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
+
+      <LeaderboardView
+        data={leaderboardData}
+        isLoading={isLoadingLeaderboard}
+        currentUserAddress={address}
+      />
     </div>
   )}
 </main>
@@ -1658,11 +2148,20 @@ const refreshData = useCallback(async () => {
         </div>
       )}
       {showAdminPanel && <AdminPanel onClose={() => { setShowAdminPanel(false); refreshData(); }} />}
+
+      {/* Add Funds Modal */}
       <AddFundsModal
         isOpen={showAddFundsModal}
         onClose={() => setShowAddFundsModal(false)}
         network={chain?.name || 'Base Sepolia'}
         address={address}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        market={shareModalData}
+        isOpen={!!shareModalData}
+        onClose={() => setShareModalData(null)}
       />
     </div>
   );
