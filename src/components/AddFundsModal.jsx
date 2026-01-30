@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Copy, ExternalLink, DollarSign } from 'lucide-react';
 
-const AddFundsModal = ({ isOpen, onClose, network }) => {
+const AddFundsModal = ({ isOpen, onClose, network, address }) => {
   if (!isOpen) return null;
 
   const handleCopyAddress = (address) => {

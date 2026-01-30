@@ -1662,6 +1662,7 @@ const refreshData = useCallback(async () => {
         isOpen={showAddFundsModal}
         onClose={() => setShowAddFundsModal(false)}
         network={chain?.name || 'Base Sepolia'}
+        address={address}
       />
     </div>
   );
