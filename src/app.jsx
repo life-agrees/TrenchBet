@@ -2006,7 +2006,7 @@ const refreshData = useCallback(async () => {
     <div className="bg-gradient-to-r from-primary/10 to-success/10 border-2 border-primary rounded-2xl p-8 mb-8 text-center relative overflow-hidden glow-primary animate-in slide-in-from-top-4">
       {/* Animated background */}
       <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-success/5 animate-pulse-slow"></div>
-      
+
       <div className="relative z-10">
         <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center animate-pulse-slow">
           <Wallet size={32} className="text-primary" />
@@ -2015,6 +2015,28 @@ const refreshData = useCallback(async () => {
         <p className="text-lg text-neutral-300 mb-6 max-w-2xl mx-auto">
           Connect your wallet to place bets, track your performance, and join the action
         </p>
+
+        {/* Preview Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-6">
+          <div className="bg-dark-800 border-2 border-primary/30 p-8 rounded-2xl hover:border-primary hover:glow-primary transition-all duration-300">
+            <div className="text-5xl mb-4">🎯</div>
+            <h3 className="font-bold text-xl mb-3 text-white">Binary Markets</h3>
+            <p className="text-sm text-neutral-400">Will BTC hit $150K? Simple UP or DOWN predictions with dynamic odds.</p>
+          </div>
+
+          <div className="bg-dark-800 border-2 border-success/30 p-8 rounded-2xl hover:border-success hover:glow-success transition-all duration-300">
+            <div className="text-5xl mb-4">⚡</div>
+            <h3 className="font-bold text-xl mb-3 text-white">Live Odds</h3>
+            <p className="text-sm text-neutral-400">Real-time multipliers that change as the pool grows. Early bets get better odds.</p>
+          </div>
+
+          <div className="bg-dark-800 border-2 border-secondary/30 p-8 rounded-2xl hover:border-secondary hover:glow-secondary transition-all duration-300">
+            <div className="text-5xl mb-4">💰</div>
+            <h3 className="font-bold text-xl mb-3 text-white">Instant Payouts</h3>
+            <p className="text-sm text-neutral-400">Win big? Claim your winnings instantly when markets resolve. No delays.</p>
+          </div>
+        </div>
+
         <div className="flex justify-center">
           <ConnectButton />
         </div>
