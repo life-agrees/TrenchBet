@@ -504,6 +504,213 @@ const ShareModal = ({ market, isOpen, onClose }) => {
   );
 };
 
+// ==================== NOTIFICATION HELPER FUNCTIONS ====================
+
+// Notification Helper Functions
+const requestNotificationPermission = async () => {
+  if (!('Notification' in window)) {
+    console.log('This browser does not support notifications');
+    return false;
+  }
+
+  if (Notification.permission === 'granted') {
+    return true;
+  }
+
+  if (Notification.permission !== 'denied') {
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  }
+
+  return false;
+};
+
+const showNotification = (title, options = {}) => {
+  if (!('Notification' in window)) return;
+
+  if (Notification.permission === 'granted') {
+    const notification = new Notification(title, {
+      icon: '/vite.svg', // Your app icon
+      badge: '/vite.svg',
+      vibrate: [200, 100, 200],
+      ...options,
+    });
+
+    // Auto-close after 5 seconds
+    setTimeout(() => notification.close(), 5000);
+
+    // Handle click
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      if (options.onClick) options.onClick();
+    };
+  }
+};
+
+const showToast = (message, type = 'success') => {
+  const toast = document.createElement('div');
+  toast.className = `fixed top-4 right-4 z-[70] px-6 py-4 rounded-xl shadow-2xl animate-in slide-in-from-top-4 flex items-center gap-3 ${
+    type === 'success' ? 'bg-gradient-to-r from-success to-primary text-dark-950' :
+    type === 'error' ? 'bg-gradient-to-r from-danger to-red-600 text-white' :
+    type === 'warning' ? 'bg-gradient-to-r from-secondary to-amber-600 text-dark-950' :
+    'bg-gradient-to-r from-primary to-success text-dark-950'
+  }`;
+
+  const icon = type === 'success'
+    ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+    : type === 'error'
+    ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+    : type === 'warning'
+    ? '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
+    : '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+
+  toast.innerHTML = `${icon}<span class="font-bold">${message}</span>`;
+  document.body.appendChild(toast);
+
+  // Remove after 4 seconds
+  setTimeout(() => {
+    toast.style.animation = 'fade-out 0.3s ease-out forwards';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+};
+
+// ==================== NOTIFICATION SETTINGS COMPONENT ====================
+
+// Notification Settings Component
+const NotificationSettings = ({ isOpen, onClose, enabled, onToggle, permission }) => {
+  if (!isOpen) return null;
+
+  const handleEnableNotifications = async () => {
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      onToggle(true);
+      showToast('Notifications enabled! You\'ll be notified when you win 🎉', 'success');
+    } else {
+      showToast('Notification permission denied', 'error');
+    }
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4" 
+      onClick={onClose}
+    >
+      <div 
+        className="bg-gradient-to-br from-dark-800 to-dark-700 border-2 border-primary rounded-3xl p-8 w-full max-w-lg shadow-2xl glow-primary animate-in zoom-in duration-300" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 text-neutral-400 hover:text-white transition-colors"
+        >
+          <X size={24} />
+        </button>
+
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
+            <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-black text-white mb-2">Notifications</h2>
+          <p className="text-neutral-400">Get notified about important events</p>
+        </div>
+
+        {/* Content */}
+        <div className="space-y-4">
+          {/* Enable/Disable Toggle */}
+          <div className="bg-dark-900 border border-primary/30 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-bold text-white text-lg">Push Notifications</h3>
+                <p className="text-sm text-neutral-400">
+                  {permission === 'granted' 
+                    ? 'Stay updated on your bets' 
+                    : permission === 'denied'
+                    ? 'Permission denied - enable in browser settings'
+                    : 'Allow notifications to stay informed'}
+                </p>
+              </div>
+              <button
+                onClick={() => enabled ? onToggle(false) : handleEnableNotifications()}
+                disabled={permission === 'denied'}
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                  enabled ? 'bg-primary' : 'bg-dark-700'
+                } ${permission === 'denied' ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                    enabled ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {permission === 'denied' && (
+              <div className="bg-danger/10 border border-danger rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle size={16} className="text-danger mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-danger">
+                  Notifications are blocked. Please enable them in your browser settings.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* What you'll be notified about */}
+          {enabled && (
+            <div className="bg-dark-900 border border-dark-600 rounded-xl p-6">
+              <h4 className="font-bold text-white mb-3">You'll be notified about:</h4>
+              <ul className="space-y-2">
+                {[
+                  { icon: '🏆', text: 'When you win a bet' },
+                  { icon: '📊', text: 'When markets you bet on are resolved' },
+                  { icon: '⏰', text: 'When markets are about to end (15 min warning)' },
+                  { icon: '💰', text: 'When you can claim winnings' },
+                ].map((item, index) => (
+                  <li key={index} className="flex items-center gap-3 text-sm text-neutral-300">
+                    <span className="text-xl">{item.icon}</span>
+                    <span>{item.text}</span>
+                    <svg className="w-4 h-4 text-success ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Test Notification */}
+          {enabled && (
+            <button
+              onClick={() => {
+                showNotification('🎉 Test Notification', {
+                  body: 'Notifications are working! You\'ll be alerted when you win bets.',
+                  tag: 'test',
+                });
+                showToast('Test notification sent!', 'info');
+              }}
+              className="w-full bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 hover:border-primary text-white font-bold py-3 rounded-xl transition-all"
+            >
+              Send Test Notification
+            </button>
+          )}
+        </div>
+
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="w-full mt-6 bg-primary hover:bg-primary-400 text-dark-950 font-bold py-3 rounded-xl transition-all hover:scale-105"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ==================== MAIN COMPONENT ====================
 
 const App = () => {
@@ -540,6 +747,9 @@ const App = () => {
 
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState('default');
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
 
   // ==== WAGMI & DATA FETCHING ====
   const checkIsOwner = useCallback(async () => {
@@ -1253,32 +1463,25 @@ const refreshData = useCallback(async () => {
 
   useEffect(() => {
     if (isSuccess && lastBetRef.current === hash) {
-      // Show success message
       setSelectedMarket(null);
-      
-      // Create a temporary success notification
-      const successDiv = document.createElement('div');
-      successDiv.className = 'fixed top-4 right-4 z-[60] bg-gradient-to-r from-success to-primary border-2 border-success text-dark-950 font-bold px-6 py-4 rounded-xl shadow-2xl glow-success animate-in slide-in-from-top-4 flex items-center gap-3';
-      successDiv.innerHTML = `
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <span>Bet placed successfully! 🎉</span>
-      `;
-      document.body.appendChild(successDiv);
-      
-      // Remove after 4 seconds
-      setTimeout(() => {
-        successDiv.style.animation = 'fade-out 0.3s ease-out forwards';
-        setTimeout(() => successDiv.remove(), 300);
-      }, 4000);
-      
+
+      // Show success toast
+      showToast('Bet placed successfully! 🎉', 'success');
+
+      // Show notification if enabled
+      if (notificationsEnabled) {
+        showNotification('✅ Bet Placed!', {
+          body: `Your bet of $${betAmount} has been placed successfully. Good luck!`,
+          tag: 'bet-placed',
+        });
+      }
+
       refreshData();
       lastBetRef.current = null;
     } else if (isSuccess) {
       refreshData();
     }
-  }, [isSuccess, hash, refreshData]);
+  }, [isSuccess, hash, refreshData, notificationsEnabled, betAmount]);
 
   useEffect(() => {
     if (sdk.isFarcaster) {
@@ -1293,7 +1496,110 @@ const refreshData = useCallback(async () => {
     }
   }, [isConnected, currentView, fetchLeaderboard]);
 
-  //  RENDER HELPERS 
+  // Check notification permission on load
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+      setNotificationsEnabled(Notification.permission === 'granted' && localStorage.getItem('notifications_enabled') === 'true');
+    }
+  }, []);
+
+  // Save notification preference
+  useEffect(() => {
+    if (notificationsEnabled) {
+      localStorage.setItem('notifications_enabled', 'true');
+    } else {
+      localStorage.setItem('notifications_enabled', 'false');
+    }
+  }, [notificationsEnabled]);
+
+  // Watch for resolved bets and notify on wins
+  useEffect(() => {
+    if (!notificationsEnabled || !isConnected || !address) return;
+
+    const previousBets = JSON.parse(localStorage.getItem('previous_bets') || '[]');
+    const currentBetIds = userBets.map(bet => bet.marketId.toString());
+
+    // Find newly resolved bets
+    userBets.forEach(bet => {
+      const betKey = `${bet.marketId}-${bet.user}`;
+      const wasPending = previousBets.includes(betKey);
+
+      if (wasPending && bet.payout > 0n) {
+        // User won!
+        const winAmount = formatUnits(bet.payout, 6);
+
+        showNotification('🏆 You Won!', {
+          body: `Congratulations! You won $${winAmount} USDC!`,
+          tag: `win-${bet.marketId}`,
+          onClick: () => {
+            setCurrentView('myBets');
+          },
+        });
+
+        showToast(`You won $${winAmount} USDC! 🎉`, 'success');
+      } else if (wasPending && bet.claimed) {
+        // Bet resolved but lost
+        showToast('Market resolved - Better luck next time!', 'warning');
+      }
+    });
+
+    // Save current bets
+    localStorage.setItem('previous_bets', JSON.stringify(
+      userBets.filter(bet => !bet.claimed).map(bet => `${bet.marketId}-${bet.user}`)
+    ));
+
+  }, [userBets, notificationsEnabled, isConnected, address]);
+
+  // Notify when markets are ending soon (15 minutes)
+  useEffect(() => {
+    if (!notificationsEnabled || markets.length === 0) return;
+
+    const checkEndingSoonMarkets = () => {
+      const now = Date.now();
+      const fifteenMinutes = 15 * 60 * 1000;
+
+      markets.forEach(market => {
+        if (market.resolved) return;
+
+        const timeUntilEnd = (Number(market.endTime) * 1000) - now;
+        const notifiedKey = `notified-ending-${market.id}`;
+
+        // If market ends in less than 15 minutes and we haven't notified yet
+        if (timeUntilEnd > 0 && timeUntilEnd <= fifteenMinutes && !localStorage.getItem(notifiedKey)) {
+          // Check if user has a bet on this market
+          const hasBet = userBets.some(bet => bet.marketId.toString() === market.id.toString());
+
+          if (hasBet) {
+            showNotification('⏰ Market Ending Soon!', {
+              body: `${market.asset} market ends in ${Math.floor(timeUntilEnd / 60000)} minutes!`,
+              tag: `ending-${market.id}`,
+              onClick: () => {
+                setCurrentView('markets');
+              },
+            });
+
+            localStorage.setItem(notifiedKey, 'true');
+          }
+        }
+
+        // Clean up old notifications
+        if (timeUntilEnd < 0) {
+          localStorage.removeItem(notifiedKey);
+        }
+      });
+    };
+
+    // Check immediately
+    checkEndingSoonMarkets();
+
+    // Check every minute
+    const interval = setInterval(checkEndingSoonMarkets, 60000);
+
+    return () => clearInterval(interval);
+  }, [markets, notificationsEnabled, userBets]);
+
+  //  RENDER HELPERS
 
   const renderMarketDetails = (market) => {
     // Asset emoji mapping
@@ -2162,6 +2468,15 @@ const refreshData = useCallback(async () => {
         market={shareModalData}
         isOpen={!!shareModalData}
         onClose={() => setShareModalData(null)}
+      />
+
+      {/* Notification Settings Modal */}
+      <NotificationSettings
+        isOpen={showNotificationSettings}
+        onClose={() => setShowNotificationSettings(false)}
+        enabled={notificationsEnabled}
+        onToggle={setNotificationsEnabled}
+        permission={notificationPermission}
       />
     </div>
   );
