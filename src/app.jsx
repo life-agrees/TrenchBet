@@ -2051,7 +2051,7 @@ const refreshData = useCallback(async () => {
       }
       
       if (!isLoadingMarkets && activeMarkets.length === 0) {
-        return <LandingHero isConnected={isConnected} />;
+        return <LandingPage onLaunchApp={() => {}} liveStats={liveStats} />;
       }
       
       if (!isLoadingMarkets && filteredMarkets.length === 0) {
