@@ -7,6 +7,7 @@ import { CONTRACTS, config } from './config/wagmi';
 import AdminPanel from './components/AdminPanel';
 import AddFundsModal from './components/AddFundsModal';
 import LeaderboardView from './components/LeaderboardView';
+import Footer from './components/Footer';
 import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis';
 import { sdk } from '@farcaster/miniapp-sdk';
 
@@ -1601,7 +1602,7 @@ const refreshData = useCallback(async () => {
                       const balance = Number(formatUnits(usdcBalance, 6));
                       const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
                       setBetAmount(defaultBet);
-                  setSelectedBet({...market, choice: 0, choiceLabel: 'UP', multiplier: upMultiplier});
+                  setSelectedBet({market: market, choice: 0, choiceLabel: 'UP', multiplier: upMultiplier});
                     } catch (error) {
                       console.error('Error opening bet modal:', error);
                       alert('Failed to open bet modal. Please try again.');
@@ -1638,7 +1639,7 @@ const refreshData = useCallback(async () => {
                       const balance = Number(formatUnits(usdcBalance, 6));
                       const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
                       setBetAmount(defaultBet);
-                      setSelectedBet({...market, choice: 1, choiceLabel: 'DOWN', multiplier: downMultiplier});
+                      setSelectedBet({market: market, choice: 1, choiceLabel: 'DOWN', multiplier: downMultiplier});
                     } catch (error) {
                       console.error('Error opening bet modal:', error);
                       alert('Failed to open bet modal. Please try again.');
@@ -2258,16 +2259,16 @@ const refreshData = useCallback(async () => {
                 </div>
 
                 {/* Market Stats */}
-                {(() => {
+                {selectedBet && (() => {
                   const { upPercentage, downPercentage } = calculateMarketPercentages(
-                    parseFloat(selectedBet.market.upPool || 0),
-                    parseFloat(selectedBet.market.downPool || 0)
+                    parseFloat(selectedBet.yesPool || 0),
+                    parseFloat(selectedBet.noPool || 0)
                   );
                   const percentage = selectedBet.choice === 0 ? upPercentage : downPercentage;
-                  const totalPool = parseFloat(selectedBet.market.upPool || 0) + parseFloat(selectedBet.market.downPool || 0);
+                  const totalPool = parseFloat(selectedBet.yesPool || 0) + parseFloat(selectedBet.noPool || 0);
                   const choicePool = selectedBet.choice === 0
-                    ? parseFloat(selectedBet.market.upPool || 0)
-                    : parseFloat(selectedBet.market.downPool || 0);
+                    ? parseFloat(selectedBet.yesPool || 0)
+                    : parseFloat(selectedBet.noPool || 0);
                   const multiplier = calculateMultiplier(totalPool, choicePool);
 
                   return (
@@ -2289,40 +2290,7 @@ const refreshData = useCallback(async () => {
                 })()}
               </div>
 
-              {/* Bet Amount Input - KEEP YOUR EXISTING INPUT */}
-              <div>
-                <label className="text-sm text-gray-400 block mb-2">Bet Amount (USDC)</label>
-                <input
-                  type="number"
-                  value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:border-[#c0ff00] focus:outline-none text-lg"
-                  placeholder="Enter amount"
-                  min="0.01"
-                  step="0.01"
-                />
-              </div>
 
-              {/* Potential Payout Calculation */}
-              {betAmount && parseFloat(betAmount) > 0 && (
-                <div className="bg-gradient-to-br from-[#c0ff00]/10 to-[#c0ff00]/5 border border-[#c0ff00]/30 rounded-xl p-4">
-                  <div className="text-sm text-gray-400 mb-1">Potential Payout</div>
-                  <div className="text-3xl font-black text-[#c0ff00]">
-                    {(() => {
-                      const totalPool = parseFloat(selectedBet.market.upPool || 0) + parseFloat(selectedBet.market.downPool || 0);
-                      const choicePool = selectedBet.choice === 0
-                        ? parseFloat(selectedBet.market.upPool || 0)
-                        : parseFloat(selectedBet.market.downPool || 0);
-                      const multiplier = calculateMultiplier(totalPool, choicePool);
-                      const payout = calculatePayout(parseFloat(betAmount), multiplier);
-                      return `${payout.toFixed(2)} USDC`;
-                    })()}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Net profit after 2% fee on winnings
-                  </div>
-                </div>
-              )}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs sm:text-sm font-bold text-neutral-300 flex items-center gap-2">
@@ -2478,67 +2446,7 @@ const refreshData = useCallback(async () => {
       />
 
       {/* Footer - only show when not on landing page */}
-      {!showLanding && (
-        <footer className="bg-gray-900 border-t border-gray-800 mt-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {/* Brand */}
-              <div>
-                <div className="flex items-center mb-3">
-                  <div className="bg-[#c0ff00] p-2 rounded-xl">
-                    <TrendingUp className="w-6 h-6 text-gray-900" />
-                  </div>
-                  <span className="ml-2 text-xl font-black text-white">
-                    Trenchy<span className="text-[#c0ff00]">Bet</span>
-                  </span>
-                </div>
-                <p className="text-sm text-gray-400">
-                  High-velocity prediction markets on Base
-                </p>
-              </div>
-
-              {/* Links */}
-              <div>
-                <h5 className="text-white font-bold mb-3 text-sm">Community</h5>
-                <div className="space-y-2">
-                  <a
-                    href="https://x.com/life_agreez"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center text-gray-400 hover:text-[#c0ff00] transition-colors text-sm"
-                  >
-                    <Twitter className="w-4 h-4 mr-2" />
-                    Twitter
-                  </a>
-                  <a
-                    href="https://t.me/trenchybet"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center text-gray-400 hover:text-[#c0ff00] transition-colors text-sm"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Telegram
-                  </a>
-                </div>
-              </div>
-
-              {/* Info */}
-              <div>
-                <h5 className="text-white font-bold mb-3 text-sm">Network</h5>
-                <div className="space-y-1 text-sm text-gray-400">
-                  <div>Chain: <span className="text-[#c0ff00] font-mono">Base Sepolia</span></div>
-                  <div>Status: <span className="text-green-400">Live</span></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Copyright */}
-            <div className="mt-8 pt-6 border-t border-gray-800 text-center text-sm text-gray-500">
-              © 2026 TrenchyBet. Built on Base, powered by Chainlink.
-            </div>
-          </div>
-        </footer>
-      )}
+      {!showLanding && <Footer />}
     </div>
   );
 };
