@@ -1083,9 +1083,9 @@ const refreshData = useCallback(async () => {
   };
 
   const placeBetOnChain = async (market, choiceIndex) => {
-    if (!address) { 
+    if (!address) {
       alert('Please connect your wallet to place bets!');
-      return; 
+      return;
     }
 
     // Prevent multiple simultaneous bets
@@ -1095,6 +1095,25 @@ const refreshData = useCallback(async () => {
     }
 
     setIsPlacingBet(true);
+
+    // Validate inputs
+    if (!betAmount || betAmount === '' || isNaN(Number(betAmount)) || Number(betAmount) <= 0) {
+      alert('Please enter a valid bet amount');
+      setIsPlacingBet(false);
+      return;
+    }
+
+    if (!market || !market.id) {
+      alert('Market data not available. Please refresh and try again.');
+      setIsPlacingBet(false);
+      return;
+    }
+
+    if (choiceIndex === undefined || choiceIndex === null) {
+      alert('Invalid bet choice. Please try again.');
+      setIsPlacingBet(false);
+      return;
+    }
 
     const betAmountBigInt = parseUnits(betAmount, 6);
     
@@ -1492,32 +1511,69 @@ const refreshData = useCallback(async () => {
       return "Dynamic";
     };
 
+    // Build choices array based on market type
     let choices = [];
-    
+
+    console.log('🔍 Rendering Market ID:', market.id, 'Type:', market.marketType);
+
     if (market.marketType === 0) {
+      // Binary
       choices = [
         { label: 'UP', choiceIndex: 0, multiplier: getOddsDisplay(0) },
         { label: 'DOWN', choiceIndex: 1, multiplier: getOddsDisplay(1) },
       ];
+      console.log('✅ Binary market choices:', choices);
+
     } else if (market.marketType === 1) {
-      choices = market.options.map((label, index) => ({
-        label,
-        choiceIndex: index,
-        multiplier: getOddsDisplay(index)
-      }));
+      // Multi-Choice
+      console.log('🎯 Multi-Choice Market - Raw options:', market.options);
+
+      if (market.options && market.options.length > 0) {
+        choices = market.options.map((label, index) => ({
+          label,
+          choiceIndex: index,
+          multiplier: getOddsDisplay(index)
+        }));
+        console.log('✅ Multi-Choice choices:', choices);
+      } else {
+        console.error('❌ Multi-Choice market has NO OPTIONS!', market);
+        choices = [{ label: 'ERROR: No options loaded', choiceIndex: 0, multiplier: '2.00' }];
+      }
+
     } else if (market.marketType === 2) {
-      choices = market.rangeMins.map((min, index) => ({
-        label: `[${formatUnits(min, 8)} - ${formatUnits(market.rangeMaxs[index], 8)}]`,
-        choiceIndex: index,
-        multiplier: getOddsDisplay(index)
-      }));
+      // Range Market
+      console.log('📊 Range Market - Raw ranges:', market.rangeMins, market.rangeMaxs);
+
+      if (market.rangeMins && market.rangeMaxs && market.rangeMins.length > 0) {
+        choices = market.rangeMins.map((min, index) => ({
+          label: `[${formatUnits(min, 8)} - ${formatUnits(market.rangeMaxs[index], 8)}]`,
+          choiceIndex: index,
+          multiplier: getOddsDisplay(index)
+        }));
+        console.log('✅ Range choices:', choices);
+      } else {
+        console.error('❌ Range market has NO RANGES!', market);
+        choices = [{ label: 'ERROR: No ranges loaded', choiceIndex: 0, multiplier: '2.00' }];
+      }
+
     } else if (market.marketType === 3) {
-      choices = market.timeframes.map((timeframe, index) => ({
-        label: `Hit by ${formatDuration(Number(timeframe))}`,
-        choiceIndex: index,
-        multiplier: getOddsDisplay(index)
-      }));
+      // Time-Based
+      console.log('⏰ Time Market - Raw timeframes:', market.timeframes);
+
+      if (market.timeframes && market.timeframes.length > 0) {
+        choices = market.timeframes.map((timeframe, index) => ({
+          label: `Hit by ${formatDuration(Number(timeframe))}`,
+          choiceIndex: index,
+          multiplier: getOddsDisplay(index)
+        }));
+        console.log('✅ Time choices:', choices);
+      } else {
+        console.error('❌ Time market has NO TIMEFRAMES!', market);
+        choices = [{ label: 'ERROR: No timeframes loaded', choiceIndex: 0, multiplier: '2.00' }];
+      }
     }
+
+    console.log('🎲 Final choices for Market #' + market.id + ':', choices);
 
     const now = Date.now();
     const marketStatus = getMarketTimeRemaining(market);
@@ -1602,111 +1658,177 @@ const refreshData = useCallback(async () => {
 
         {/* Betting buttons with PERCENTAGES + MULTIPLIERS */}
         {(() => {
-          const { upPercentage, downPercentage } = calculateMarketPercentages(
-            parseFloat(market.yesPool || 0),
-            parseFloat(market.noPool || 0)
-          );
-          const totalPool = parseFloat(market.yesPool || 0) + parseFloat(market.noPool || 0);
-          const upMultiplier = calculateMultiplier(totalPool, parseFloat(market.yesPool || 0));
-          const downMultiplier = calculateMultiplier(totalPool, parseFloat(market.noPool || 0));
+          // For binary markets, show pool distribution
+          if (market.marketType === 0) {
+            const { upPercentage, downPercentage } = calculateMarketPercentages(
+              parseFloat(market.yesPool || 0),
+              parseFloat(market.noPool || 0)
+            );
+            const totalPool = parseFloat(market.yesPool || 0) + parseFloat(market.noPool || 0);
+            const upMultiplier = calculateMultiplier(totalPool, parseFloat(market.yesPool || 0));
+            const downMultiplier = calculateMultiplier(totalPool, parseFloat(market.noPool || 0));
 
-          return (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                {/* UP Button */}
-                <button
-                  onClick={() => {
-                    if (!isLive) {
-                      if (isExpired) {
-                        alert('This market has ended and is awaiting resolution by the admin.');
-                      } else {
-                        alert('This market has been resolved.');
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* UP Button */}
+                  <button
+                    onClick={() => {
+                      if (!isLive) {
+                        if (isExpired) {
+                          alert('This market has ended and is awaiting resolution by the admin.');
+                        } else {
+                          alert('This market has been resolved.');
+                        }
+                        return;
                       }
-                      return;
-                    }
-                    if (!address) {
-                      alert('Please connect your wallet first!');
-                      return;
-                    }
-                    try {
-                      const balance = Number(formatUnits(usdcBalance, 6));
-                      const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
-                      setBetAmount(defaultBet);
-                  setSelectedBet({market: market, choice: 0, choiceLabel: 'UP', multiplier: upMultiplier});
-                    } catch (error) {
-                      console.error('Error opening bet modal:', error);
-                      alert('Failed to open bet modal. Please try again.');
-                    }
-                  }}
-                  disabled={!isLive}
-                  className="p-4 bg-gradient-to-br from-green-900/40 to-green-800/20 border border-green-700/50 rounded-xl hover:border-green-500 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="text-sm text-gray-400 mb-1">UP</div>
-                  <div className="text-3xl font-black text-green-400 mb-1">
-                    {upPercentage}%
-                  </div>
-                  <div className="text-sm text-gray-500 font-medium">
-                    {formatMultiplier(upMultiplier)}
-                  </div>
-                </button>
-
-                {/* DOWN Button */}
-                <button
-                  onClick={() => {
-                    if (!isLive) {
-                      if (isExpired) {
-                        alert('This market has ended and is awaiting resolution by the admin.');
-                      } else {
-                        alert('This market has been resolved.');
+                      if (!address) {
+                        alert('Please connect your wallet first!');
+                        return;
                       }
-                      return;
-                    }
-                    if (!address) {
-                      alert('Please connect your wallet first!');
-                      return;
-                    }
-                    try {
-                      const balance = Number(formatUnits(usdcBalance, 6));
-                      const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
-                      setBetAmount(defaultBet);
-                      setSelectedBet({market: market, choice: 1, choiceLabel: 'DOWN', multiplier: downMultiplier});
-                    } catch (error) {
-                      console.error('Error opening bet modal:', error);
-                      alert('Failed to open bet modal. Please try again.');
-                    }
-                  }}
-                  disabled={!isLive}
-                  className="p-4 bg-gradient-to-br from-red-900/40 to-red-800/20 border border-red-700/50 rounded-xl hover:border-red-500 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <div className="text-sm text-gray-400 mb-1">DOWN</div>
-                  <div className="text-3xl font-black text-red-400 mb-1">
-                    {downPercentage}%
-                  </div>
-                  <div className="text-sm text-gray-500 font-medium">
-                    {formatMultiplier(downMultiplier)}
-                  </div>
-                </button>
-              </div>
+                      try {
+                        const balance = Number(formatUnits(usdcBalance, 6));
+                        const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
+                        setBetAmount(defaultBet);
+                        setSelectedBet({market: market, choice: 0, choiceLabel: 'UP', multiplier: upMultiplier});
+                      } catch (error) {
+                        console.error('Error opening bet modal:', error);
+                        alert('Failed to open bet modal. Please try again.');
+                      }
+                    }}
+                    disabled={!isLive}
+                    className="p-4 bg-gradient-to-br from-green-900/40 to-green-800/20 border border-green-700/50 rounded-xl hover:border-green-500 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="text-sm text-gray-400 mb-1">UP</div>
+                    <div className="text-3xl font-black text-green-400 mb-1">
+                      {upPercentage}%
+                    </div>
+                    <div className="text-sm text-gray-500 font-medium">
+                      {formatMultiplier(upMultiplier)}
+                    </div>
+                  </button>
 
-              {/* Pool distribution bar */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Pool Split</span>
-                  <span>{upPercentage}% / {downPercentage}%</span>
+                  {/* DOWN Button */}
+                  <button
+                    onClick={() => {
+                      if (!isLive) {
+                        if (isExpired) {
+                          alert('This market has ended and is awaiting resolution by the admin.');
+                        } else {
+                          alert('This market has been resolved.');
+                        }
+                        return;
+                      }
+                      if (!address) {
+                        alert('Please connect your wallet first!');
+                        return;
+                      }
+                      try {
+                        const balance = Number(formatUnits(usdcBalance, 6));
+                        const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
+                        setBetAmount(defaultBet);
+                        setSelectedBet({market: market, choice: 1, choiceLabel: 'DOWN', multiplier: downMultiplier});
+                      } catch (error) {
+                        console.error('Error opening bet modal:', error);
+                        alert('Failed to open bet modal. Please try again.');
+                      }
+                    }}
+                    disabled={!isLive}
+                    className="p-4 bg-gradient-to-br from-red-900/40 to-red-800/20 border border-red-700/50 rounded-xl hover:border-red-500 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <div className="text-sm text-gray-400 mb-1">DOWN</div>
+                    <div className="text-3xl font-black text-red-400 mb-1">
+                      {downPercentage}%
+                    </div>
+                    <div className="text-sm text-gray-500 font-medium">
+                      {formatMultiplier(downMultiplier)}
+                    </div>
+                  </button>
                 </div>
-                <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
-                  <div
-                    className="bg-green-500 transition-all duration-500"
-                    style={{ width: `${upPercentage}%` }}
-                  />
-                  <div
-                    className="bg-red-500 transition-all duration-500"
-                    style={{ width: `${downPercentage}%` }}
-                  />
+
+                {/* Pool distribution bar */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Pool Split</span>
+                    <span>{upPercentage}% / {downPercentage}%</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden flex">
+                    <div
+                      className="bg-green-500 transition-all duration-500"
+                      style={{ width: `${upPercentage}%` }}
+                    />
+                    <div
+                      className="bg-red-500 transition-all duration-500"
+                      style={{ width: `${downPercentage}%` }}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          );
+            );
+          } else {
+            // For non-binary markets, show dynamic buttons based on choices
+            const gridCols = choices.length <= 2 ? 'grid-cols-2' : choices.length <= 4 ? 'grid-cols-2' : 'grid-cols-3';
+            const buttonColors = [
+              'from-blue-900/40 to-blue-800/20 border-blue-700/50 hover:border-blue-500 text-blue-400',
+              'from-purple-900/40 to-purple-800/20 border-purple-700/50 hover:border-purple-500 text-purple-400',
+              'from-orange-900/40 to-orange-800/20 border-orange-700/50 hover:border-orange-500 text-orange-400',
+              'from-pink-900/40 to-pink-800/20 border-pink-700/50 hover:border-pink-500 text-pink-400',
+              'from-teal-900/40 to-teal-800/20 border-teal-700/50 hover:border-teal-500 text-teal-400',
+              'from-indigo-900/40 to-indigo-800/20 border-indigo-700/50 hover:border-indigo-500 text-indigo-400',
+            ];
+
+            return (
+              <div className="space-y-3">
+                <div className={`grid ${gridCols} gap-3`}>
+                  {choices.map((choice, index) => {
+                    const colorClass = buttonColors[index % buttonColors.length];
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          if (!isLive) {
+                            if (isExpired) {
+                              alert('This market has ended and is awaiting resolution by the admin.');
+                            } else {
+                              alert('This market has been resolved.');
+                            }
+                            return;
+                          }
+                          if (!address) {
+                            alert('Please connect your wallet first!');
+                            return;
+                          }
+                          try {
+                            const balance = Number(formatUnits(usdcBalance, 6));
+                            const defaultBet = balance > 10 ? '10' : balance > 1 ? '1' : '0.5';
+                            setBetAmount(defaultBet);
+                            setSelectedBet({
+                              market: market,
+                              choice: choice.choiceIndex,
+                              choiceLabel: choice.label,
+                              multiplier: parseFloat(choice.multiplier)
+                            });
+                          } catch (error) {
+                            console.error('Error opening bet modal:', error);
+                            alert('Failed to open bet modal. Please try again.');
+                          }
+                        }}
+                        disabled={!isLive}
+                        className={`p-3 bg-gradient-to-br ${colorClass} rounded-xl hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        <div className="text-xs text-gray-400 mb-1 truncate" title={choice.label}>
+                          {choice.label.length > 15 ? `${choice.label.substring(0, 15)}...` : choice.label}
+                        </div>
+                        <div className="text-lg font-bold">
+                          {choice.multiplier}x
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
         })()}
 
         {/* Admin Controls */}
