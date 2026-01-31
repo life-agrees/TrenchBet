@@ -741,9 +741,9 @@ const App = () => {
   const [betView, setBetView] = useState('ongoing');
   const [farcasterUser, setFarcasterUser] = useState(null);
   const [usdcBalance, setUsdcBalance] = useState(0n);
-  const [userBets, setUserBets] = useState([]); 
-  const [selectedMarket, setSelectedMarket] = useState(null);
+  const [userBets, setUserBets] = useState([]);
   const [betAmount, setBetAmount] = useState('10');
+  const [selectedBet, setSelectedBet] = useState(null);
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [selectedAssetFilter, setSelectedAssetFilter] = useState('ALL');
   const [shareModalData, setShareModalData] = useState(null);
@@ -2443,22 +2443,22 @@ const refreshData = useCallback(async () => {
               <div className="text-center">
                 <div className="text-sm text-gray-400 mb-1">You're betting</div>
                 <div className={`text-4xl font-black ${
-                  selectedMarket.choice === 0 ? 'text-green-400' : 'text-red-400'
+                  selectedBet.choice === 0 ? 'text-green-400' : 'text-red-400'
                 }`}>
-                  {selectedMarket.choice === 0 ? 'UP ↗' : 'DOWN ↘'}
+                  {selectedBet.choice === 0 ? 'UP ↗' : 'DOWN ↘'}
                 </div>
 
                 {/* Market Stats */}
                 {(() => {
                   const { upPercentage, downPercentage } = calculateMarketPercentages(
-                    parseFloat(selectedMarket.market.upPool || 0),
-                    parseFloat(selectedMarket.market.downPool || 0)
+                    parseFloat(selectedBet.market.upPool || 0),
+                    parseFloat(selectedBet.market.downPool || 0)
                   );
-                  const percentage = selectedMarket.choice === 0 ? upPercentage : downPercentage;
-                  const totalPool = parseFloat(selectedMarket.market.upPool || 0) + parseFloat(selectedMarket.market.downPool || 0);
-                  const choicePool = selectedMarket.choice === 0
-                    ? parseFloat(selectedMarket.market.upPool || 0)
-                    : parseFloat(selectedMarket.market.downPool || 0);
+                  const percentage = selectedBet.choice === 0 ? upPercentage : downPercentage;
+                  const totalPool = parseFloat(selectedBet.market.upPool || 0) + parseFloat(selectedBet.market.downPool || 0);
+                  const choicePool = selectedBet.choice === 0
+                    ? parseFloat(selectedBet.market.upPool || 0)
+                    : parseFloat(selectedBet.market.downPool || 0);
                   const multiplier = calculateMultiplier(totalPool, choicePool);
 
                   return (
@@ -2500,10 +2500,10 @@ const refreshData = useCallback(async () => {
                   <div className="text-sm text-gray-400 mb-1">Potential Payout</div>
                   <div className="text-3xl font-black text-[#c0ff00]">
                     {(() => {
-                      const totalPool = parseFloat(selectedMarket.market.upPool || 0) + parseFloat(selectedMarket.market.downPool || 0);
-                      const choicePool = selectedMarket.choice === 0
-                        ? parseFloat(selectedMarket.market.upPool || 0)
-                        : parseFloat(selectedMarket.market.downPool || 0);
+                      const totalPool = parseFloat(selectedBet.market.upPool || 0) + parseFloat(selectedBet.market.downPool || 0);
+                      const choicePool = selectedBet.choice === 0
+                        ? parseFloat(selectedBet.market.upPool || 0)
+                        : parseFloat(selectedBet.market.downPool || 0);
                       const multiplier = calculateMultiplier(totalPool, choicePool);
                       const payout = calculatePayout(parseFloat(betAmount), multiplier);
                       return `${payout.toFixed(2)} USDC`;
@@ -2514,8 +2514,6 @@ const refreshData = useCallback(async () => {
                   </div>
                 </div>
               )}
-              
-              {/* Amount Input - COMPACT */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs sm:text-sm font-bold text-neutral-300 flex items-center gap-2">
