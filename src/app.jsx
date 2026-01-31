@@ -12,6 +12,7 @@ import { PREDICTION_MARKET_ABI, ERC20_ABI } from './contracts/abis';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 import LandingPage from './LandingPage';
+import LandingHero from './components/LandingHero';
 import {
   calculateMarketPercentages,
   calculateMultiplier,
@@ -2051,7 +2052,7 @@ const refreshData = useCallback(async () => {
       }
       
       if (!isLoadingMarkets && activeMarkets.length === 0) {
-        return <LandingPage onLaunchApp={() => {}} liveStats={liveStats} />;
+        return <LandingHero isConnected={isConnected} />;
       }
       
       if (!isLoadingMarkets && filteredMarkets.length === 0) {
