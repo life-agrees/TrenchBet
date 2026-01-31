@@ -1082,168 +1082,174 @@ const refreshData = useCallback(async () => {
     }
   };
 
-  const placeBetOnChain = async (market, choiceIndex) => {
-    if (!address) {
-      alert('Please connect your wallet to place bets!');
-      return;
-    }
+const placeBetOnChain = async (selectedBetData, choiceIndex) => {
+  if (!address) {
+    alert('Please connect your wallet to place bets!');
+    return;
+  }
 
-    // Prevent multiple simultaneous bets
-    if (isPlacingBet) {
-      console.log('Bet already in progress');
-      return;
-    }
+  // Prevent multiple simultaneous bets
+  if (isPlacingBet) {
+    console.log('Bet already in progress');
+    return;
+  }
 
-    setIsPlacingBet(true);
+  setIsPlacingBet(true);
 
-    // Validate inputs
-    if (!betAmount || betAmount === '' || isNaN(Number(betAmount)) || Number(betAmount) <= 0) {
-      alert('Please enter a valid bet amount');
-      setIsPlacingBet(false);
-      return;
-    }
+  // Extract market from selectedBetData
+  const market = selectedBetData.market || selectedBetData;
 
-    if (!market || !market.id) {
-      alert('Market data not available. Please refresh and try again.');
-      setIsPlacingBet(false);
-      return;
-    }
+  // Validate inputs
+  if (!betAmount || betAmount === '' || isNaN(Number(betAmount)) || Number(betAmount) <= 0) {
+    alert('Please enter a valid bet amount');
+    setIsPlacingBet(false);
+    return;
+  }
 
-    if (choiceIndex === undefined || choiceIndex === null) {
-      alert('Invalid bet choice. Please try again.');
-      setIsPlacingBet(false);
-      return;
-    }
+  if (!market || !market.id) {
+    console.error('Market data missing:', selectedBetData);
+    alert('Market data not available. Please refresh and try again.');
+    setIsPlacingBet(false);
+    return;
+  }
 
-    const betAmountBigInt = parseUnits(betAmount, 6);
-    
-    // Validation
-    if (betAmountBigInt <= 0n) {
-      alert('Please enter a valid bet amount');
-      return;
-    }
+  if (choiceIndex === undefined || choiceIndex === null) {
+    console.error('Choice index missing:', choiceIndex);
+    alert('Invalid bet choice. Please try again.');
+    setIsPlacingBet(false);
+    return;
+  }
 
+  console.log('🎲 Placing bet:', {
+    market: market.id,
+    choice: choiceIndex,
+    amount: betAmount,
+    marketData: market
+  });
+
+  const betAmountBigInt = parseUnits(betAmount, 6);
+
+  try {
+    // Check USDC balance first
+    let currentBalance;
     try {
-      // Check USDC balance first
-      let currentBalance;
-      try {
-        currentBalance = await publicClient.readContract({
-          address: CONTRACTS.USDC,
-          abi: ERC20_ABI,
-          functionName: 'balanceOf',
-          args: [address],
-        });
-      } catch (balanceError) {
-        console.error('Error checking balance:', balanceError);
-        alert('Network error: Unable to check your balance. Please try again or check your RPC connection.');
-        setIsPlacingBet(false);
-        return;
-      }
-
-      if (currentBalance < betAmountBigInt) {
-        alert(`Insufficient balance. You have ${formatUnits(currentBalance, 6)} USDC but trying to bet ${betAmount} USDC.`);
-        setIsPlacingBet(false);
-        return;
-      }
-
-      // Check and request approval if needed
-      let allowance;
-      try {
-        allowance = await publicClient.readContract({
-          address: CONTRACTS.USDC,
-          abi: ERC20_ABI,
-          functionName: 'allowance',
-          args: [address, CONTRACTS.PREDICTION_MARKET],
-        });
-      } catch (allowanceError) {
-        console.error('Error checking allowance:', allowanceError);
-        alert('Network error: Unable to check token allowance. Please try again.');
-        setIsPlacingBet(false);
-        return;
-      }
-
-      // If allowance is insufficient, request approval
-      if (allowance < betAmountBigInt) {
-        try {
-          console.log('💰 Insufficient allowance. Requesting approval...');
-          const approveHash = await handleApprove(betAmount);
-
-          if (!approveHash) {
-            console.log('Approval was cancelled by user');
-            setIsPlacingBet(false);
-            return;
-          }
-
-          console.log('⏳ Waiting for approval to be mined...');
-          await publicClient.waitForTransactionReceipt({
-            hash: approveHash,
-            timeout: 60000,
-            confirmations: 1,
-          });
-
-          console.log('✅ Approval confirmed! Waiting 2s before placing bet...');
-          await new Promise(resolve => setTimeout(resolve, 2000));
-
-        } catch (approveError) {
-          console.error('❌ Approval error:', approveError);
-
-          // Better error messages
-          let errorMessage = 'Token approval failed';
-
-          if (approveError.message?.includes('User rejected')) {
-            errorMessage = 'You cancelled the approval';
-          } else if (approveError.message?.includes('insufficient funds')) {
-            errorMessage = 'Insufficient ETH for gas fees';
-          } else if (approveError.message?.includes('getChainId')) {
-            errorMessage = 'Wallet connection error. Please reconnect your wallet and try again.';
-          } else {
-            errorMessage = `Approval failed: ${approveError.shortMessage || approveError.message || 'Unknown error'}`;
-          }
-
-          alert(errorMessage);
-          setIsPlacingBet(false);
-          return;
-        }
-      }
-
-      // Place the bet
-      try {
-        const txHash = await writeContractAsync({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'placeBet',
-          args: [market.id, choiceIndex, betAmountBigInt], 
-        });
-        
-        lastBetRef.current = txHash;
-        
-      } catch (betError) {
-        console.error('Bet placement error:', betError);
-        
-        // User rejected transaction
-        if (betError.message?.includes('User rejected') || betError.message?.includes('user rejected')) {
-          alert('Transaction cancelled');
-          setIsPlacingBet(false);
-          return;
-        }
-        
-        // Network/RPC error
-        if (betError.message?.includes('503') || betError.message?.includes('rate limit')) {
-          alert('Network error: RPC rate limit reached. Please wait a moment and try again.');
-          return;
-        }
-        
-        // Generic error
-        alert('Failed to place bet: ' + (betError.shortMessage || betError.message || 'Unknown error'));
-      }
-      
-    } catch (error) {
-      console.error('Unexpected error in placeBetOnChain:', error);
-      alert('An unexpected error occurred. Please refresh the page and try again.');
-    } finally {
+      currentBalance = await publicClient.readContract({
+        address: CONTRACTS.USDC,
+        abi: ERC20_ABI,
+        functionName: 'balanceOf',
+        args: [address],
+      });
+    } catch (balanceError) {
+      console.error('Error checking balance:', balanceError);
+      alert('Network error: Unable to check your balance. Please try again or check your RPC connection.');
       setIsPlacingBet(false);
+      return;
     }
-  };
+
+    if (currentBalance < betAmountBigInt) {
+      alert(`Insufficient balance. You have ${formatUnits(currentBalance, 6)} USDC but trying to bet ${betAmount} USDC.`);
+      setIsPlacingBet(false);
+      return;
+    }
+
+    // Check and request approval if needed
+    let allowance;
+    try {
+      allowance = await publicClient.readContract({
+        address: CONTRACTS.USDC,
+        abi: ERC20_ABI,
+        functionName: 'allowance',
+        args: [address, CONTRACTS.PREDICTION_MARKET],
+      });
+    } catch (allowanceError) {
+      console.error('Error checking allowance:', allowanceError);
+      alert('Network error: Unable to check token allowance. Please try again.');
+      setIsPlacingBet(false);
+      return;
+    }
+
+    // If allowance is insufficient, request approval
+    if (allowance < betAmountBigInt) {
+      try {
+        console.log('💰 Insufficient allowance. Requesting approval...');
+        const approveHash = await handleApprove(betAmount);
+
+        if (!approveHash) {
+          console.log('Approval was cancelled by user');
+          setIsPlacingBet(false);
+          return;
+        }
+
+        console.log('⏳ Waiting for approval to be mined...');
+        await publicClient.waitForTransactionReceipt({
+          hash: approveHash,
+          timeout: 60000,
+          confirmations: 1,
+        });
+
+        console.log('✅ Approval confirmed! Waiting 2s before placing bet...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+      } catch (approveError) {
+        console.error('❌ Approval error:', approveError);
+
+        // Better error messages
+        let errorMessage = 'Token approval failed';
+
+        if (approveError.message?.includes('User rejected')) {
+          errorMessage = 'You cancelled the approval';
+        } else if (approveError.message?.includes('insufficient funds')) {
+          errorMessage = 'Insufficient ETH for gas fees';
+        } else if (approveError.message?.includes('getChainId')) {
+          errorMessage = 'Wallet connection error. Please reconnect your wallet and try again.';
+        } else {
+          errorMessage = `Approval failed: ${approveError.shortMessage || approveError.message || 'Unknown error'}`;
+        }
+
+        alert(errorMessage);
+        setIsPlacingBet(false);
+        return;
+      }
+    }
+
+    // Place the bet
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'placeBet',
+        args: [market.id, choiceIndex, betAmountBigInt],
+      });
+
+      lastBetRef.current = txHash;
+
+    } catch (betError) {
+      console.error('Bet placement error:', betError);
+
+      // User rejected transaction
+      if (betError.message?.includes('User rejected') || betError.message?.includes('user rejected')) {
+        alert('Transaction cancelled');
+        setIsPlacingBet(false);
+        return;
+      }
+
+      // Network/RPC error
+      if (betError.message?.includes('503') || betError.message?.includes('rate limit')) {
+        alert('Network error: RPC rate limit reached. Please wait a moment and try again.');
+        return;
+      }
+
+      // Generic error
+      alert('Failed to place bet: ' + (betError.shortMessage || betError.message || 'Unknown error'));
+    }
+
+  } catch (error) {
+    console.error('Unexpected error in placeBetOnChain:', error);
+    alert('An unexpected error occurred. Please refresh the page and try again.');
+  } finally {
+    setIsPlacingBet(false);
+  }
+};
 
   const handleResolve = async (marketId, winningChoice) => {
     if (!isOwner) { alert('Admin only.'); return; }
