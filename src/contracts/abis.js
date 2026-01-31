@@ -63,7 +63,8 @@ export const PREDICTION_MARKET_ABI = [
           {"internalType": "uint256","name": "totalBets","type": "uint256"},
           {"internalType": "bool","name": "useFixedOdds","type": "bool"},
           {"internalType": "uint256","name": "yesMultiplier","type": "uint256"},
-          {"internalType": "uint256","name": "noMultiplier","type": "uint256"}
+          {"internalType": "uint256","name": "noMultiplier","type": "uint256"},
+          {"internalType": "uint256","name": "protocolFee","type": "uint256"}
         ],
         "internalType": "struct PredictionMarket.Market",
         "name": "",

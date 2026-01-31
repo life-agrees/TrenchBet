@@ -736,7 +736,7 @@ const App = () => {
 
   const fetchMarkets = useCallback(async () => {
     if (!publicClient) return;
-    
+
     setMarkets(prev => {
         if (prev.length === 0) setIsLoadingMarkets(true);
         return prev;
@@ -748,17 +748,46 @@ const App = () => {
         abi: PREDICTION_MARKET_ABI,
         functionName: 'marketCounter',
       });
-      
+
       const marketIds = Array.from({ length: Number(counter) }, (_, i) => BigInt(i + 1));
 
-      const fetchedMarkets = await Promise.all(
-        marketIds.map((id) => fetchMarketDetails(id))
-      );
+      // Process markets in batches to avoid rate limiting
+      const batchSize = 3; // Process 3 markets at a time
+      const fetchedMarkets = [];
+
+      for (let i = 0; i < marketIds.length; i += batchSize) {
+        const batch = marketIds.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+          batch.map((id) => fetchMarketDetails(id))
+        );
+        fetchedMarkets.push(...batchResults);
+
+        // Add delay between batches to respect rate limits
+        if (i + batchSize < marketIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay
+        }
+      }
 
       setMarkets(fetchedMarkets.sort((a, b) => Number(b.id) - Number(a.id)));
 
     } catch (error) {
       console.error('Error fetching markets:', error);
+
+      // Check if it's a rate limiting error
+      if (error?.message?.includes('compute units per second') ||
+          error?.message?.includes('rate limit') ||
+          error?.message?.includes('503') ||
+          error?.message?.includes('Too Many Requests')) {
+
+        console.log('Rate limit detected, showing user-friendly message');
+        showToast('Network busy - please wait a moment and try again', 'warning');
+
+        // Don't clear markets on rate limit, keep existing data
+        setMarkets(prev => prev);
+      } else {
+        // For other errors, show error but keep existing markets
+        showToast('Failed to load latest markets. Using cached data.', 'error');
+      }
     } finally {
       setIsLoadingMarkets(false);
     }
