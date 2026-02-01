@@ -1500,7 +1500,7 @@ const placeBetOnChain = async (selectedBetData, choiceIndex) => {
 
 
     const getOddsDisplay = (choiceIndex) => {
-      if (market.useFixedOdds) {
+      if (market.useFixedOdds && market.multipliers && market.multipliers[choiceIndex]) {
         return formatUnits(market.multipliers[choiceIndex] || 200n, 2);
       }
 
@@ -1514,7 +1514,20 @@ const placeBetOnChain = async (selectedBetData, choiceIndex) => {
         return (Number(market.totalPool) / sidePool).toFixed(2);
       }
 
-      return "Dynamic";
+      // Non-binary: use multipliers from contract if available
+      if (market.multipliers && market.multipliers[choiceIndex]) {
+        const val = Number(market.multipliers[choiceIndex]);
+        if (val > 0) return (val / 100).toFixed(2);
+      }
+
+      // Fallback: equal odds based on number of choices
+      const numChoices =
+        market.marketType === 1 && market.options ? market.options.length :
+        market.marketType === 2 && market.rangeMins ? market.rangeMins.length :
+        market.marketType === 3 && market.timeframes ? market.timeframes.length :
+        2;
+
+      return numChoices > 0 ? numChoices.toFixed(2) : "2.00";
     };
 
     // Build choices array based on market type
@@ -2545,7 +2558,7 @@ const placeBetOnChain = async (selectedBetData, choiceIndex) => {
                 Cancel
               </button>
               <button
-                onClick={() => placeBetOnChain(selectedBet, selectedBet.choice)}
+                onClick={() => placeBetOnChain(selectedBet.market, selectedBet.choice)}
                 disabled={
                   isPending || 
                   isConfirming || 
