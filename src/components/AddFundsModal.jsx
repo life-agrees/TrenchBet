@@ -1,12 +1,14 @@
 import React from 'react';
-import { X, Copy, ExternalLink, DollarSign, ArrowRightLeft, Zap } from 'lucide-react';
+import { X, Copy, ExternalLink, DollarSign, ArrowRightLeft, Zap, Wallet } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const AddFundsModal = ({ isOpen, onClose, network, address }) => {
+const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance, usdcBalanceNum }) => {
+
   if (!isOpen) return null;
 
   const handleCopyAddress = (address) => {
     navigator.clipboard.writeText(address);
-    alert('Address copied!');
+    toast.success('Address copied to clipboard!');
   };
 
   // Helper function to open Uniswap swap interface with pre-filled params
@@ -56,14 +58,21 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
   const networkInfo = getNetworkInfo();
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto">
+    <div 
+      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-funds-title"
+      aria-describedby="add-funds-description"
+    >
       <div className="bg-gradient-to-br from-dark-800 to-dark-700 border-2 border-primary rounded-2xl w-full max-w-2xl shadow-2xl glow-primary relative my-8">
         {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-neutral-400 hover:text-white transition-colors z-10"
+          aria-label="Close add funds modal"
         >
-          <X size={24} />
+          <X size={24} aria-hidden="true" />
         </button>
 
         {/* Scrollable Content */}
@@ -71,12 +80,38 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
           <div className="p-6">
             {/* Header */}
             <div className="text-center mb-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center" aria-hidden="true">
                 <DollarSign size={32} className="text-primary" />
               </div>
-              <h2 className="text-3xl font-black text-white mb-2">Add Funds</h2>
-              <p className="text-neutral-400">Get USDC to start betting on {networkInfo.name}</p>
+              <h2 id="add-funds-title" className="text-3xl font-black text-white mb-2">Add Funds</h2>
+              <p id="add-funds-description" className="text-neutral-400">Get USDC to start betting on {networkInfo.name}</p>
             </div>
+
+            {/* Current Balance Display */}
+            <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-blue-400" />
+                  <span className="text-sm text-neutral-400">Current Balance</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`font-bold text-xl ${usdcBalanceNum > 0 ? 'text-green-400' : 'text-yellow-400'}`}>
+                    {formattedUsdcBalance || '0.00'}
+                  </span>
+                  <span className="text-sm text-neutral-400">USDC</span>
+                </div>
+              </div>
+              {usdcBalanceNum > 0 ? (
+                <p className="mt-2 text-xs text-green-400/80 text-center">
+                  ✓ You have funds available for betting
+                </p>
+              ) : (
+                <p className="mt-2 text-xs text-yellow-400/80 text-center">
+                  ⚠ No USDC balance detected. Add funds below to start betting.
+                </p>
+              )}
+            </div>
+
 
             {/* Wallet Address */}
             <div className="bg-dark-900 border border-dark-600 rounded-xl p-4 mb-6">
@@ -89,8 +124,9 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                   onClick={() => handleCopyAddress(address)}
                   className="bg-primary hover:bg-primary-400 text-dark-950 p-2 rounded-lg transition-all hover:scale-110 shrink-0"
                   title="Copy address"
+                  aria-label="Copy wallet address to clipboard"
                 >
-                  <Copy size={16} />
+                  <Copy size={16} aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -98,7 +134,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
             {/* PRIORITY: Swap ETH to USDC */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
-                <Zap className="w-5 h-5 text-primary" />
+                <Zap className="w-5 h-5 text-primary" aria-hidden="true" />
                 <h3 className="text-lg font-bold text-white">Fastest Option: Swap Your ETH</h3>
               </div>
               
@@ -107,9 +143,10 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                 <button
                   onClick={openUniswapSwap}
                   className="group bg-gradient-to-br from-pink-900/40 to-purple-900/40 border-2 border-pink-700/50 hover:border-pink-500 rounded-xl p-4 transition-all duration-200 hover:scale-105 text-left"
+                  aria-label="Swap ETH to USDC on Uniswap"
                 >
                   <div className="flex items-center gap-3 mb-2">
-                    <div className="w-12 h-12 bg-pink-500/20 rounded-xl flex items-center justify-center group-hover:bg-pink-500/30 transition-colors">
+                    <div className="w-12 h-12 bg-pink-500/20 rounded-xl flex items-center justify-center group-hover:bg-pink-500/30 transition-colors" aria-hidden="true">
                       <ArrowRightLeft className="w-6 h-6 text-pink-400" />
                     </div>
                     <div className="flex-1">
@@ -128,9 +165,10 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                   <button
                     onClick={open1inchSwap}
                     className="group bg-gradient-to-br from-blue-900/40 to-cyan-900/40 border-2 border-blue-700/50 hover:border-blue-500 rounded-xl p-4 transition-all duration-200 hover:scale-105 text-left"
+                    aria-label="Swap ETH to USDC on 1inch"
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/30 transition-colors">
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center group-hover:bg-blue-500/30 transition-colors" aria-hidden="true">
                         <ArrowRightLeft className="w-6 h-6 text-blue-400" />
                       </div>
                       <div className="flex-1">
@@ -170,7 +208,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
               {networkInfo.testnet && (
                 <div className="bg-dark-900 border-2 border-success/30 rounded-xl p-4 hover:border-success/50 transition-all">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-xl bg-success/20 border-2 border-success flex items-center justify-center text-2xl">
+                    <div className="w-12 h-12 rounded-xl bg-success/20 border-2 border-success flex items-center justify-center text-2xl" aria-hidden="true">
                       🚰
                     </div>
                     <div className="flex-1">
@@ -185,7 +223,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                     className="w-full bg-success hover:bg-success-dark text-dark-950 font-bold py-3 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
                   >
                     Get Test {networkInfo.nativeToken}
-                    <ExternalLink size={16} />
+                    <ExternalLink size={16} aria-hidden="true" />
                   </a>
                 </div>
               )}
@@ -193,7 +231,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
               {/* Bridge from Ethereum */}
               <div className="bg-dark-900 border-2 border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary flex items-center justify-center text-2xl" aria-hidden="true">
                     🌉
                   </div>
                   <div className="flex-1">
@@ -208,7 +246,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                   className="w-full bg-primary hover:bg-primary-400 text-dark-950 font-bold py-3 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
                 >
                   Open Base Bridge
-                  <ExternalLink size={16} />
+                  <ExternalLink size={16} aria-hidden="true" />
                 </a>
                 <p className="text-xs text-neutral-500 mt-2 text-center">
                   Bridge time: ~10 minutes
@@ -218,7 +256,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
               {/* Buy on Exchanges */}
               <div className="bg-dark-900 border-2 border-secondary/30 rounded-xl p-4 hover:border-secondary/50 transition-all">
                 <div className="flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 rounded-xl bg-secondary/20 border-2 border-secondary flex items-center justify-center text-2xl">
+                  <div className="w-12 h-12 rounded-xl bg-secondary/20 border-2 border-secondary flex items-center justify-center text-2xl" aria-hidden="true">
                     💱
                   </div>
                   <div className="flex-1">
@@ -234,7 +272,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                     className="bg-secondary hover:bg-secondary-500 text-dark-950 font-bold py-3 px-4 rounded-xl text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
                   >
                     Binance
-                    <ExternalLink size={14} />
+                    <ExternalLink size={14} aria-hidden="true" />
                   </a>
                   <a
                     href="https://www.coinbase.com/"
@@ -243,7 +281,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address }) => {
                     className="bg-secondary hover:bg-secondary-500 text-dark-950 font-bold py-3 px-4 rounded-xl text-sm transition-all hover:scale-105 flex items-center justify-center gap-2"
                   >
                     Coinbase
-                    <ExternalLink size={14} />
+                    <ExternalLink size={14} aria-hidden="true" />
                   </a>
                 </div>
                 <p className="text-xs text-neutral-500 mt-3 text-center">

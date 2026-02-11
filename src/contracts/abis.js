@@ -76,11 +76,19 @@ export const PREDICTION_MARKET_ABI = [
   },
   {
     "inputs": [],
+    "name": "accumulatedFees",
+    "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "marketCounter",
     "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
+
   {
     "inputs": [{"internalType": "string","name": "asset","type": "string"}],
     "name": "getCurrentPrice",
@@ -147,8 +155,19 @@ export const PREDICTION_MARKET_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+  {
+    "inputs": [{"internalType": "uint256","name": "count","type": "uint256"}],
+    "name": "getLeaderboard",
+    "outputs": [
+      {"internalType": "address[]","name": "topUsers","type": "address[]"},
+      {"internalType": "uint256[]","name": "earnings","type": "uint256[]"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
 
   // ==================== NEW FUNCTIONS FOR CUSTOM ODDS ====================
+
   
   // Binary Market with Custom Odds
   {
@@ -346,8 +365,141 @@ export const PREDICTION_MARKET_ABI = [
   }
 ];
 
+// TrenchyPointsClaim ABI
+export const TRENCHY_POINTS_CLAIM_ABI = [
+  {
+    "inputs": [
+      {"internalType": "uint256","name": "pointsAmount","type": "uint256"},
+      {"internalType": "bool","name": "autoStake","type": "bool"},
+      {"internalType": "bytes32","name": "nonce","type": "bytes32"},
+      {"internalType": "bytes","name": "signature","type": "bytes"}
+    ],
+    "name": "claimPoints",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawUnlocked",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address","name": "user","type": "address"}],
+    "name": "getUnlockedBalance",
+    "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address","name": "user","type": "address"}],
+    "name": "getUserClaimHistory",
+    "outputs": [
+      {
+        "components": [
+          {"internalType": "uint256","name": "amount","type": "uint256"},
+          {"internalType": "uint256","name": "claimTime","type": "uint256"},
+          {"internalType": "uint256","name": "unlockTime","type": "uint256"},
+          {"internalType": "bool","name": "autoStaked","type": "bool"},
+          {"internalType": "bool","name": "withdrawn","type": "bool"}
+        ],
+        "internalType": "struct TrenchyPointsClaim.ClaimRecord[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address","name": "user","type": "address"}],
+    "name": "getMonthlyClaimStatus",
+    "outputs": [
+      {"internalType": "uint256","name": "claimedThisMonth","type": "uint256"},
+      {"internalType": "uint256","name": "remainingCap","type": "uint256"},
+      {"internalType": "uint256","name": "monthEndsAt","type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address","name": "user","type": "address"},
+      {"internalType": "uint256","name": "trenchyAmount","type": "uint256"}
+    ],
+    "name": "canClaim",
+    "outputs": [{"internalType": "bool","name": "","type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getContractInfo",
+    "outputs": [
+      {"internalType": "uint256","name": "totalDistributedAmount","type": "uint256"},
+      {"internalType": "uint256","name": "contractBalance","type": "uint256"},
+      {"internalType": "bool","name": "isClaimingEnabled","type": "bool"},
+      {"internalType": "address","name": "currentBackendSigner","type": "address"},
+      {"internalType": "address","name": "currentStakingContract","type": "address"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "claimingEnabled",
+    "outputs": [{"internalType": "bool","name": "","type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "POINTS_PER_TRENCHY",
+    "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "LOCK_PERIOD",
+    "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MONTHLY_CLAIM_CAP",
+    "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true,"internalType": "address","name": "user","type": "address"},
+      {"indexed": false,"internalType": "uint256","name": "pointsSpent","type": "uint256"},
+      {"indexed": false,"internalType": "uint256","name": "trenchyAmount","type": "uint256"},
+      {"indexed": false,"internalType": "bool","name": "autoStaked","type": "bool"}
+    ],
+    "name": "PointsClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true,"internalType": "address","name": "user","type": "address"},
+      {"indexed": false,"internalType": "uint256","name": "amount","type": "uint256"}
+    ],
+    "name": "TokensUnlocked",
+    "type": "event"
+  }
+];
+
 // ERC20 USDC ABI (Minimal for approve, allowance, balanceOf)
 export const ERC20_ABI = [
+
   {
     "inputs": [
       {"internalType": "address","name": "spender","type": "address"},

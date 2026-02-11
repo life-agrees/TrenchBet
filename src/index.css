@@ -61,6 +61,96 @@ body {
   }
 }
 
+/* Landing Page Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blob {
+  0% { transform: translate(0px, 0px) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+  100% { transform: translate(0px, 0px) scale(1); }
+}
+
+@keyframes scroll-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-blob {
+  animation: blob 7s infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+.animation-delay-600 {
+  animation-delay: 600ms;
+}
+
+.animation-delay-800 {
+  animation-delay: 800ms;
+}
+
+.animation-delay-1000 {
+  animation-delay: 1000ms;
+}
+
+.animation-delay-2000 {
+  animation-delay: 2s;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Scroll Reveal Animation */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob,
+  .animate-fade-in-up,
+  .scroll-reveal {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
 
 /* Enhanced Glow Effects */
 @layer utilities {
@@ -139,4 +229,139 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Staggered Card Animations for Phase 6 */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes card-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+.card-enter-animation {
+  animation: card-enter 0.3s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.card-exit-animation {
+  animation: card-exit 0.2s ease-in forwards;
+  will-change: transform, opacity;
+}
+
+/* Staggered delay utility classes */
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+.stagger-6 { animation-delay: 300ms; }
+.stagger-7 { animation-delay: 350ms; }
+.stagger-8 { animation-delay: 400ms; }
+.stagger-9 { animation-delay: 450ms; }
+.stagger-10 { animation-delay: 500ms; }
+.stagger-11 { animation-delay: 550ms; }
+.stagger-12 { animation-delay: 600ms; }
+
+/* Search loading indicator */
+@keyframes search-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.search-loading {
+  animation: search-pulse 1s ease-in-out infinite;
+}
+
+/* Prefetch hover indicator */
+.prefetch-ready {
+  position: relative;
+}
+
+.prefetch-ready::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  background: #00FF88;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.prefetch-ready:hover::after {
+  opacity: 1;
+}
+
+/* Back to Top Button */
+.back-to-top {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 48px;
+  height: 48px;
+  background: rgba(205, 255, 0, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  z-index: 50;
+  box-shadow: 0 4px 12px rgba(205, 255, 0, 0.3);
+}
+
+.back-to-top.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.back-to-top:hover {
+  background: #CDFF00;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(205, 255, 0, 0.5);
+}
+
+/* Link hover underline animation */
+.link-hover-underline {
+  position: relative;
+  display: inline-block;
+}
+
+.link-hover-underline::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 1px;
+  bottom: -2px;
+  left: 0;
+  background-color: #CDFF00;
+  transition: width 0.3s ease;
+}
+
+.link-hover-underline:hover::after {
+  width: 100%;
 }

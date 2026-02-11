@@ -4,14 +4,17 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 
 /**
  * @title PredictionMarket with Custom Odds - V2
  * @notice Enhanced prediction market with improved fee model
  * @dev Fee is deducted from losing pool at resolution, not from individual winners
  */
-contract PredictionMarket is ReentrancyGuard, Ownable {
+contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
+
     IERC20 public immutable usdc;
     
     mapping(string => AggregatorV3Interface) public priceFeeds;
@@ -83,6 +86,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     uint256 public constant MAX_POOL_SIZE = 50000 * 10**6;
     uint256 public constant FEE_PERCENTAGE = 2;
     uint256 public constant WITHDRAWAL_DELAY = 48 hours;
+    uint256 public constant MIN_MULTIPLIER = 101; // 1.01x minimum
+    uint256 public constant MAX_MULTIPLIER = 1000; // 10x maximum
+
     
     uint256 public accumulatedFees;
     uint256 public lastFeeWithdrawal;
@@ -176,9 +182,15 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         string memory question,
         uint256 duration,
         uint256[] memory multipliers
-    ) external onlyOwner returns (uint256) {
+    ) external onlyOwner whenNotPaused returns (uint256) {
         require(options.length >= 2 && options.length <= 10, "2-10 options required");
         require(duration >= 60 && duration <= 7 days, "Invalid duration");
+        
+        // Validate multipliers
+        for (uint8 i = 0; i < multipliers.length; i++) {
+            require(multipliers[i] >= MIN_MULTIPLIER && multipliers[i] <= MAX_MULTIPLIER, "Multiplier out of range");
+        }
+
         
         uint256 marketId = marketCounter++;
         uint256 startTime = block.timestamp;
@@ -227,11 +239,17 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256[] memory rangeMaxs,
         uint256 duration,
         uint256[] memory multipliers
-    ) external onlyOwner returns (uint256) {
+    ) external onlyOwner whenNotPaused returns (uint256) {
         require(rangeMins.length == rangeMaxs.length, "Mismatched ranges");
         require(rangeMins.length >= 2 && rangeMins.length <= 10, "2-10 ranges required");
         require(duration >= 60 && duration <= 7 days, "Invalid duration");
         require(address(priceFeeds[asset]) != address(0), "Price feed not set");
+        
+        // Validate multipliers
+        for (uint8 i = 0; i < multipliers.length; i++) {
+            require(multipliers[i] >= MIN_MULTIPLIER && multipliers[i] <= MAX_MULTIPLIER, "Multiplier out of range");
+        }
+
         
         int256 currentPrice = getCurrentPrice(asset);
         require(currentPrice > 0, "Invalid price");
@@ -283,9 +301,15 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 targetPrice,
         uint256[] memory timeframes,
         uint256[] memory multipliers
-    ) external onlyOwner returns (uint256) {
+    ) external onlyOwner whenNotPaused returns (uint256) {
         require(timeframes.length >= 2 && timeframes.length <= 5, "2-5 timeframes required");
         require(address(priceFeeds[asset]) != address(0), "Price feed not set");
+        
+        // Validate multipliers
+        for (uint8 i = 0; i < multipliers.length; i++) {
+            require(multipliers[i] >= MIN_MULTIPLIER && multipliers[i] <= MAX_MULTIPLIER, "Multiplier out of range");
+        }
+
         
         int256 currentPrice = getCurrentPrice(asset);
         require(currentPrice > 0, "Invalid price");
@@ -331,7 +355,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     
     // ==================== PLACE BETS ====================
     
-    function placeBet(uint256 marketId, uint8 choice, uint256 amount) external nonReentrant {
+    function placeBet(uint256 marketId, uint8 choice, uint256 amount) external nonReentrant whenNotPaused {
+
         Market storage market = markets[marketId];
         require(market.startTime > 0, "Market does not exist");
         require(block.timestamp < market.endTime, "Market has ended");
@@ -539,8 +564,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     
     /**
      * @notice Claim winnings - No fee deducted here, already taken from losing pool
+     * @dev FIXED: State updates happen BEFORE external calls to prevent reentrancy
      */
-    function claimWinnings(uint256 marketId) external nonReentrant {
+    function claimWinnings(uint256 marketId) external nonReentrant whenNotPaused {
         Market storage market = markets[marketId];
         require(market.resolved, "Market not resolved yet");
         
@@ -551,6 +577,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         bool hadWin = false;
         bool hadLoss = false;
         
+        // First pass: Calculate winnings and mark positions as claimed (STATE UPDATE)
         for (uint256 i = 0; i < positionIndices.length; i++) {
             Position storage position = marketPositions[marketId][positionIndices[i]];
             
@@ -564,20 +591,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
                 
                 if (userWon) {
                     if (market.useFixedOdds) {
-                        // Fixed odds payout
                         uint256 multiplier = position.predictedUp ? market.yesMultiplier : market.noMultiplier;
                         payout = (position.amount * multiplier) / 100;
                     } else {
-                        // ✅ UPDATED: Pool-based payout using fee-adjusted losing pool
                         uint256 winningPool = position.predictedUp ? market.yesPool : market.noPool;
                         uint256 losingPool = position.predictedUp ? market.noPool : market.yesPool;
-                        
-                        // Losing pool after protocol fee deduction
                         uint256 losingPoolAfterFee = losingPool - market.protocolFee;
                         
                         if (winningPool > 0) {
                             uint256 share = (position.amount * losingPoolAfterFee) / winningPool;
-                            payout = position.amount + share;  // ✅ No individual fee!
+                            payout = position.amount + share;
                         }
                     }
                 }
@@ -623,9 +646,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
                 hadLoss = true;
             }
             
+            // CRITICAL: Mark as claimed BEFORE external call
             position.claimed = true;
         }
         
+        // Update user stats (STATE UPDATE)
         UserStats storage stats = userStats[msg.sender];
         if (hadWin) {
             stats.totalWins++;
@@ -642,10 +667,13 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         }
         
         require(totalWinnings > 0, "No winnings to claim");
+        
+        // EXTERNAL CALL LAST (Checks-Effects-Interactions pattern)
         require(usdc.transfer(msg.sender, totalWinnings), "USDC transfer failed");
         
         emit WinningsClaimed(marketId, msg.sender, totalWinnings);
     }
+
     
     /**
      * @notice Calculate pool-based payout using fee-adjusted losing pool
@@ -812,7 +840,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         }
     }
     
-    function withdrawFees() external onlyOwner {
+    function withdrawFees() external onlyOwner whenNotPaused {
         require(block.timestamp >= lastFeeWithdrawal + WITHDRAWAL_DELAY, "Withdrawal delay not met");
         
         uint256 amount = accumulatedFees;
@@ -822,6 +850,17 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(usdc.transfer(msg.sender, amount), "USDC transfer failed");
         emit FeesWithdrawn(msg.sender, amount);
     }
+    
+    // ==================== PAUSE FUNCTIONS ====================
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         IERC20(token).transfer(msg.sender, amount);

@@ -8,14 +8,23 @@ import App from './app';
 import ErrorBoundary from './components/ErrorBoundary';
 import { config } from './config/wagmi';
 import { Analytics } from '@vercel/analytics/react';
+import { DURATIONS, CACHE } from './utils/constants';
+import { createLogger } from './utils/logger';
+import { initSentry } from './config/sentry';
 import '@rainbow-me/rainbowkit/styles.css';
 import './index.css';
+
+// Initialize Sentry error tracking
+initSentry();
+
+
+const logger = createLogger('main');
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 30_000, // Data stays fresh for 30 seconds
-      cacheTime: 5 * 60_000, // Cache for 5 minutes
+      staleTime: DURATIONS.REFRESH_INTERVAL, // Data stays fresh for 30 seconds
+      cacheTime: CACHE.POINTS_TTL, // Cache for 5 minutes
       refetchOnWindowFocus: false, // Don't refetch on tab focus
       retry: 2, // Retry failed requests twice
     },
@@ -27,13 +36,13 @@ const initFarcaster = async () => {
   try {
     // Signal that the app is ready
     await sdk.actions.ready();
-    console.log('Farcaster SDK initialized');
+    logger.info('Farcaster SDK initialized');
     
     // Get user context
     const context = await sdk.context;
-    console.log('User context:', context);
+    logger.info('User context retrieved', context);
   } catch (error) {
-    console.error('Error initializing Farcaster SDK:', error);
+    logger.error('Error initializing Farcaster SDK', error);
   }
 };
 

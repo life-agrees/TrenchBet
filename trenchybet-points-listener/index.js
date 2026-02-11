@@ -1,4 +1,7 @@
-import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
+// =====================================================
+// TRENCHYBET POINTS - EVENT LISTENER 
+// =====================================================
+import { createPublicClient, http, parseAbiItem, formatUnits, getAddress } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
@@ -23,14 +26,42 @@ const publicClient = createPublicClient({
 const POINTS_PER_DOLLAR = 10; // 10 points per $1 USDC
 const WIN_MULTIPLIER = 5; // 5x points on wins
 
+// === ENSURE USER EXISTS ===
+async function ensureUserExists(wallet) {
+  const address = wallet.toLowerCase();
+
+  // Upsert the user to ensure they exist
+  const { error } = await supabase
+    .from('users')
+    .upsert({
+      wallet_address: address,
+      total_points: 0,
+      last_bet_timestamp: new Date().toISOString()
+    }, {
+      onConflict: 'wallet_address'
+    });
+
+  if (error) {
+    console.error('Error upserting user:', error);
+    throw error;
+  }
+
+  console.log(`✅ User ensured: ${address.slice(0, 6)}...${address.slice(-4)}`);
+}
+
 // === AWARD POINTS FUNCTION ===
 async function awardPoints(wallet, points, source, metadata = {}) {
   try {
-    // 1. Insert into ledger
+    const address = wallet.toLowerCase();
+    
+    // 1. FIRST ensure user exists (critical!)
+    await ensureUserExists(address);
+    
+    // 2. Insert into ledger
     const { error: ledgerError } = await supabase
       .from('points_ledger')
       .insert({
-        wallet_address: wallet.toLowerCase(),
+        wallet_address: address,
         points_earned: points,
         source: source,
         bet_id: metadata.betId || null,
@@ -38,38 +69,31 @@ async function awardPoints(wallet, points, source, metadata = {}) {
         metadata: metadata
       });
 
-    if (ledgerError) throw ledgerError;
+    if (ledgerError) {
+      console.error('Ledger error:', ledgerError);
+      return;
+    }
 
-    // 2. Update user total
+    // 3. Update user's total points
     const { data: user } = await supabase
       .from('users')
       .select('total_points')
-      .eq('wallet_address', wallet.toLowerCase())
+      .eq('wallet_address', address)
       .single();
 
     if (user) {
-      // User exists, update
       await supabase
         .from('users')
         .update({ 
           total_points: user.total_points + points,
           last_bet_timestamp: new Date().toISOString()
         })
-        .eq('wallet_address', wallet.toLowerCase());
-    } else {
-      // New user, insert
-      await supabase
-        .from('users')
-        .insert({
-          wallet_address: wallet.toLowerCase(),
-          total_points: points,
-          last_bet_timestamp: new Date().toISOString()
-        });
+        .eq('wallet_address', address);
     }
 
-    console.log(`✅ Awarded ${points} points to ${wallet} (${source})`);
+    console.log(`💰 Awarded ${points} points to ${address.slice(0, 6)}...${address.slice(-4)} (${source})`);
   } catch (error) {
-    console.error('❌ Error awarding points:', error);
+    console.error('❌ Error awarding points:', error.message);
   }
 }
 
@@ -77,83 +101,164 @@ async function awardPoints(wallet, points, source, metadata = {}) {
 
 // Handler for BetPlaced event
 async function handleBetPlaced(log) {
-  const { marketId, user, amount } = log.args;
-  
-  // Calculate base points (10 points per $1 USDC)
-  const usdcAmount = Number(formatUnits(amount, 6));
-  const basePoints = Math.floor(usdcAmount * POINTS_PER_DOLLAR);
-  
-  await awardPoints(user, basePoints, 'bet_volume', {
-    marketId: Number(marketId),
-    betAmount: usdcAmount
-  });
+  try {
+    // Safely extract args
+    if (!log.args || !log.args.user || !log.args.amount) {
+      console.log('⚠️  Skipping invalid BetPlaced event');
+      return;
+    }
+
+    const { marketId, user, amount } = log.args;
+    
+    // Calculate base points (10 points per $1 USDC)
+    const usdcAmount = Number(formatUnits(amount, 6));
+    const basePoints = Math.floor(usdcAmount * POINTS_PER_DOLLAR);
+    
+    console.log(`📊 Bet detected: Market ${marketId}, ${usdcAmount} USDC → ${basePoints} points`);
+    
+    await awardPoints(user, basePoints, 'bet_volume', {
+      marketId: Number(marketId),
+      betAmount: usdcAmount,
+      txHash: log.transactionHash
+    });
+  } catch (error) {
+    console.error('❌ Error in handleBetPlaced:', error.message);
+  }
 }
 
 // Handler for WinningsClaimed event (detects wins)
 async function handleWinningsClaimed(log) {
-  const { marketId, user, amount: payout } = log.args;
-  
-  // Get the original bet amount from the market
-  // We need to find the bet in points_ledger
-  const { data: betRecord } = await supabase
-    .from('points_ledger')
-    .select('metadata')
-    .eq('wallet_address', user.toLowerCase())
-    .eq('market_id', Number(marketId))
-    .eq('source', 'bet_volume')
-    .single();
+  try {
+    // Safely extract args
+    if (!log.args || !log.args.user || !log.args.amount) {
+      console.log('⚠️  Skipping invalid WinningsClaimed event');
+      return;
+    }
 
-  if (betRecord && betRecord.metadata.betAmount) {
-    const originalBet = betRecord.metadata.betAmount;
-    const winBonus = Math.floor(originalBet * POINTS_PER_DOLLAR * WIN_MULTIPLIER);
+    const { marketId, user, amount: payout } = log.args;
     
-    await awardPoints(user, winBonus, 'win_bonus', {
-      marketId: Number(marketId),
-      payout: Number(formatUnits(payout, 6))
-    });
+    // Skip if payout is 0 (means they lost)
+    if (payout === 0n) return;
+    
+    // Get the original bet amount from the ledger
+    const { data: betRecord } = await supabase
+      .from('points_ledger')
+      .select('metadata')
+      .eq('wallet_address', user.toLowerCase())
+      .eq('market_id', Number(marketId))
+      .eq('source', 'bet_volume')
+      .order('id', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (betRecord && betRecord.metadata?.betAmount) {
+      const originalBet = betRecord.metadata.betAmount;
+      const winBonus = Math.floor(originalBet * POINTS_PER_DOLLAR * WIN_MULTIPLIER);
+      
+      console.log(`🏆 Win detected: Market ${marketId}, ${Number(formatUnits(payout, 6))} USDC → ${winBonus} bonus points`);
+      
+      await awardPoints(user, winBonus, 'win_bonus', {
+        marketId: Number(marketId),
+        payout: Number(formatUnits(payout, 6)),
+        txHash: log.transactionHash
+      });
+    }
+  } catch (error) {
+    console.error('❌ Error in handleWinningsClaimed:', error.message);
   }
 }
 
-// === MAIN LISTENER ===
+// === POLLING LISTENER ===
 async function startListener() {
   console.log('🚀 TrenchyBet Points Listener Starting...');
   console.log(`📍 Watching contract: ${CONTRACT_ADDRESS}`);
   
-  // Get the latest block we've processed
-  let fromBlock = 'latest';
+  // Get the latest block number
+  const latestBlock = await publicClient.getBlockNumber();
+  console.log(`📦 Starting from block: ${latestBlock}`);
   
-  // Listen for BetPlaced events
-  const unwatchBetPlaced = publicClient.watchContractEvent({
-    address: CONTRACT_ADDRESS,
-    event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-    onLogs: async (logs) => {
-      for (const log of logs) {
+  let lastProcessedBlock = latestBlock;
+  
+  console.log('✅ Listening for events...');
+  console.log('');
+  
+  // Poll every 5 seconds for new events
+  setInterval(async () => {
+    try {
+      const currentBlock = await publicClient.getBlockNumber();
+      
+      // Skip if no new blocks
+      if (currentBlock <= lastProcessedBlock) return;
+      
+      console.log(`🔍 Scanning blocks ${lastProcessedBlock + 1n} to ${currentBlock}...`);
+      
+      // Fetch BetPlaced events
+      const betLogs = await publicClient.getLogs({
+        address: CONTRACT_ADDRESS,
+        event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
+        fromBlock: lastProcessedBlock + 1n,
+        toBlock: currentBlock,
+      });
+      
+      // Fetch WinningsClaimed events
+      const winLogs = await publicClient.getLogs({
+        address: CONTRACT_ADDRESS,
+        event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
+        fromBlock: lastProcessedBlock + 1n,
+        toBlock: currentBlock,
+      });
+      
+      // Process events sequentially (to avoid race conditions)
+      for (const log of betLogs) {
         await handleBetPlaced(log);
       }
-    },
-  });
-
-  // Listen for WinningsClaimed events
-  const unwatchClaimed = publicClient.watchContractEvent({
-    address: CONTRACT_ADDRESS,
-    event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
-    onLogs: async (logs) => {
-      for (const log of logs) {
+      
+      for (const log of winLogs) {
         await handleWinningsClaimed(log);
       }
-    },
-  });
-
-  console.log('✅ Listening for events...');
-  
-  // Keep process alive
-  process.on('SIGINT', () => {
-    console.log('\n🛑 Stopping listener...');
-    unwatchBetPlaced();
-    unwatchClaimed();
-    process.exit(0);
-  });
+      
+      if (betLogs.length > 0 || winLogs.length > 0) {
+        console.log(`✅ Processed ${betLogs.length} bets, ${winLogs.length} wins`);
+        console.log('');
+      }
+      
+      lastProcessedBlock = currentBlock;
+      
+    } catch (error) {
+      console.error('❌ Error in polling loop:', error.message);
+      // Don't update lastProcessedBlock on error - will retry next poll
+    }
+  }, 5000); // Poll every 5 seconds
 }
 
-// Start the listener
-startListener().catch(console.error);
+// === STARTUP ===
+async function main() {
+  try {
+    // Test Supabase connection
+    const { error } = await supabase.from('users').select('count').limit(1);
+    if (error) throw new Error('Supabase connection failed: ' + error.message);
+    
+    console.log('✅ Connected to Supabase');
+    
+    // Start the listener
+    await startListener();
+    
+  } catch (error) {
+    console.error('❌ Startup failed:', error.message);
+    process.exit(1);
+  }
+}
+
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n\n👋 Shutting down gracefully...');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n\n👋 Shutting down gracefully...');
+  process.exit(0);
+});
+
+// Start
+main();
