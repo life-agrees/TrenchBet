@@ -117,9 +117,12 @@ export const POINTS_CLAIM = {
 };
 
 // Contract Addresses
+// IMPORTANT: These are BASE SEPOLIA TESTNET addresses
+// For mainnet, these would be different
 export const CONTRACTS = {
-  // USDC on Base Mainnet
-  USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  // USDC on Base Sepolia Testnet (NOT mainnet!)
+  // This is the testnet USDC contract for testing
+  USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   // PredictionMarket contract
   PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x0000000000000000000000000000000000000000',
 };

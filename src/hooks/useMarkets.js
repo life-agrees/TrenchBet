@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useReadContract, useBlockNumber } from 'wagmi';
+import { useReadContract } from 'wagmi';
 import { multicall, readContract } from 'wagmi/actions';
+
 import { CONTRACTS, config } from '../config/wagmi';
 import { PREDICTION_MARKET_ABI } from '../contracts/abis';
 import { DURATIONS, TIME, PRICE, BATCH } from '../utils/constants';
@@ -20,10 +21,8 @@ export function useMarkets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Get current block number to trigger refresh
-  const { data: blockNumber } = useBlockNumber({ watch: true });
-
   // Fetch market counter to know how many markets exist
+
   const { data: marketCounter, isError: isCounterError } = useReadContract({
     address: CONTRACTS.PREDICTION_MARKET,
     abi: PREDICTION_MARKET_ABI,
@@ -39,7 +38,6 @@ export function useMarkets() {
     }
 
     try {
-      setIsLoading(true);
       setError(null);
       
       const count = Number(marketCounter);
@@ -50,7 +48,14 @@ export function useMarkets() {
         return;
       }
 
+      // Only show loading on initial fetch, not on background refreshes
+      if (markets.length === 0) {
+        setIsLoading(true);
+      }
+
+
       // Use multicall to batch requests for better performance
+
       const startIndex = Math.max(0, count - 50);
       const batchSize = BATCH.MARKET_BATCH_SIZE;
       const validMarkets = [];
@@ -103,18 +108,21 @@ export function useMarkets() {
     } catch (err) {
       logger.error('Error fetching markets', err);
       setError(err.message || 'Failed to fetch markets');
+    } finally {
       setIsLoading(false);
     }
-  }, [marketCounter]);
+  }, [marketCounter, markets.length]);
+
 
   // Initial fetch and auto-refresh
   useEffect(() => {
     fetchMarkets();
     
-    // Refresh every 30 seconds
+    // Refresh every 30 seconds - removed blockNumber watcher to prevent glitching
     const interval = setInterval(fetchMarkets, DURATIONS.REFRESH_INTERVAL);
     return () => clearInterval(interval);
-  }, [fetchMarkets, blockNumber]);
+  }, [fetchMarkets]);
+
 
   // Handle counter fetch errors
   useEffect(() => {

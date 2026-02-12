@@ -1,14 +1,16 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from 'wagmi';
+import { useState, useCallback, useRef } from 'react';
+import { useAccount, usePublicClient, useWalletClient, useReadContract } from 'wagmi';
 import { createLogger } from '../utils/logger';
 import { PREDICTION_MARKET_ABI, ERC20_ABI } from '../contracts/abis';
 import { CONTRACTS } from '../utils/constants';
-import { parseUnits } from 'viem';
+import { parseUnits, formatUnits } from 'viem';
 
 const logger = createLogger('useBetPlacement');
 
 export const useBetPlacement = () => {
   const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -18,33 +20,16 @@ export const useBetPlacement = () => {
   const [needsApproval, setNeedsApproval] = useState(false);
   const lastBetRef = useRef(null);
 
-  // Contract write hooks
-  const { writeContractAsync: writeUSDC } = useWriteContract();
-  const { writeContractAsync: writePredictionMarket } = useWriteContract();
-
-  // Wait for transaction receipt
-  const { data: receipt, isLoading: isWaitingForReceipt } = useWaitForTransactionReceipt({
-    hash: hash || undefined,
+  // Read USDC allowance
+  const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
+    address: CONTRACTS.USDC,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: address && CONTRACTS.PREDICTION_MARKET ? [address, CONTRACTS.PREDICTION_MARKET] : undefined,
+    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET,
   });
 
-  // Handle transaction receipt
-  useEffect(() => {
-    if (receipt) {
-      if (receipt.status === 'success') {
-        setIsConfirming(false);
-        setIsSuccess(true);
-        setIsPlacingBet(false);
-        lastBetRef.current = hash;
-        logger.info('Transaction confirmed successfully:', { hash: receipt.transactionHash });
-      } else {
-        setError('Transaction failed on-chain');
-        setIsConfirming(false);
-        setIsPlacingBet(false);
-        logger.error('Transaction failed:', { hash: receipt.transactionHash });
-      }
-    }
-  }, [receipt, hash]);
-
+  // Reset state
   const reset = useCallback(() => {
     setIsPlacingBet(false);
     setIsPending(false);
@@ -56,83 +41,246 @@ export const useBetPlacement = () => {
     lastBetRef.current = null;
   }, []);
 
+  /**
+   * Wait for transaction confirmation with polling
+   */
+  const waitForConfirmation = useCallback(async (txHash, maxAttempts = 30) => {
+    if (!publicClient) {
+      throw new Error('Public client not available');
+    }
+    
+    logger.info('Waiting for transaction confirmation:', { txHash });
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const receipt = await publicClient.getTransactionReceipt({
+          hash: txHash,
+        });
+        
+        if (receipt) {
+          logger.info('Transaction confirmed:', { 
+            hash: txHash, 
+            status: receipt.status,
+            blockNumber: receipt.blockNumber 
+          });
+          return receipt;
+        }
+      } catch (err) {
+        // Transaction not yet mined, continue polling
+        logger.debug(`Waiting for transaction... attempt ${attempt + 1}/${maxAttempts}`);
+      }
+      
+      // Exponential backoff: 1s, 2s, 4s, max 5s
+      const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    throw new Error('Transaction confirmation timeout');
+  }, [publicClient]);
 
   /**
-   * Check if user has sufficient USDC allowance for the market contract
+   * Check if user has sufficient USDC allowance
    */
   const checkAllowance = useCallback(async (amount) => {
-    if (!address) return false;
+    if (!address || !CONTRACTS.PREDICTION_MARKET) {
+      throw new Error('Wallet not connected or contract not configured');
+    }
     
     try {
       // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      // This would need to be called via useReadContract, but since we're in a callback,
-      // we'll handle it differently in the placeBet function
-      return { amountInUnits };
+      // Refresh allowance from chain
+      const { data: allowance } = await refetchAllowance();
+      
+      logger.info('Checking allowance:', {
+        currentAllowance: allowance ? formatUnits(allowance, 6) : '0',
+        requiredAmount: amount.toString(),
+        hasEnough: allowance && allowance >= amountInUnits
+      });
+      
+      return allowance && allowance >= amountInUnits;
     } catch (err) {
       logger.error('Error checking allowance:', err);
-      throw err;
+      throw new Error('Failed to check USDC allowance: ' + err.message);
     }
-  }, [address]);
+  }, [address, refetchAllowance]);
 
   /**
-   * Approve USDC spending for the prediction market contract
+   * Approve USDC spending for the market contract
    */
   const approveUSDC = useCallback(async (amount) => {
-    if (!address) {
+    if (!walletClient || !address) {
       throw new Error('Wallet not connected');
     }
 
-    logger.info('Approving USDC:', { amount, marketContract: CONTRACTS.PREDICTION_MARKET });
-    
     try {
+      // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      const txHash = await writeUSDC({
+      logger.info('Approving USDC:', {
+        amount: amount.toString(),
+        amountInUnits: amountInUnits.toString(),
+        spender: CONTRACTS.PREDICTION_MARKET
+      });
+
+      setNeedsApproval(true);
+      setIsPending(true);
+
+      // Send approval transaction directly (skip simulation for testnet compatibility)
+      const txHash = await walletClient.writeContract({
         address: CONTRACTS.USDC,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [CONTRACTS.PREDICTION_MARKET, amountInUnits],
+        account: address,
       });
 
       logger.info('USDC approval transaction submitted:', { txHash });
+      setHash(txHash);
+      setIsPending(false);
+      setIsConfirming(true);
+
+      // Wait for confirmation
+      const receipt = await waitForConfirmation(txHash);
+      
+      if (receipt.status !== 'success') {
+        throw new Error('USDC approval transaction failed on-chain');
+      }
+
+      logger.info('USDC approval confirmed');
+      
+      // Wait for state propagation (2 seconds)
+      logger.info('Waiting for state propagation...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Re-check allowance to confirm it worked
+      const hasAllowance = await checkAllowance(amount);
+      if (!hasAllowance) {
+        throw new Error('Allowance check failed after approval. Please try again.');
+      }
+      
+      setNeedsApproval(false);
+      setIsConfirming(false);
+      
       return txHash;
     } catch (err) {
       logger.error('Error approving USDC:', err);
+      setNeedsApproval(false);
+      setIsPending(false);
+      setIsConfirming(false);
+      
+      // Provide specific error messages
+      if (err.message?.includes('User rejected')) {
+        throw new Error('Transaction was rejected in wallet');
+      } else if (err.message?.includes('insufficient funds')) {
+        throw new Error('Insufficient ETH for gas fees');
+      } else if (err.message?.includes('nonce')) {
+        throw new Error('Transaction nonce error. Please refresh and try again.');
+      }
+      
       throw new Error(err.message || 'Failed to approve USDC');
     }
-  }, [address, writeUSDC]);
+  }, [walletClient, address, waitForConfirmation, checkAllowance]);
 
   /**
-   * Place bet on the prediction market
+   * Execute the place bet transaction
    */
   const executePlaceBet = useCallback(async (marketId, choice, amount) => {
-    if (!address) {
+    if (!walletClient || !address) {
       throw new Error('Wallet not connected');
     }
 
-    logger.info('Placing bet on contract:', { marketId, choice, amount });
+    // Validate inputs
+    if (marketId === undefined || marketId === null) {
+      throw new Error('Invalid market ID: marketId is null or undefined');
+    }
     
-    try {
-      // Convert choice to uint8 (0 for No/Down, 1 for Yes/Up)
-      const choiceValue = choice === 'yes' ? 1 : 0;
-      const amountInUnits = parseUnits(amount.toString(), 6);
+    // Convert marketId to number if it's a string
+    const numericMarketId = typeof marketId === 'string' ? parseInt(marketId, 10) : marketId;
+    
+    if (isNaN(numericMarketId)) {
+      throw new Error(`Invalid market ID: "${marketId}" is not a valid number`);
+    }
+    
+    if (choice === undefined || choice === null) {
+      throw new Error('Invalid choice: choice is null or undefined');
+    }
+    
+    const numericChoice = typeof choice === 'string' ? parseInt(choice, 10) : choice;
+    
+    if (isNaN(numericChoice)) {
+      throw new Error(`Invalid choice: "${choice}" is not a valid number`);
+    }
 
-      const txHash = await writePredictionMarket({
+    try {
+      // Convert amount to USDC units (6 decimals)
+      const amountInUnits = parseUnits(amount.toString(), 6);
+      
+      logger.info('Placing bet:', {
+        marketId: numericMarketId,
+        choice: numericChoice,
+        amount: amount.toString(),
+        amountInUnits: amountInUnits.toString()
+      });
+
+      setIsPending(true);
+
+      // Wait a moment for wallet state sync (1 second)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Send bet transaction directly (skip simulation for testnet compatibility)
+      const txHash = await walletClient.writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'placeBet',
-        args: [BigInt(marketId), choiceValue, amountInUnits],
+        args: [BigInt(numericMarketId), numericChoice, amountInUnits],
+        account: address,
       });
 
       logger.info('Bet placement transaction submitted:', { txHash });
+      setHash(txHash);
+      setIsPending(false);
+      setIsConfirming(true);
+
+      // Wait for confirmation
+      const receipt = await waitForConfirmation(txHash);
+      
+      if (receipt.status !== 'success') {
+        throw new Error('Bet placement transaction failed on-chain');
+      }
+
+      logger.info('Bet placement confirmed');
+      setIsConfirming(false);
+      setIsSuccess(true);
+      setIsPlacingBet(false);
+      lastBetRef.current = txHash;
+      
       return txHash;
     } catch (err) {
       logger.error('Error placing bet:', err);
+      setIsPending(false);
+      setIsConfirming(false);
+      setIsPlacingBet(false);
+      
+      // Provide specific error messages
+      if (err.message?.includes('User rejected')) {
+        throw new Error('Transaction was rejected in wallet');
+      } else if (err.message?.includes('insufficient funds')) {
+        throw new Error('Insufficient ETH for gas fees');
+      } else if (err.message?.includes('Market not active')) {
+        throw new Error('This market is no longer active');
+      } else if (err.message?.includes('Market already resolved')) {
+        throw new Error('This market has already been resolved');
+      } else if (err.message?.includes('Insufficient allowance')) {
+        throw new Error('USDC approval required. Please try again.');
+      } else if (err.message?.includes('nonce')) {
+        throw new Error('Transaction nonce error. Please refresh and try again.');
+      }
+      
       throw new Error(err.message || 'Failed to place bet');
     }
-  }, [address, writePredictionMarket]);
+  }, [walletClient, address, waitForConfirmation]);
 
   /**
    * Main place bet function - handles approval and betting flow
@@ -143,41 +291,44 @@ export const useBetPlacement = () => {
       return { success: false, error: 'Wallet not connected' };
     }
 
+    // Validate market object
+    if (!market) {
+      setError('Invalid market data');
+      return { success: false, error: 'Invalid market data' };
+    }
+    
+    if (market.id === undefined || market.id === null) {
+      logger.error('Invalid market object:', market);
+      setError('Invalid market ID');
+      return { success: false, error: 'Invalid market ID' };
+    }
+
     setIsPlacingBet(true);
-    setIsPending(true);
+    setIsPending(false);
+    setIsConfirming(false);
+    setIsSuccess(false);
     setError(null);
     setNeedsApproval(false);
+    setHash(null);
 
     try {
-      // Step 1: Approve USDC
-      logger.info('Requesting USDC approval...');
-      setNeedsApproval(true);
+      // Step 1: Check if approval is needed
+      logger.info('Checking if approval is needed...');
+      const hasAllowance = await checkAllowance(amount);
       
-      const approvalHash = await approveUSDC(amount);
-      setHash(approvalHash);
+      let approvalHash = null;
       
-      setIsPending(false);
-      setIsConfirming(true);
+      if (!hasAllowance) {
+        // Step 2: Approve USDC
+        logger.info('Approval needed, requesting USDC approval...');
+        approvalHash = await approveUSDC(amount);
+      } else {
+        logger.info('Sufficient allowance already exists');
+      }
       
-      // Wait for approval confirmation using actual receipt
-      logger.info('Waiting for approval confirmation...');
-      
-      // The useWaitForTransactionReceipt hook will handle the confirmation
-      // We wait for the effect to set isSuccess or error
-      
-      // Step 2: Place the bet
-      setNeedsApproval(false);
-      setIsConfirming(false);
-      setIsPending(true);
-      
+      // Step 3: Place the bet
+      logger.info('Placing bet...');
       const betHash = await executePlaceBet(market.id, choice, amount);
-      setHash(betHash);
-      
-      setIsPending(false);
-      setIsConfirming(true);
-      
-      // Wait for bet confirmation - handled by useEffect watching receipt
-      logger.info('Waiting for bet confirmation...');
       
       return { 
         success: true, 
@@ -198,8 +349,7 @@ export const useBetPlacement = () => {
         error: err.message || 'Transaction failed' 
       };
     }
-  }, [address, approveUSDC, executePlaceBet]);
-
+  }, [address, checkAllowance, approveUSDC, executePlaceBet]);
 
   return {
     placeBet,
@@ -212,9 +362,8 @@ export const useBetPlacement = () => {
     lastBetRef,
     error,
     reset,
-    receipt
+    currentAllowance: currentAllowance ? formatUnits(currentAllowance, 6) : '0'
   };
 };
-
 
 export default useBetPlacement;

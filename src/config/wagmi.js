@@ -26,15 +26,26 @@ const createTransport = (publicUrls) => {
     })
   );
   
-  return fallback(transports);
+  return fallback(transports, {
+    rank: {
+      interval: 60_000, // Re-rank providers every 60 seconds
+      sampleCount: 5,
+      timeout: 5_000,
+      weights: {
+        latency: 0.7,
+        stability: 0.3,
+      },
+    },
+  });
 };
 
 // Free public RPC endpoints (no API keys required)
+// NOTE: Order matters - first one is tried first
 const FREE_RPC_PROVIDERS = {
   baseSepolia: [
-    'https://sepolia.base.org', // Official Base Sepolia RPC (best)
-    'https://base-sepolia-rpc.publicnode.com', // Backup
-    'https://base-sepolia.blockpi.network/v1/rpc/public', // Backup 2
+    'https://sepolia.base.org', // Official Base Sepolia RPC (best, no CORS issues)
+    'https://base-sepolia-rpc.publicnode.com', // Backup (no CORS issues)
+    // REMOVED: 'https://base-sepolia.blockpi.network/v1/rpc/public' - Has CORS restrictions
   ],
   base: [
     'https://mainnet.base.org', // Official Base Mainnet RPC
@@ -62,10 +73,14 @@ export const config = getDefaultConfig({
   ssr: false,
 });
 
-// Contracts
+// Contracts - BASE SEPOLIA TESTNET ADDRESSES
+// Note: These should match the addresses in src/utils/constants.js
 export const CONTRACTS = {
-  PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS,
-  USDC: import.meta.env.VITE_USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  // USDC on Base Sepolia Testnet
+  // This is the official Circle testnet USDC contract
+  USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+  // PredictionMarket contract
+  PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x0000000000000000000000000000000000000000',
 };
 
 // Price Feeds (Chainlink on Base Sepolia)

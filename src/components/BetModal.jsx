@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw } from 'lucide-react';
 import { useBetPlacement } from '../hooks/useBetPlacement';
 import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout } from '../marketUtils';
+import { createLogger } from '../utils/logger';
 
-
+const logger = createLogger('BetModal');
 
 // Helper to get asset display info
 const getAssetInfo = (asset) => {
@@ -30,14 +31,12 @@ const getMarketTypeLabel = (type) => {
   return labels[type] || 'Unknown';
 };
 
-
-
-export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBalance, usdcBalanceNum }) => {
+export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBalance, usdcBalanceNum, onBetPlaced }) => {
   const [position, setPosition] = useState('yes');
   const [amount, setAmount] = useState('');
   const [inputError, setInputError] = useState('');
-  const { placeBet, isPlacingBet, isPending, isConfirming, needsApproval, error } = useBetPlacement();
-
+  const [retryCount, setRetryCount] = useState(0);
+  const { placeBet, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess } = useBetPlacement();
 
   // Clear input error when amount changes
   useEffect(() => {
@@ -49,6 +48,14 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
       setInputError('');
     }
   }, [amount, usdcBalanceNum, formattedUsdcBalance]);
+
+  // Reset retry count when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setRetryCount(0);
+      reset();
+    }
+  }, [isOpen, reset]);
 
   if (!isOpen || !market) return null;
 
@@ -91,7 +98,6 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
   }, [potentialPayout, amount]);
 
   const handleMaxClick = () => {
-    // Leave a small buffer for gas (0.01 USDC worth of ETH)
     const maxBet = Math.max(0, usdcBalanceNum - 0.01);
     setAmount(maxBet > 0 ? maxBet.toFixed(2) : '0');
   };
@@ -107,13 +113,31 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
       return;
     }
     
-    const result = await placeBet(market, position, betAmount);
+    // Convert position string to numeric choice (0 = no/down, 1 = yes/up)
+    const choice = position === 'yes' ? 1 : 0;
+    
+    logger.info('Placing bet with:', { marketId: market.id, choice, amount: betAmount });
+    
+    const result = await placeBet(market, choice, betAmount);
     if (result.success) {
+      // Notify parent component that bet was placed successfully
+      if (onBetPlaced) {
+        onBetPlaced(result);
+      }
       onClose();
       setAmount('');
+      setRetryCount(0);
     }
   };
 
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    reset();
+    // Small delay before allowing retry
+    setTimeout(() => {
+      handlePlaceBet();
+    }, 500);
+  };
 
   // Determine balance status color
   const getBalanceStatusColor = () => {
@@ -122,6 +146,33 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     return 'text-green-400';
   };
 
+  // Get detailed status message
+  const getStatusMessage = () => {
+    if (needsApproval) {
+      return {
+        title: 'Approving USDC...',
+        description: 'Please confirm the approval in your wallet. This allows the contract to spend your USDC.',
+        icon: <Shield className="w-5 h-5 text-yellow-400 animate-pulse" />
+      };
+    }
+    if (isPending) {
+      return {
+        title: 'Submitting Transaction...',
+        description: 'Waiting for wallet confirmation. Please check your wallet popup.',
+        icon: <div className="w-5 h-5 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+      };
+    }
+    if (isConfirming) {
+      return {
+        title: 'Confirming on Blockchain...',
+        description: 'Transaction submitted. Waiting for blockchain confirmation.',
+        icon: <CheckCircle className="w-5 h-5 text-green-400" />
+      };
+    }
+    return null;
+  };
+
+  const status = getStatusMessage();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
@@ -172,7 +223,6 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             )}
           </div>
 
-
           {/* Market Stats Grid */}
           <div className="grid grid-cols-2 gap-2 bg-gray-800/50 rounded-lg p-3 border border-gray-700">
             {/* Start Price */}
@@ -197,7 +247,6 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
             </div>
 
-
             {/* End Date */}
             <div className="flex items-center gap-2 col-span-2">
               <Clock className="w-4 h-4 text-gray-500" />
@@ -215,7 +264,6 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
             </div>
           </div>
-
 
           <div className="flex gap-2">
             <button
@@ -254,8 +302,6 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             </button>
           </div>
 
-
-
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-400">
@@ -277,6 +323,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                 placeholder="0.00"
                 step="0.01"
                 min="0.01"
+                disabled={isPlacingBet}
                 className={`w-full bg-gray-800 border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors ${
                   inputError ? 'border-red-500 focus:border-red-500' : 'border-gray-700 focus:border-blue-500'
                 }`}
@@ -330,44 +377,43 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             </div>
           )}
 
-
           {/* Transaction Status Indicator */}
-          {isPlacingBet && (
+          {isPlacingBet && status && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
               <div className="flex items-center gap-3">
-                {needsApproval ? (
-                  <>
-                    <Shield className="w-5 h-5 text-yellow-400 animate-pulse" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">Approving USDC...</div>
-                      <div className="text-xs text-gray-400">Please confirm the approval in your wallet</div>
-                    </div>
-                  </>
-                ) : isPending ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">Submitting Transaction...</div>
-                      <div className="text-xs text-gray-400">Waiting for wallet confirmation</div>
-                    </div>
-                  </>
-                ) : isConfirming ? (
-                  <>
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium text-white">Confirming on Blockchain...</div>
-                      <div className="text-xs text-gray-400">This may take a few moments</div>
-                    </div>
-                  </>
-                ) : null}
+                {status.icon}
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-white">{status.title}</div>
+                  <div className="text-xs text-gray-400">{status.description}</div>
+                </div>
               </div>
             </div>
           )}
 
+          {/* Error Display with Retry */}
           {(error || inputError) && (
-            <div className="flex items-center gap-2 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-red-400" />
-              <span className="text-red-400 text-sm">{error || inputError}</span>
+            <div className="flex flex-col gap-2 p-3 bg-red-500/20 border border-red-500/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                <span className="text-red-400 text-sm">{error || inputError}</span>
+              </div>
+              {error && !isPlacingBet && (
+                <button
+                  onClick={handleRetry}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-red-500/30 hover:bg-red-500/40 text-red-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Retry Transaction
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Success Message */}
+          {isSuccess && (
+            <div className="flex items-center gap-2 p-3 bg-green-500/20 border border-green-500/50 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-green-400" />
+              <span className="text-green-400 text-sm">Bet placed successfully!</span>
             </div>
           )}
 
@@ -390,7 +436,13 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             )}
           </button>
 
-
+          {/* Help Text */}
+          <div className="text-xs text-gray-500 text-center">
+            {needsApproval 
+              ? "First, you'll approve USDC spending, then place your bet in a second transaction."
+              : "Transactions are processed on Base Sepolia network."
+            }
+          </div>
         </div>
       </div>
     </div>

@@ -49,6 +49,10 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   const [currentAssetPrice, setCurrentAssetPrice] = useState(null);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [createStatus, setCreateStatus] = useState({ show: false, success: false, message: '' });
+  
+  // Transaction tracking for market creation
+  const [pendingTxHash, setPendingTxHash] = useState(null);
+  const [isConfirmingCreation, setIsConfirmingCreation] = useState(false);
 
   // Form states
   const [binaryForm, setBinaryForm] = useState({
@@ -159,6 +163,61 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       });
     }
   }, [marketType, binaryForm.asset, multiChoiceForm.asset, rangeForm.asset, timeForm.asset, fetchCurrentPrice]);
+
+  // Watch for pending transaction confirmation
+  useEffect(() => {
+    if (!pendingTxHash || !publicClient) return;
+    
+    const checkConfirmation = async () => {
+      try {
+        setIsConfirmingCreation(true);
+        
+        const receipt = await publicClient.waitForTransactionReceipt({
+          hash: pendingTxHash,
+          confirmations: 1,
+          timeout: 60000,
+        });
+        
+        if (receipt.status === 'success') {
+          toast.success('Market created successfully!', { id: 'create-market' });
+          setCreateStatus({ 
+            show: true, 
+            success: true, 
+            message: 'Market created successfully! It will appear in the active markets shortly.' 
+          });
+          
+          // Refresh markets list immediately
+          await fetchMarkets();
+          
+          // Also refresh stats if on dashboard
+          if (activeTab === 'dashboard') {
+            await fetchStats();
+          }
+        } else {
+          toast.error('Market creation failed on-chain', { id: 'create-market' });
+          setCreateStatus({ 
+            show: true, 
+            success: false, 
+            message: 'Market creation failed. Please try again.' 
+          });
+        }
+      } catch (error) {
+        console.error('Error waiting for confirmation:', error);
+        toast.error('Failed to confirm transaction', { id: 'create-market' });
+        setCreateStatus({ 
+          show: true, 
+          success: false, 
+          message: 'Transaction confirmation failed. Please check your wallet.' 
+        });
+      } finally {
+        setIsConfirmingCreation(false);
+        setPendingTxHash(null);
+        setIsPending(false);
+      }
+    };
+    
+    checkConfirmation();
+  }, [pendingTxHash, publicClient, activeTab]);
 
   // Fetch dashboard stats
   const fetchStats = async () => {
@@ -462,7 +521,10 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   const createBinaryMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
-      await walletClient.writeContract({
+      
+      toast.loading('Creating binary market...', { id: 'create-market' });
+      
+      const hash = await walletClient.writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'createMarketWithOdds',
@@ -474,27 +536,36 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         ],
         account: address
       });
-      toast.success('Binary market creation submitted!');
+      
+      // Set pending hash to trigger confirmation watching
+      setPendingTxHash(hash);
+      
     } catch (error) {
       setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message);
+      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      setIsPending(false);
     }
   };
 
   const createMultiChoiceMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
+      
       const validOptions = multiChoiceForm.options.filter((o) => sanitizeInput(o).trim() !== '');
       if (validOptions.length < 2) {
         toast.error('Please provide at least 2 options');
+        setIsPending(false);
         return;
       }
       if (!sanitizeInput(multiChoiceForm.question).trim()) {
         toast.error('Please provide a question');
+        setIsPending(false);
         return;
       }
 
-      await walletClient.writeContract({
+      toast.loading('Creating multi-choice market...', { id: 'create-market' });
+      
+      const hash = await walletClient.writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'createMultiChoiceMarketWithOdds',
@@ -507,19 +578,27 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         ],
         account: address
       });
-      toast.success('Multi-choice market creation submitted!');
+      
+      // Set pending hash to trigger confirmation watching
+      setPendingTxHash(hash);
+      
     } catch (error) {
       setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message);
+      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      setIsPending(false);
     }
   };
 
   const createRangeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
+      
       const rangeMins = rangeForm.ranges.map((r) => BigInt(Math.floor(r.min * 1e8)));
       const rangeMaxs = rangeForm.ranges.map((r) => BigInt(Math.floor(r.max * 1e8)));
-      await walletClient.writeContract({
+      
+      toast.loading('Creating range market...', { id: 'create-market' });
+      
+      const hash = await walletClient.writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'createRangeMarketWithOdds',
@@ -532,19 +611,27 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         ],
         account: address
       });
-      toast.success('Range market creation submitted!');
+      
+      // Set pending hash to trigger confirmation watching
+      setPendingTxHash(hash);
+      
     } catch (error) {
       setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message);
+      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      setIsPending(false);
     }
   };
 
   const createTimeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
+      
       const targetPriceBigInt = BigInt(Math.floor(timeForm.targetPrice * 1e8));
       const timeframeSeconds = timeForm.timeframes.map((tf) => BigInt(tf.seconds));
-      await walletClient.writeContract({
+      
+      toast.loading('Creating time-based market...', { id: 'create-market' });
+      
+      const hash = await walletClient.writeContract({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
         functionName: 'createTimeMarketWithOdds',
@@ -556,10 +643,14 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         ],
         account: address
       });
-      toast.success('Time-based market creation submitted!');
+      
+      // Set pending hash to trigger confirmation watching
+      setPendingTxHash(hash);
+      
     } catch (error) {
       setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message);
+      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      setIsPending(false);
     }
   };
 
@@ -578,8 +669,6 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       case 'time': createTimeMarket(); break;
       default: break;
     }
-
-    setIsPending(false);
   };
 
   // Fetch data when tab changes
@@ -679,8 +768,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
                   isPriceLoading={isPriceLoading}
                   createStatus={createStatus}
                   handleCreate={handleCreate}
-                  isPending={isPending}
-                  isConfirming={isConfirming}
+                  isPending={isPending || isConfirmingCreation}
+                  isConfirming={isConfirmingCreation}
                 />
               )}
 

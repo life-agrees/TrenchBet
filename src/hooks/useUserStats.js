@@ -1,22 +1,26 @@
 import { useMemo } from 'react';
 
-export const useUserStats = (userBets) => {
+export const useUserStats = (userBets, wonBets, lostBets, pendingBets) => {
   // Compute stats from userBets data
   const stats = useMemo(() => {
     const safeBets = userBets || [];
+    const safeWonBets = wonBets || [];
+    const safeLostBets = lostBets || [];
+    const safePendingBets = pendingBets || [];
     
     const totalBets = safeBets.length;
-    const wins = safeBets.filter(bet => bet.market?.resolved && (bet.claimed || bet.isClaimableConfirmed)).length;
-    const losses = safeBets.filter(bet => bet.market?.resolved && !bet.claimed && !bet.isClaimableConfirmed).length;
+    // Use pre-calculated wonBets and lostBets for consistency with useUserBets
+    const wins = safeWonBets.length;
+    const losses = safeLostBets.length;
+    const pending = safePendingBets.length;
     
-    // Calculate streak (consecutive wins)
+    // Calculate streak (consecutive wins) from wonBets for consistency
     let streak = 0;
-    const sortedBets = [...safeBets]
-      .filter(bet => bet.market?.resolved)
+    const sortedWonBets = [...safeWonBets]
       .sort((a, b) => (b.market?.endTime || 0) - (a.market?.endTime || 0));
     
-    for (const bet of sortedBets) {
-      if (bet.claimed || bet.isClaimableConfirmed) {
+    for (const bet of sortedWonBets) {
+      if (bet.market?.resolved) {
         streak++;
       } else {
         break;
@@ -27,13 +31,16 @@ export const useUserStats = (userBets) => {
       totalBets,
       wins,
       losses,
+      pending,
       streak,
       isLoading: false,
       error: null
     };
-  }, [userBets]);
+  }, [userBets, wonBets, lostBets, pendingBets]);
 
   return stats;
 };
+
+
 
 export default useUserStats;

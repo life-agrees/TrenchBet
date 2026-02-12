@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useReadContract, useBlockNumber } from 'wagmi';
 import { multicall } from 'wagmi/actions';
 import { CONTRACTS, config } from '../config/wagmi';
@@ -17,12 +17,14 @@ export function useMarketsOptimized() {
   const [markets, setMarkets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const refreshTriggerRef = useRef(0);
 
   // Get current block number to trigger refresh
   const { data: blockNumber } = useBlockNumber({ watch: true });
 
   // Fetch market counter to know how many markets exist
-  const { data: marketCounter, isError: isCounterError } = useReadContract({
+  const { data: marketCounter, isError: isCounterError, refetch: refetchCounter } = useReadContract({
     address: CONTRACTS.PREDICTION_MARKET,
     abi: PREDICTION_MARKET_ABI,
     functionName: 'marketCounter',
@@ -30,9 +32,16 @@ export function useMarketsOptimized() {
   });
 
   // Fetch markets using multicall for better performance
-  const fetchMarkets = useCallback(async () => {
+  const fetchMarkets = useCallback(async (force = false) => {
     if (!marketCounter || !CONTRACTS.PREDICTION_MARKET) {
       setIsLoading(false);
+      return;
+    }
+
+    // Rate limiting: don't refresh more than once every 3 seconds unless forced
+    const now = Date.now();
+    if (!force && now - lastRefreshTime < 3000) {
+      logger.info('Skipping refresh - too soon');
       return;
     }
 
@@ -45,6 +54,7 @@ export function useMarketsOptimized() {
       if (count === 0) {
         setMarkets([]);
         setIsLoading(false);
+        setLastRefreshTime(now);
         return;
       }
 
@@ -78,6 +88,7 @@ export function useMarketsOptimized() {
         .filter(m => m !== null);
 
       setMarkets(fetchedMarkets);
+      setLastRefreshTime(now);
       setIsLoading(false);
       
       logger.info(`Fetched ${fetchedMarkets.length} markets via multicall`);
@@ -86,12 +97,26 @@ export function useMarketsOptimized() {
       setError(err.message || 'Failed to fetch markets');
       setIsLoading(false);
     }
-  }, [marketCounter]);
+  }, [marketCounter, lastRefreshTime]);
 
   // Initial fetch and refresh on block change
   useEffect(() => {
     fetchMarkets();
-  }, [fetchMarkets, blockNumber]);
+  }, [fetchMarkets, blockNumber, refreshTriggerRef.current]);
+
+  // Watch for market counter changes and force refresh
+  useEffect(() => {
+    if (marketCounter) {
+      const currentCount = Number(marketCounter);
+      const previousCount = markets.length;
+      
+      // If counter increased, there might be new markets
+      if (currentCount > previousCount) {
+        logger.info(`Market counter changed: ${previousCount} -> ${currentCount}, refreshing...`);
+        fetchMarkets(true);
+      }
+    }
+  }, [marketCounter, markets.length, fetchMarkets]);
 
   // Separate markets by status
   const { liveMarkets, expiredMarkets } = useMemo(() => {
@@ -114,10 +139,22 @@ export function useMarketsOptimized() {
     return { liveMarkets: live, expiredMarkets: expired };
   }, [markets]);
 
-  // Refresh function
+  // Refresh function - can be called to force immediate refresh
   const refresh = useCallback(() => {
-    fetchMarkets();
-  }, [fetchMarkets]);
+    logger.info('Manual refresh triggered');
+    refreshTriggerRef.current += 1;
+    fetchMarkets(true);
+    refetchCounter();
+  }, [fetchMarkets, refetchCounter]);
+
+  // Force refresh function for external use
+  const forceRefresh = useCallback(() => {
+    logger.info('Force refresh triggered');
+    refreshTriggerRef.current += 1;
+    setLastRefreshTime(0); // Reset rate limit
+    fetchMarkets(true);
+    refetchCounter();
+  }, [fetchMarkets, refetchCounter]);
 
   return {
     markets,
@@ -126,6 +163,7 @@ export function useMarketsOptimized() {
     isLoading,
     error,
     refresh,
+    forceRefresh,
     marketCounter: marketCounter ? Number(marketCounter) : 0,
   };
 }
