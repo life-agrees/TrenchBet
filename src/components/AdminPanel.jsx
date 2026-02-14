@@ -892,8 +892,10 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
                   contractAddress={CONTRACTS.PREDICTION_MARKET}
                   isPending={isPending}
                   isConfirming={isConfirming}
+                  onNavigate={setActiveTab}  // ✨ NEW: Enables quick action buttons
                 />
               )}
+
 
               {activeTab === 'create' && (
                 <CreateTab
