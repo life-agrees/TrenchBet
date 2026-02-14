@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw, BarChart3, Target, Timer } from 'lucide-react';
+
 import { useBetPlacement } from '../hooks/useBetPlacement';
 import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout } from '../marketUtils';
 import { createLogger } from '../utils/logger';
@@ -33,10 +34,12 @@ const getMarketTypeLabel = (type) => {
 
 export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBalance, usdcBalanceNum, onBetPlaced }) => {
   const [position, setPosition] = useState('yes');
+  const [selectedChoice, setSelectedChoice] = useState(0);
   const [amount, setAmount] = useState('');
   const [inputError, setInputError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const { placeBet, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess } = useBetPlacement();
+
 
   // Clear input error when amount changes
   useEffect(() => {
@@ -49,13 +52,45 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     }
   }, [amount, usdcBalanceNum, formattedUsdcBalance]);
 
-  // Reset retry count when modal opens
+  // Reset retry count and selected choice when modal opens
   useEffect(() => {
     if (isOpen) {
       setRetryCount(0);
+      setSelectedChoice(0);
+      setPosition('yes');
       reset();
     }
   }, [isOpen, reset]);
+
+  // Helper to get option color based on index
+  const getOptionColor = (index, isSelected) => {
+    const baseColors = [
+      'bg-blue-500/20 text-blue-400 border-blue-500/30',
+      'bg-purple-500/20 text-purple-400 border-purple-500/30',
+      'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      'bg-pink-500/20 text-pink-400 border-pink-500/30',
+      'bg-teal-500/20 text-teal-400 border-teal-500/30',
+      'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      'bg-lime-500/20 text-lime-400 border-lime-500/30',
+      'bg-rose-500/20 text-rose-400 border-rose-500/30',
+    ];
+    const selectedColors = [
+      'bg-blue-500/40 text-blue-300 border-blue-400 shadow-lg shadow-blue-500/20',
+      'bg-purple-500/40 text-purple-300 border-purple-400 shadow-lg shadow-purple-500/20',
+      'bg-orange-500/40 text-orange-300 border-orange-400 shadow-lg shadow-orange-500/20',
+      'bg-pink-500/40 text-pink-300 border-pink-400 shadow-lg shadow-pink-500/20',
+      'bg-teal-500/40 text-teal-300 border-teal-400 shadow-lg shadow-teal-500/20',
+      'bg-indigo-500/40 text-indigo-300 border-indigo-400 shadow-lg shadow-indigo-500/20',
+      'bg-yellow-500/40 text-yellow-300 border-yellow-400 shadow-lg shadow-yellow-500/20',
+      'bg-cyan-500/40 text-cyan-300 border-cyan-400 shadow-lg shadow-cyan-500/20',
+      'bg-lime-500/40 text-lime-300 border-lime-400 shadow-lg shadow-lime-500/20',
+      'bg-rose-500/40 text-rose-300 border-rose-400 shadow-lg shadow-rose-500/20',
+    ];
+    return isSelected ? selectedColors[index % selectedColors.length] : baseColors[index % baseColors.length];
+  };
+
 
   if (!isOpen || !market) return null;
 
@@ -81,16 +116,28 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     });
   }, [market]);
 
-  // Calculate potential payout based on current input
+  // Calculate potential payout based on current input and market type
   const potentialPayout = useMemo(() => {
     const betAmount = parseFloat(amount) || 0;
     if (betAmount <= 0) return 0;
     
-    const selectedOdds = position === 'yes' ? yesOdds : noOdds;
-    const multiplier = selectedOdds.multiplier || 1;
+    let multiplier = 1;
+    
+    if (market.marketType === 0) {
+      // Binary market
+      const selectedOdds = position === 'yes' ? yesOdds : noOdds;
+      multiplier = selectedOdds.multiplier || 1;
+    } else if (market.useFixedOdds && market.multipliers) {
+      // Other market types with fixed odds
+      multiplier = (market.multipliers[selectedChoice] || 200) / 100;
+    } else {
+      // Dynamic odds default
+      multiplier = 2.0;
+    }
     
     return calculatePayout(betAmount, multiplier);
-  }, [amount, position, yesOdds, noOdds]);
+  }, [amount, position, selectedChoice, yesOdds, noOdds, market]);
+
 
   const potentialProfit = useMemo(() => {
     const betAmount = parseFloat(amount) || 0;
@@ -113,12 +160,20 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
       return;
     }
     
-    // Convert position string to numeric choice (0 = no/down, 1 = yes/up)
-    const choice = position === 'yes' ? 1 : 0;
+    // Determine choice based on market type
+    let choice;
+    if (market.marketType === 0) {
+      // Binary: 0 = No/Down, 1 = Yes/Up
+      choice = position === 'yes' ? 1 : 0;
+    } else {
+      // Multi-Choice, Range, Time-Based: choice is the selected index
+      choice = selectedChoice;
+    }
     
-    logger.info('Placing bet with:', { marketId: market.id, choice, amount: betAmount });
+    logger.info('Placing bet with:', { marketId: market.id, choice, amount: betAmount, marketType: market.marketType });
     
     const result = await placeBet(market, choice, betAmount);
+
     if (result.success) {
       // Notify parent component that bet was placed successfully
       if (onBetPlaced) {
@@ -201,7 +256,20 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
         <div className="p-4 space-y-4">
           <p className="text-gray-400 text-sm">{market.title}</p>
 
+          {/* Market Type Indicator */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="px-2 py-1 rounded-md bg-gray-700/50 text-gray-400 text-xs font-medium border border-gray-600">
+              {getMarketTypeLabel(market.marketType)}
+            </div>
+            {market.marketType === 2 && market.targetPrice && (
+              <div className="px-2 py-1 rounded-md bg-purple-500/20 text-purple-400 text-xs font-medium border border-purple-500/30">
+                Target: ${market.targetPrice.toLocaleString?.() || market.targetPrice}
+              </div>
+            )}
+          </div>
+
           {/* Balance Display */}
+
           <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl p-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -265,42 +333,126 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPosition('yes')}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
-                position === 'yes'
-                  ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
-                  : 'bg-gray-800 border-2 border-transparent hover:bg-gray-750'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-400" />
-                <span className="text-white font-medium">Yes</span>
+          {/* Market Type Specific Selection UI */}
+          {market.marketType === 0 && (
+            /* Binary Market - Yes/No Selection */
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPosition('yes')}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
+                  position === 'yes'
+                    ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
+                    : 'bg-gray-800 border-2 border-transparent hover:bg-gray-750'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-green-400" />
+                  <span className="text-white font-medium">Yes</span>
+                </div>
+                <span className="text-xs text-green-400/80 font-semibold">{yesOdds.text}</span>
+                {yesOdds.isFixed && (
+                  <span className="text-[10px] text-green-300/60">Fixed Odds</span>
+                )}
+              </button>
+              <button
+                onClick={() => setPosition('no')}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
+                  position === 'no'
+                    ? 'bg-red-500/20 border-2 border-red-500 shadow-lg shadow-red-500/20'
+                    : 'bg-gray-800 border-2 border-transparent hover:bg-gray-750'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <TrendingDown className="w-5 h-5 text-red-400" />
+                  <span className="text-white font-medium">No</span>
+                </div>
+                <span className="text-xs text-red-400/80 font-semibold">{noOdds.text}</span>
+                {noOdds.isFixed && (
+                  <span className="text-[10px] text-red-300/60">Fixed Odds</span>
+                )}
+              </button>
+            </div>
+          )}
+
+          {market.marketType === 1 && market.options && (
+            /* Multi-Choice Market - Option Selection */
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <BarChart3 className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-gray-400">Select an option:</span>
               </div>
-              <span className="text-xs text-green-400/80 font-semibold">{yesOdds.text}</span>
-              {yesOdds.isFixed && (
-                <span className="text-[10px] text-green-300/60">Fixed Odds</span>
-              )}
-            </button>
-            <button
-              onClick={() => setPosition('no')}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
-                position === 'no'
-                  ? 'bg-red-500/20 border-2 border-red-500 shadow-lg shadow-red-500/20'
-                  : 'bg-gray-800 border-2 border-transparent hover:bg-gray-750'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                <TrendingDown className="w-5 h-5 text-red-400" />
-                <span className="text-white font-medium">No</span>
+              <div className="grid grid-cols-2 gap-2">
+                {market.options.map((option, idx) => {
+                  const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
+                  const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedChoice(idx)}
+                      className={`${getOptionColor(idx, selectedChoice === idx)} border rounded-lg p-3 text-center transition-all duration-200 hover:scale-105`}
+                    >
+                      <div className="font-bold text-sm text-white">{option}</div>
+                      <div className="text-xs opacity-80">{oddsText}</div>
+                    </button>
+                  );
+                })}
               </div>
-              <span className="text-xs text-red-400/80 font-semibold">{noOdds.text}</span>
-              {noOdds.isFixed && (
-                <span className="text-[10px] text-red-300/60">Fixed Odds</span>
-              )}
-            </button>
-          </div>
+            </div>
+          )}
+
+          {market.marketType === 2 && market.ranges && (
+            /* Range Market - Range Selection */
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Target className="w-4 h-4 text-purple-400" />
+                <span className="text-sm text-gray-400">Select a price range:</span>
+              </div>
+              <div className="space-y-2">
+                {market.ranges.map((range, idx) => {
+                  const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
+                  const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+                  const rangeLabel = `$${range.min?.toLocaleString?.() || range.min} - $${range.max?.toLocaleString?.() || range.max}`;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedChoice(idx)}
+                      className={`w-full ${getOptionColor(idx, selectedChoice === idx)} border rounded-lg p-3 text-center transition-all duration-200 hover:scale-[1.02]`}
+                    >
+                      <div className="font-bold text-sm text-white">{rangeLabel}</div>
+                      <div className="text-xs opacity-80">{oddsText}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {market.marketType === 3 && market.timeframes && (
+            /* Time-Based Market - Timeframe Selection */
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-2">
+                <Timer className="w-4 h-4 text-orange-400" />
+                <span className="text-sm text-gray-400">Select a timeframe:</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {market.timeframes.map((tf, idx) => {
+                  const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
+                  const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedChoice(idx)}
+                      className={`${getOptionColor(idx, selectedChoice === idx)} border rounded-lg p-3 text-center transition-all duration-200 hover:scale-105`}
+                    >
+                      <div className="font-bold text-sm text-white">{tf.label}</div>
+                      <div className="text-xs opacity-80">{oddsText}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
 
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -353,12 +505,18 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                   <span className="text-gray-400">Your Bet</span>
                   <span className="text-white font-medium">{safeToFixed(parseFloat(amount), 2)} USDC</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-400">Multiplier</span>
-                  <span className="text-blue-400 font-medium">
-                    {position === 'yes' ? yesOdds.multiplier?.toFixed(2) : noOdds.multiplier?.toFixed(2)}x
-                  </span>
-                </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-400">Multiplier</span>
+                <span className="text-blue-400 font-medium">
+                  {market.marketType === 0 
+                    ? (position === 'yes' ? yesOdds.multiplier?.toFixed(2) : noOdds.multiplier?.toFixed(2))
+                    : market.useFixedOdds && market.multipliers 
+                      ? (market.multipliers[selectedChoice] / 100).toFixed(2)
+                      : '2.00'
+                  }x
+                </span>
+              </div>
+
                 <div className="h-px bg-green-500/20 my-2" />
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300 font-medium">Total Return</span>

@@ -321,6 +321,176 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
+  /**
+   * Helper function to format timeframe labels
+   * ADD THIS to AdminPanel.jsx (before fetchSingleMarket)
+   */
+  const formatTimeframeLabel = (seconds) => {
+    const hours = seconds / 3600;
+    const days = seconds / 86400;
+    const weeks = seconds / 604800;
+    const months = seconds / 2592000;
+
+    if (months >= 1) return `${Math.round(months)} month${Math.round(months) > 1 ? 's' : ''}`;
+    if (weeks >= 1) return `${Math.round(weeks)} week${Math.round(weeks) > 1 ? 's' : ''}`;
+    if (days >= 1) return `${Math.round(days)} day${Math.round(days) > 1 ? 's' : ''}`;
+    return `${Math.round(hours)} hour${Math.round(hours) > 1 ? 's' : ''}`;
+  };
+
+  /**
+   * Fetch a single market with all type-specific data
+   * ADD THIS NEW FUNCTION to AdminPanel.jsx (before fetchMarkets)
+   */
+  const fetchSingleMarket = async (publicClient, marketId) => {
+    try {
+      // Step 1: Get base market data
+      const market = await publicClient.readContract({
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'getMarket',
+        args: [BigInt(marketId)]
+      });
+
+      const marketType = Number(market.marketType);
+
+      // Step 2: Base market object
+      const baseMarket = {
+        id: marketId,
+        marketType,
+        asset: market.asset || 'Unknown',
+        question: market.question || '',
+        startTime: Number(market.startTime) * 1000,
+        endTime: Number(market.endTime) * 1000,
+        startPrice: market.startPrice ? Number(market.startPrice) / 1e8 : 0,
+        endPrice: market.endPrice ? Number(market.endPrice) / 1e8 : 0,
+        totalPool: Number(((market.yesPool || 0n) + (market.noPool || 0n)) / 1000000n),
+
+        resolved: market.resolved,
+        winningChoice: market.winningChoice ? Number(market.winningChoice) : 0,
+        totalBets: Number(market.totalBets) || 0,
+        useFixedOdds: market.useFixedOdds || false,
+        yesPool: market.yesPool ? Number(market.yesPool) / 1e6 : 0,
+        noPool: market.noPool ? Number(market.noPool) / 1e6 : 0,
+      };
+
+      // Step 3: Fetch type-specific data
+      if (marketType === 1) {
+        // MULTI-CHOICE: Fetch options
+        try {
+          const options = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getMultiChoiceOptions',
+            args: [BigInt(marketId)]
+          });
+          baseMarket.options = options || [];
+        } catch (error) {
+          console.warn(`Failed to fetch options for market ${marketId}:`, error.message);
+          baseMarket.options = [];
+        }
+
+        // Fetch multipliers
+        try {
+          const multipliers = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getCurrentOdds',
+            args: [BigInt(marketId)]
+          });
+          baseMarket.multipliers = (multipliers || []).map(m => Number(m));
+        } catch (error) {
+          baseMarket.multipliers = [];
+        }
+      } 
+      else if (marketType === 2) {
+        // RANGE: Fetch ranges
+        try {
+          const rangeData = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getRangeMarketData',
+            args: [BigInt(marketId)]
+          });
+
+          const mins = rangeData.mins || rangeData[0] || [];
+          const maxs = rangeData.maxs || rangeData[1] || [];
+
+          baseMarket.ranges = mins.map((min, idx) => ({
+            min: Number(min) / 1e8,
+            max: Number(maxs[idx]) / 1e8
+          }));
+        } catch (error) {
+          console.warn(`Failed to fetch range data for market ${marketId}:`, error.message);
+          baseMarket.ranges = [];
+        }
+
+        // Fetch multipliers
+        try {
+          const multipliers = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getCurrentOdds',
+            args: [BigInt(marketId)]
+          });
+          baseMarket.multipliers = (multipliers || []).map(m => Number(m));
+        } catch (error) {
+          baseMarket.multipliers = [];
+        }
+      } 
+      else if (marketType === 3) {
+        // TIME: Fetch target price and timeframes
+        try {
+          const timeData = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getTimeMarketData',
+            args: [BigInt(marketId)]
+          });
+
+          const targetPrice = timeData.targetPrice || timeData[0];
+          const timeframeSeconds = timeData.timeframes || timeData[1] || [];
+
+          baseMarket.targetPrice = Number(targetPrice) / 1e8;
+          baseMarket.timeframes = timeframeSeconds.map((seconds, idx) => {
+            const secondsNum = Number(seconds);
+            return {
+              label: formatTimeframeLabel(secondsNum),
+              seconds: secondsNum
+            };
+          });
+        } catch (error) {
+          console.warn(`Failed to fetch time data for market ${marketId}:`, error.message);
+          baseMarket.targetPrice = 0;
+          baseMarket.timeframes = [];
+        }
+
+        // Fetch multipliers
+        try {
+          const multipliers = await publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET,
+            abi: PREDICTION_MARKET_ABI,
+            functionName: 'getCurrentOdds',
+            args: [BigInt(marketId)]
+          });
+          baseMarket.multipliers = (multipliers || []).map(m => Number(m));
+        } catch (error) {
+          baseMarket.multipliers = [];
+        }
+      }
+
+      return baseMarket;
+
+    } catch (error) {
+      console.warn(`Failed to fetch market ${marketId}:`, error.message);
+      return null;
+    }
+  };
+
+  /**
+   * FIXED fetchMarkets function for AdminPanel.jsx
+   * Replace the existing fetchMarkets function (around line 200)
+   */
+
   // Fetch markets for manage tab
   const fetchMarkets = async () => {
     if (!publicClient || !CONTRACTS.PREDICTION_MARKET) {
@@ -355,41 +525,13 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         return;
       }
 
-      // Fetch each market
+      // Fetch each market with full data
       const marketPromises = [];
       for (let i = 0; i < Number(marketCounter); i++) {
-        marketPromises.push(
-          publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getMarket',
-            args: [BigInt(i)]
-          }).catch(error => {
-            console.warn(`⚠️ Failed to fetch market ${i}:`, error.message);
-            return null;
-          })
-        );
+        marketPromises.push(fetchSingleMarket(publicClient, i));
       }
 
-      const marketData = await Promise.all(marketPromises);
-      const validMarkets = marketData
-        .filter(m => m !== null)
-        .map((m, index) => ({
-          id: index,
-          marketType: Number(m.marketType) || 0,
-          asset: m.asset || 'Unknown',
-          question: m.question || '',
-          startTime: Number(m.startTime) * 1000,
-          endTime: Number(m.endTime) * 1000,
-          startPrice: m.startPrice ? Number(m.startPrice) : 0,
-          endPrice: m.endPrice ? Number(m.endPrice) : 0,
-          totalPool: m.totalPool ? Number(m.totalPool) : 0,
-          resolved: m.resolved,
-          winningChoice: m.winningChoice ? Number(m.winningChoice) : 0,
-          totalBets: Number(m.totalBets) || 0,
-          options: m.options || []
-        }));
-
+      const validMarkets = (await Promise.all(marketPromises)).filter(m => m !== null);
 
       console.log(`✅ Loaded ${validMarkets.length} markets`);
       setMarkets(validMarkets);
@@ -401,6 +543,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       setIsLoadingMarkets(false);
     }
   };
+
 
   // Handle withdraw fees
   const handleWithdraw = async () => {

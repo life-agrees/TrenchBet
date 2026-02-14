@@ -37,6 +37,11 @@ import { useAdminOwner } from './hooks/useAdminOwner';
 import { useBalance } from './hooks/useBalance';
 import { useDebounce } from './hooks/useDebounce';
 import { usePrefetchMarket } from './hooks/usePrefetchMarket';
+import { useCurrentPrices } from './hooks/useCurrentPrice';
+import { useFavorites } from './hooks/useFavorites';
+import { trackBetPlaced } from './services/analyticsService';
+
+
 
 // Skeleton components
 import { MarketCardSkeleton } from './components/SkeletonLoader';
@@ -96,8 +101,29 @@ const App = () => {
   const { isOwner } = useAdminOwner(CONTRACTS.PREDICTION_MARKET);
   const { formattedUsdcBalance, usdcBalanceNum, isLoading: isLoadingBalance } = useBalance();
   const { handleMouseEnter, handleMouseLeave } = usePrefetchMarket();
+  const { toggleFavorite, isFavorite } = useFavorites();
+
+  // Fetch current prices for all assets
+  const { prices: currentPrices, isLoading: isPricesLoading } = useCurrentPrices(['BTC', 'ETH', 'SOL']);
+
+  // Sort markets function
+  const sortMarkets = (markets) => {
+    switch (sortBy) {
+      case 'endingSoon':
+        return [...markets].sort((a, b) => a.endTime - b.endTime);
+      case 'mostActive':
+        return [...markets].sort((a, b) => (b.totalBets || 0) - (a.totalBets || 0));
+      case 'highestPool':
+        const getPool = (m) => (m.yesPool || 0) + (m.noPool || 0);
+        return [...markets].sort((a, b) => getPool(b) - getPool(a));
+      default:
+        return markets;
+    }
+  };
+
 
   // UI state
+
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [showAddFundsModal, setShowAddFundsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -112,6 +138,8 @@ const App = () => {
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showPointsHistory, setShowPointsHistory] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
+  const [sortBy, setSortBy] = useState('endingSoon');
+
 
   // Calculate live stats for landing page
   const liveStats = useMemo(() => {
@@ -197,7 +225,11 @@ const App = () => {
       yesPool: market.yesPool,
       noPool: market.noPool
     });
+    
+    // Track the action
+    trackBetPlaced(market.id, defaultBet, choiceLabel, multiplier);
   }, []);
+
 
   const handleBetPlaced = useCallback(() => {
     setTimeout(() => {
@@ -561,8 +593,23 @@ const App = () => {
                       </span>
                     )}
                   </h2>
-                  <div className="flex items-center gap-2" role="group" aria-label="Filter markets by asset">
-                    <span className="text-sm text-neutral-400 mr-2">Filter by:</span>
+                  <div className="flex items-center gap-4">
+                    {/* Sort Dropdown */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-neutral-400">Sort by:</span>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="px-3 py-2 bg-dark-800 border-2 border-dark-600 rounded-xl text-sm text-white focus:border-primary focus:outline-none cursor-pointer"
+                      >
+                        <option value="endingSoon">Ending Soon</option>
+                        <option value="mostActive">Most Active</option>
+                        <option value="highestPool">Highest Pool</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2" role="group" aria-label="Filter markets by asset">
+                      <span className="text-sm text-neutral-400 mr-2">Filter by:</span>
+
                     {['ALL', 'BTC', 'ETH', 'SOL'].map((asset) => {
                       const now = Date.now();
                       const safeMarkets = markets || [];
@@ -583,9 +630,12 @@ const App = () => {
                       );
                     })}
                   </div>
+                  </div>
                 </div>
               </div>
             )}
+
+
 
             {isLoadingMarkets && (markets || []).length === 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -607,41 +657,43 @@ const App = () => {
                 );
               }
 
-              if (!isLoadingMarkets && currentLiveMarkets.length === 0) return <EmptyState isConnected={isConnected} variant="empty" />;
-              if (!isLoadingMarkets && filteredMarkets.length === 0) return <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600"><AlertTriangle size={48} className="text-primary mb-4" /><p className="text-xl text-neutral-400">No markets available</p></div>;
+              // Apply sorting
+              const sortedMarkets = sortMarkets(filteredMarkets);
 
-              return filteredMarkets.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
+
+              if (!isLoadingMarkets && currentLiveMarkets.length === 0) return <EmptyState isConnected={isConnected} variant="empty" />;
+              if (!isLoadingMarkets && sortedMarkets.length === 0) return <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600"><AlertTriangle size={48} className="text-primary mb-4" /><p className="text-xl text-neutral-400">No markets available</p></div>;
+
+              return sortedMarkets.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
                 <VirtualMarketList
-                  markets={filteredMarkets}
-                  isOwner={isOwner}
-                  address={address}
-                  usdcBalance={usdcBalanceNum}
+                  markets={sortedMarkets}
+                  currentPrices={currentPrices}
                   onBetClick={handleBetClick}
-                  onResolve={handleResolve}
-                  onShare={handleOpenShareModal}
-                  onOpenAdmin={handleOpenAdminPanel}
-                  onMouseEnter={handleMouseEnter}
-                  onMouseLeave={handleMouseLeave}
+                  usdcBalance={usdcBalanceNum}
+                  isFavorite={isFavorite}
+                  onToggleFavorite={toggleFavorite}
                 />
+
+
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Active markets">
-                  {filteredMarkets.map((market, index) => (
+                  {sortedMarkets.map((market, index) => (
                     <MarketCard
                       key={Number(market.id)}
                       market={market}
-                      isOwner={isOwner}
-                      address={address}
-                      usdcBalance={usdcBalanceNum}
+                      currentPrice={currentPrices[market.asset]}
+                      onClick={() => handleOpenShareModal(market)}
                       onBetClick={handleBetClick}
-                      onResolve={handleResolve}
-                      onShare={() => handleOpenShareModal(market)}
-                      onOpenAdmin={handleOpenAdminPanel}
-                      onMouseEnter={handleMouseEnter}
-                      onMouseLeave={handleMouseLeave}
-                      index={index}
+                      usdcBalance={usdcBalanceNum}
+                      isLoading={false}
+                      isPlacingBet={false}
+                      isFavorite={isFavorite(market.id)}
+                      onToggleFavorite={() => toggleFavorite(market.id)}
                     />
                   ))}
                 </div>
+
+
               );
             })()}
           </section>

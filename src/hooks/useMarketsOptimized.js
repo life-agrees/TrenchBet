@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useReadContract, useBlockNumber } from 'wagmi';
-import { multicall } from 'wagmi/actions';
+import { multicall, readContract } from 'wagmi/actions';
 import { CONTRACTS, config } from '../config/wagmi';
 import { PREDICTION_MARKET_ABI } from '../contracts/abis';
 import { DURATIONS, TIME, PRICE } from '../utils/constants';
 import { createLogger } from '../utils/logger';
 import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../marketUtils';
+
 
 const logger = createLogger('useMarketsOptimized');
 
@@ -76,22 +77,26 @@ export function useMarketsOptimized() {
         allowFailure: true, // Allow individual calls to fail
       });
 
-      // Process results
-      const fetchedMarkets = results
-        .map((result, index) => {
+      // Process results with additional data fetching
+      const fetchedMarkets = await Promise.all(
+        results.map(async (result, index) => {
           if (result.status === 'failure') {
             logger.warn(`Failed to fetch market ${marketIds[index]}:`, result.error);
             return null;
           }
           return processMarketData(result.result, marketIds[index]);
         })
-        .filter(m => m !== null);
+      );
+      
+      const validMarkets = fetchedMarkets.filter(m => m !== null);
 
-      setMarkets(fetchedMarkets);
+
+      setMarkets(validMarkets);
       setLastRefreshTime(now);
       setIsLoading(false);
       
-      logger.info(`Fetched ${fetchedMarkets.length} markets via multicall`);
+      logger.info(`Fetched ${validMarkets.length} markets via multicall`);
+
     } catch (err) {
       logger.error('Error fetching markets with multicall', err);
       setError(err.message || 'Failed to fetch markets');
@@ -169,9 +174,114 @@ export function useMarketsOptimized() {
 }
 
 /**
+ * Fetch additional market data based on market type
+ */
+async function fetchAdditionalMarketData(marketId, marketType) {
+  try {
+    const additionalData = {
+      options: [],
+      ranges: [],
+      timeframes: [],
+      multipliers: [],
+      targetPrice: null
+    };
+
+    // Fetch multipliers for all market types
+    try {
+      const oddsResult = await readContract(config, {
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'getCurrentOdds',
+        args: [BigInt(marketId)],
+      });
+      if (oddsResult) {
+        additionalData.multipliers = oddsResult.map(m => Number(m));
+      }
+    } catch (err) {
+      logger.debug(`No multipliers for market ${marketId}`);
+    }
+
+    // Fetch type-specific data
+    if (marketType === 1) {
+      // Multi-Choice: fetch options
+      try {
+        const optionsResult = await readContract(config, {
+          address: CONTRACTS.PREDICTION_MARKET,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'getMultiChoiceOptions',
+          args: [BigInt(marketId)],
+        });
+        if (optionsResult) {
+          additionalData.options = optionsResult;
+        }
+      } catch (err) {
+        logger.debug(`No multi-choice options for market ${marketId}`);
+      }
+    } else if (marketType === 2) {
+      // Range: fetch range data
+      try {
+        const rangeResult = await readContract(config, {
+          address: CONTRACTS.PREDICTION_MARKET,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'getRangeMarketData',
+          args: [BigInt(marketId)],
+        });
+        if (rangeResult && rangeResult.mins && rangeResult.maxs) {
+          additionalData.ranges = rangeResult.mins.map((min, idx) => ({
+            min: formatPrice(min),
+            max: formatPrice(rangeResult.maxs[idx])
+          }));
+        }
+      } catch (err) {
+        logger.debug(`No range data for market ${marketId}`);
+      }
+    } else if (marketType === 3) {
+      // Time-Based: fetch time market data
+      try {
+        const timeResult = await readContract(config, {
+          address: CONTRACTS.PREDICTION_MARKET,
+          abi: PREDICTION_MARKET_ABI,
+          functionName: 'getTimeMarketData',
+          args: [BigInt(marketId)],
+        });
+        if (timeResult) {
+          additionalData.targetPrice = formatPrice(timeResult.targetPrice);
+          if (timeResult.timeframes) {
+            additionalData.timeframes = timeResult.timeframes.map((seconds, idx) => ({
+              label: formatDuration(Number(seconds)),
+              seconds: Number(seconds)
+            }));
+          }
+        }
+      } catch (err) {
+        logger.debug(`No time data for market ${marketId}`);
+      }
+    }
+
+    return additionalData;
+  } catch (err) {
+    logger.error(`Error fetching additional data for market ${marketId}:`, err);
+    return { options: [], ranges: [], timeframes: [], multipliers: [], targetPrice: null };
+  }
+}
+
+/**
+ * Format seconds into human readable duration
+ */
+function formatDuration(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  
+  if (days > 0) return `${days}d`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}
+
+/**
  * Process raw market data from contract
  */
-function processMarketData(market, marketId) {
+async function processMarketData(market, marketId) {
   if (!market) return null;
 
   try {
@@ -188,13 +298,17 @@ function processMarketData(market, marketId) {
     const useFixedOdds = market.useFixedOdds || false;
     const yesMultiplier = Number(market.yesMultiplier || 200);
     const noMultiplier = Number(market.noMultiplier || 200);
+    const marketType = Number(market.marketType || 0);
+
+    // Fetch additional data based on market type
+    const additionalData = await fetchAdditionalMarketData(marketId, marketType);
 
     const marketData = {
       id: marketId,
       asset: market.asset || 'BTC',
-      marketType: Number(market.marketType || 0),
+      marketType: marketType,
       startPrice: formatPrice(market.startPrice),
-      targetPrice: market.targetPrice ? formatPrice(market.targetPrice) : null,
+      targetPrice: additionalData.targetPrice,
       startTime: Number(market.startTime) * TIME.MS_PER_SECOND,
       endTime: Number(market.endTime) * TIME.MS_PER_SECOND,
       yesPool: yesPool,
@@ -212,15 +326,17 @@ function processMarketData(market, marketId) {
       noMultiplier: noMultiplier,
 
       // Multi-choice specific
-      options: market.options || [],
+      options: additionalData.options,
       choicePools: market.choicePools ? market.choicePools.map(formatUSDC) : [],
       
       // Range market specific
-      rangeMin: market.rangeMin ? formatPrice(market.rangeMin) : null,
-      rangeMax: market.rangeMax ? formatPrice(market.rangeMax) : null,
+      ranges: additionalData.ranges,
       
       // Time-based specific
-      timeframes: market.timeframes || [],
+      timeframes: additionalData.timeframes,
+      
+      // Multipliers for all types
+      multipliers: additionalData.multipliers,
       
       // UI helpers
       name: getCoinName(market.asset || 'BTC'),
@@ -234,6 +350,7 @@ function processMarketData(market, marketId) {
     return null;
   }
 }
+
 
 /**
  * Format Chainlink price (8 decimals) to readable number

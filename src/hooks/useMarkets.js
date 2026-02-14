@@ -1,38 +1,27 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useReadContract } from 'wagmi';
-import { multicall, readContract } from 'wagmi/actions';
-
-import { CONTRACTS, config } from '../config/wagmi';
+import { usePublicClient } from 'wagmi';
+import { formatUnits } from 'viem';
+import { CONTRACTS } from '../config/wagmi';
 import { PREDICTION_MARKET_ABI } from '../contracts/abis';
 import { DURATIONS, TIME, PRICE, BATCH } from '../utils/constants';
 import { createLogger } from '../utils/logger';
 import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../marketUtils';
 
-
-
 const logger = createLogger('useMarkets');
 
 /**
- * Unified hook to fetch and manage markets from the smart contract
- * Includes live/expired filtering, auto-refresh, and error handling
+ * Enhanced useMarkets hook with all features
+ * Fetches all market data including ranges, timeframes, calculated prices, and UI helpers
  */
 export function useMarkets() {
+  const publicClient = usePublicClient();
   const [markets, setMarkets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch market counter to know how many markets exist
-
-  const { data: marketCounter, isError: isCounterError } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET,
-    abi: PREDICTION_MARKET_ABI,
-    functionName: 'marketCounter',
-    watch: true,
-  });
-
-  // Fetch markets when counter or block changes
   const fetchMarkets = useCallback(async () => {
-    if (!marketCounter || !CONTRACTS.PREDICTION_MARKET) {
+    if (!publicClient || !CONTRACTS.PREDICTION_MARKET) {
+      logger.warn('Missing publicClient or contract address');
       setIsLoading(false);
       return;
     }
@@ -40,9 +29,17 @@ export function useMarkets() {
     try {
       setError(null);
       
-      const count = Number(marketCounter);
-      
-      if (count === 0) {
+      // Get total market count
+      const marketCounter = await publicClient.readContract({
+        address: CONTRACTS.PREDICTION_MARKET,
+        abi: PREDICTION_MARKET_ABI,
+        functionName: 'marketCounter'
+      });
+
+      const totalMarkets = Number(marketCounter);
+      logger.info(`Fetching ${totalMarkets} markets...`);
+
+      if (totalMarkets === 0) {
         setMarkets([]);
         setIsLoading(false);
         return;
@@ -53,45 +50,28 @@ export function useMarkets() {
         setIsLoading(true);
       }
 
-
-      // Use multicall to batch requests for better performance
-
-      const startIndex = Math.max(0, count - 50);
+      // Use batching to avoid overwhelming the RPC
+      const startIndex = Math.max(0, totalMarkets - 50);
       const batchSize = BATCH.MARKET_BATCH_SIZE;
       const validMarkets = [];
       
-      // Process in batches to avoid overwhelming the RPC
-      for (let batchStart = startIndex; batchStart < count; batchStart += batchSize) {
-        const batchEnd = Math.min(batchStart + batchSize, count);
+      // Process in batches
+      for (let batchStart = startIndex; batchStart < totalMarkets; batchStart += batchSize) {
+        const batchEnd = Math.min(batchStart + batchSize, totalMarkets);
         const batchIndices = Array.from(
           { length: batchEnd - batchStart }, 
           (_, i) => batchStart + i
         );
         
         try {
-          const batchResults = await multicall(config, {
-            contracts: batchIndices.map(i => ({
-              address: CONTRACTS.PREDICTION_MARKET,
-              abi: PREDICTION_MARKET_ABI,
-              functionName: 'getMarket',
-              args: [BigInt(i)],
-            })),
-          });
+          // Fetch batch in parallel
+          const batchPromises = batchIndices.map(i => fetchSingleMarket(publicClient, i));
+          const batchResults = await Promise.all(batchPromises);
           
-          // Process batch results
-          const batchMarkets = await Promise.all(
-            batchResults.map((result, idx) => {
-              if (result.status === 'success' && result.result) {
-                return processMarketData(batchIndices[idx], result.result);
-              }
-              return null;
-            })
-          );
-          
-          validMarkets.push(...batchMarkets.filter(m => m !== null));
+          validMarkets.push(...batchResults.filter(m => m !== null));
           
           // Small delay between batches to be nice to the RPC
-          if (batchEnd < count) {
+          if (batchEnd < totalMarkets) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
         } catch (err) {
@@ -100,37 +80,23 @@ export function useMarkets() {
         }
       }
 
-
       setMarkets(validMarkets);
       setIsLoading(false);
       
-      logger.info(`Fetched ${validMarkets.length} markets`);
+      logger.info(`Successfully fetched ${validMarkets.length} markets`);
     } catch (err) {
-      logger.error('Error fetching markets', err);
+      logger.error('Failed to fetch markets:', err);
       setError(err.message || 'Failed to fetch markets');
-    } finally {
       setIsLoading(false);
     }
-  }, [marketCounter, markets.length]);
+  }, [publicClient, markets.length]);
 
-
-  // Initial fetch and auto-refresh
+  // Fetch on mount and every 30 seconds
   useEffect(() => {
     fetchMarkets();
-    
-    // Refresh every 30 seconds - removed blockNumber watcher to prevent glitching
     const interval = setInterval(fetchMarkets, DURATIONS.REFRESH_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchMarkets]);
-
-
-  // Handle counter fetch errors
-  useEffect(() => {
-    if (isCounterError) {
-      setError('Failed to connect to smart contract');
-      setIsLoading(false);
-    }
-  }, [isCounterError]);
 
   // Calculate live and expired markets
   const { liveMarkets, expiredMarkets } = useMemo(() => {
@@ -139,7 +105,7 @@ export function useMarkets() {
     const expired = [];
     
     for (const market of markets) {
-      const endTime = Number(market.endTime); // Already in milliseconds
+      const endTime = Number(market.endTime);
       
       if (market.resolved || endTime <= now) {
         expired.push(market);
@@ -149,8 +115,8 @@ export function useMarkets() {
     }
     
     return { 
-      liveMarkets: live.sort((a, b) => a.endTime - b.endTime), // Sort by ending soonest
-      expiredMarkets: expired.sort((a, b) => b.endTime - a.endTime) // Sort by most recent
+      liveMarkets: live.sort((a, b) => a.endTime - b.endTime),
+      expiredMarkets: expired.sort((a, b) => b.endTime - a.endTime)
     };
   }, [markets]);
 
@@ -161,71 +127,66 @@ export function useMarkets() {
     isLoading,
     error,
     refresh: fetchMarkets,
-    refreshMarkets: fetchMarkets, // Alias for backward compatibility
+    refreshMarkets: fetchMarkets,
   };
 }
 
 /**
- * Process raw market data from contract into usable format
+ * Fetch a single market with all its data
  */
-function processMarketData(marketId, market) {
+async function fetchSingleMarket(publicClient, marketId) {
   try {
-    // Calculate yesPrice and noPrice based on market type
-    const yesPool = formatUSDC(market.yesPool || 0);
-    const noPool = formatUSDC(market.noPool || 0);
-    const useFixedOdds = Boolean(market.useFixedOdds);
-    const yesMultiplier = Number(market.yesMultiplier || 0);
-    const noMultiplier = Number(market.noMultiplier || 0);
+    // Step 1: Get base market data
+    const market = await publicClient.readContract({
+      address: CONTRACTS.PREDICTION_MARKET,
+      abi: PREDICTION_MARKET_ABI,
+      functionName: 'getMarket',
+      args: [BigInt(marketId)]
+    });
+
+    const marketType = Number(market.marketType);
+
+    // Calculate pools and prices
+    const yesPool = market.yesPool ? Number(formatUnits(market.yesPool, 6)) : 0;
+    const noPool = market.noPool ? Number(formatUnits(market.noPool, 6)) : 0;
+    const useFixedOdds = market.useFixedOdds || false;
+    const yesMultiplier = market.yesMultiplier ? Number(market.yesMultiplier) : 0;
+    const noMultiplier = market.noMultiplier ? Number(market.noMultiplier) : 0;
     
     let yesPrice, noPrice;
     
     if (useFixedOdds && yesMultiplier > 0 && noMultiplier > 0) {
-      // Fixed odds: calculate implied probability from multipliers
       const yesMult = yesMultiplier / 100;
       const noMult = noMultiplier / 100;
       yesPrice = calculateFixedOddsPercentage(yesMult) / 100;
       noPrice = calculateFixedOddsPercentage(noMult) / 100;
     } else {
-      // Pool-based: calculate implied probability from pool sizes
       const { upPercentage, downPercentage } = calculateMarketPercentages(yesPool, noPool);
       yesPrice = upPercentage / 100;
       noPrice = downPercentage / 100;
     }
 
-    // Parse market data based on contract structure
-    const marketData = {
-      id: Number(market.id || marketId),
+    // Step 2: Prepare base market object
+    const baseMarket = {
+      id: marketId,
+      marketType,
       asset: market.asset || 'BTC',
-      marketType: Number(market.marketType || 0),
-      startPrice: formatPrice(market.startPrice),
-      targetPrice: market.targetPrice ? formatPrice(market.targetPrice) : null,
-      startTime: Number(market.startTime) * TIME.MS_PER_SECOND,
-      endTime: Number(market.endTime) * TIME.MS_PER_SECOND,
-      yesPool: yesPool,
-      noPool: noPool,
-      yesPrice: yesPrice,
-      noPrice: noPrice,
-      resolved: Boolean(market.resolved),
-      priceWentUp: market.priceWentUp !== undefined ? Boolean(market.priceWentUp) : null,
+      startTime: Number(market.startTime) * 1000,
+      endTime: Number(market.endTime) * 1000,
+      startPrice: market.startPrice ? Number(formatUnits(market.startPrice, 8)) : 0,
+      endPrice: market.endPrice ? Number(formatUnits(market.endPrice, 8)) : 0,
+      yesPool,
+      noPool,
+      yesPrice,
+      noPrice,
+      resolved: market.resolved || false,
+      priceWentUp: market.priceWentUp || false,
+      totalBets: Number(market.totalBets) || 0,
+      useFixedOdds,
+      yesMultiplier,
+      noMultiplier,
+      protocolFee: market.protocolFee ? Number(market.protocolFee) : 0,
       winningChoice: market.winningChoice !== undefined ? Number(market.winningChoice) : null,
-      totalBets: Number(market.totalBets || 0),
-      
-      // Fixed odds fields
-      useFixedOdds: useFixedOdds,
-      yesMultiplier: yesMultiplier,
-      noMultiplier: noMultiplier,
-
-      
-      // Multi-choice specific
-      options: market.options || [],
-      choicePools: market.choicePools ? market.choicePools.map(formatUSDC) : [],
-      
-      // Range market specific
-      rangeMin: market.rangeMin ? formatPrice(market.rangeMin) : null,
-      rangeMax: market.rangeMax ? formatPrice(market.rangeMax) : null,
-      
-      // Time-based specific
-      timeframes: market.timeframes || [],
       
       // UI helpers
       name: getCoinName(market.asset || 'BTC'),
@@ -233,47 +194,144 @@ function processMarketData(marketId, market) {
       status: market.resolved ? 'resolved' : 'active',
     };
 
-    return marketData;
-  } catch (err) {
-    logger.error(`Error processing market ${marketId}`, err);
+    // Step 3: Fetch type-specific data
+    if (marketType === 1) {
+      // MULTI-CHOICE: Fetch options
+      baseMarket.options = await fetchMultiChoiceOptions(publicClient, marketId);
+      baseMarket.multipliers = await fetchMultipliers(publicClient, marketId);
+      baseMarket.choicePools = market.choicePools 
+        ? market.choicePools.map(p => Number(formatUnits(p, 6))) 
+        : [];
+    } 
+    else if (marketType === 2) {
+      // RANGE: Fetch ranges
+      const rangeData = await fetchRangeData(publicClient, marketId);
+      baseMarket.ranges = rangeData.ranges;
+      baseMarket.multipliers = await fetchMultipliers(publicClient, marketId);
+    } 
+    else if (marketType === 3) {
+      // TIME: Fetch target price and timeframes
+      const timeData = await fetchTimeData(publicClient, marketId);
+      baseMarket.targetPrice = timeData.targetPrice;
+      baseMarket.timeframes = timeData.timeframes;
+      baseMarket.multipliers = await fetchMultipliers(publicClient, marketId);
+    }
+
+    return baseMarket;
+
+  } catch (error) {
+    logger.warn(`Failed to fetch market ${marketId}:`, error.message);
     return null;
   }
 }
 
 /**
- * Fetch a single market from the contract (fallback for individual fetching)
+ * Fetch multi-choice options
  */
-async function fetchMarket(marketId) {
+async function fetchMultiChoiceOptions(publicClient, marketId) {
   try {
-    const market = await readContract(config, {
+    const options = await publicClient.readContract({
       address: CONTRACTS.PREDICTION_MARKET,
       abi: PREDICTION_MARKET_ABI,
-      functionName: 'getMarket',
-      args: [BigInt(marketId)],
+      functionName: 'getMultiChoiceOptions',
+      args: [BigInt(marketId)]
     });
-
-    return processMarketData(marketId, market);
-  } catch (err) {
-    logger.error(`Error fetching market ${marketId}`, err);
-    return null;
+    return options || [];
+  } catch (error) {
+    logger.warn(`Failed to fetch options for market ${marketId}:`, error.message);
+    return [];
   }
 }
 
-
 /**
- * Format Chainlink price (8 decimals) to readable number
+ * Fetch range market data
  */
-function formatPrice(price) {
-  if (!price) return 0;
-  return Number(price) / (10 ** PRICE.DECIMALS);
+async function fetchRangeData(publicClient, marketId) {
+  try {
+    const data = await publicClient.readContract({
+      address: CONTRACTS.PREDICTION_MARKET,
+      abi: PREDICTION_MARKET_ABI,
+      functionName: 'getRangeMarketData',
+      args: [BigInt(marketId)]
+    });
+
+    const mins = data.mins || data[0] || [];
+    const maxs = data.maxs || data[1] || [];
+
+    const ranges = mins.map((min, idx) => ({
+      min: Number(formatUnits(min, 8)),
+      max: Number(formatUnits(maxs[idx], 8))
+    }));
+
+    return { ranges };
+  } catch (error) {
+    logger.warn(`Failed to fetch range data for market ${marketId}:`, error.message);
+    return { ranges: [] };
+  }
 }
 
 /**
- * Format USDC amount (6 decimals) to readable number
+ * Fetch time market data
  */
-function formatUSDC(amount) {
-  if (!amount) return 0;
-  return Number(amount) / (10 ** PRICE.USDC_DECIMALS);
+async function fetchTimeData(publicClient, marketId) {
+  try {
+    const data = await publicClient.readContract({
+      address: CONTRACTS.PREDICTION_MARKET,
+      abi: PREDICTION_MARKET_ABI,
+      functionName: 'getTimeMarketData',
+      args: [BigInt(marketId)]
+    });
+
+    const targetPrice = data.targetPrice || data[0];
+    const timeframeSeconds = data.timeframes || data[1] || [];
+
+    const timeframes = timeframeSeconds.map((seconds) => {
+      const secondsNum = Number(seconds);
+      return {
+        label: formatTimeframeLabel(secondsNum),
+        seconds: secondsNum
+      };
+    });
+
+    return {
+      targetPrice: Number(formatUnits(targetPrice, 8)),
+      timeframes
+    };
+  } catch (error) {
+    logger.warn(`Failed to fetch time data for market ${marketId}:`, error.message);
+    return { targetPrice: 0, timeframes: [] };
+  }
+}
+
+/**
+ * Fetch multipliers for any market type
+ */
+async function fetchMultipliers(publicClient, marketId) {
+  try {
+    const multipliers = await publicClient.readContract({
+      address: CONTRACTS.PREDICTION_MARKET,
+      abi: PREDICTION_MARKET_ABI,
+      functionName: 'getCurrentOdds',
+      args: [BigInt(marketId)]
+    });
+    return (multipliers || []).map(m => Number(m));
+  } catch (error) {
+    logger.warn(`Failed to fetch multipliers for market ${marketId}:`, error.message);
+    return [];
+  }
+}
+
+/**
+ * Format timeframe seconds to human-readable label
+ */
+function formatTimeframeLabel(seconds) {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  
+  if (days > 0) return `${days}d`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
 }
 
 /**

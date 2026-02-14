@@ -1,37 +1,30 @@
-# Fix Missing Bet Issue - Implementation Plan
+# Market UX Improvements - TODO
 
-## Problem
-- Total bets: 3, Wins: 2, Losses: 0, Streak: 2
-- 1 bet is "orphaned" - resolved but missing outcome data (priceWentUp/winningChoice is null/undefined)
-- Bet doesn't show in any category (ongoing, wins, or losses)
+## Tasks
 
-## Implementation Steps
+### 1. Fix CreateTab.jsx Time-Based Form
+- [ ] Clean up duplicate/merged code in time-based market section
+- [ ] Ensure visual timeline displays correctly
+- [ ] Verify all timeframe preset buttons work
 
-### ✅ Step 1: Fix useUserBets.js
-- [x] Add `pendingBets` category for bets on resolved markets with missing outcome data
-- [x] Fix categorization logic to handle null/undefined outcome data
-- [x] Return `pendingBets` from the hook
+### 2. Enhance MarketCard.jsx - Range Markets
+- [ ] Add current price display with visual indicator
+- [ ] Highlight active range where current price sits
+- [ ] Show percentage through the range
+- [ ] Add color-coded status (green = in range, blue = below, orange = above)
+- [ ] Add visual price position bar
 
+### 3. Enhance MarketCard.jsx - Time-Based Markets
+- [ ] Add current price and target price display
+- [ ] Show price difference percentage (how far from target)
+- [ ] Add visual timeline showing all timeframes
+- [ ] Add countdown timer showing time remaining
+- [ ] Show which timeframe is currently active
 
-### ✅ Step 2: Update useUserStats.js  
-- [x] Include `pendingBets` in stats calculation
-- [x] Add `pending` count to returned stats object
-- [x] Update totalBets to include pending
-
-
-### ✅ Step 3: Update app.jsx
-- [x] Add "Pending" tab to show uncategorized bets
-- [x] Update stats cards to show pending count
-- [x] Add visual indicator for pending bets
-- [x] Update bet view tabs to include pending count
-
-### ✅ Step 4: Testing & Verification
-- [x] Verify all 3 bets now show in appropriate categories
-- [x] Check that math adds up: wins + losses + pending = total
-- [x] Ensure UI displays correctly
-
-
-## Files to Edit
-1. `src/hooks/useUserBets.js` - Main categorization fix
-2. `src/hooks/useUserStats.js` - Stats calculation update  
-3. `src/app.jsx` - UI updates for pending bets
+## Progress
+- [x] Analyzed current implementation
+- [x] Created comprehensive plan
+- [ ] Fix CreateTab.jsx
+- [ ] Enhance MarketCard.jsx for Range Markets
+- [ ] Enhance MarketCard.jsx for Time-Based Markets
+- [ ] Test and verify changes

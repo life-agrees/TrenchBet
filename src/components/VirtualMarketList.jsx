@@ -1,40 +1,33 @@
 import React from 'react';
-import { MarketCard } from './MarketCard';
+import MarketCard from './MarketCard';
 
+/**
+ * Virtual/Regular Market List Component
+ * Simplified to work with Enhanced MarketCard
+ */
 export const VirtualMarketList = ({ 
   markets, 
+  currentPrices = {},
   onBetClick, 
   usdcBalance,
-  isOwner,
-  address,
-  onResolve,
-  onShare,
-  onOpenAdmin,
-  onMouseEnter,
-  onMouseLeave
+  isLoading = false,
+  isPlacingBet = false
 }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {markets.map((market, index) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list" aria-label="Active markets">
+      {markets.map((market) => (
         <MarketCard
           key={market.id}
           market={market}
-          onClick={() => onShare && onShare(market)}
+          currentPrice={currentPrices[market.asset]}
           onBetClick={onBetClick}
           usdcBalance={usdcBalance}
-          isOwner={isOwner}
-          address={address}
-          onResolve={onResolve}
-          onShare={onShare}
-          onOpenAdmin={onOpenAdmin}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}
-          index={index}
+          isLoading={isLoading}
+          isPlacingBet={isPlacingBet}
         />
       ))}
     </div>
   );
 };
-
 
 export default VirtualMarketList;
