@@ -35,7 +35,7 @@ import {
   calculateRangePosition,
   getRangeStatus
 } from '../marketUtils';
-import { MiniPriceChart, ActivityBadge, WinProbability } from './MarketComponents';
+import { MiniPriceChart, ActivityBadge, WinProbability } from './Marketcomponents';
 import { MarketCardSkeleton } from './SkeletonLoader';
 
 // Helper to get asset display info
