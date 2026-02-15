@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react';
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseUnits } from 'viem';
 import { TRENCHY_POINTS_CLAIM_ABI } from '../contracts/abis';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('usePointsClaim');
 
-// Contract address - replace with your deployed contract address
+// Contract address from env
 const CLAIMS_CONTRACT_ADDRESS = import.meta.env.VITE_CLAIMS_CONTRACT_ADDRESS;
 
 export const usePointsClaim = () => {
@@ -78,16 +77,17 @@ export const usePointsClaim = () => {
     try {
       logger.info('Executing claim with autoStake:', autoStake);
       
+      // ✅ FIXED: Correct argument order matching contract signature
+      // function claimPoints(uint256 pointsAmount, bool autoStake, bytes32 nonce, bytes signature)
       await writeContract({
         address: CLAIMS_CONTRACT_ADDRESS,
         abi: TRENCHY_POINTS_CLAIM_ABI,
         functionName: 'claimPoints',
         args: [
-          claimData.pointsAmount,
-          claimData.trenchyAmount,
-          claimData.nonce,
-          claimData.signature,
-          autoStake,
+          BigInt(claimData.pointsAmount),  // uint256 pointsAmount
+          autoStake,                        // bool autoStake
+          claimData.nonce,                 // bytes32 nonce
+          claimData.signature,             // bytes signature
         ],
       });
 

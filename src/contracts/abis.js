@@ -156,6 +156,14 @@ export const PREDICTION_MARKET_ABI = [
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "withdrawFees",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+
+  {
     "inputs": [{"internalType": "uint256","name": "count","type": "uint256"}],
     "name": "getLeaderboard",
     "outputs": [

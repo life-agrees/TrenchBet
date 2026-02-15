@@ -1,5 +1,5 @@
 // api/points/prepare-claim.js
-// Generate signature for claiming points
+// Generate signature for claiming points (ETHERS V6 FIXED)
 import { createClient } from '@supabase/supabase-js';
 import { ethers } from 'ethers';
 
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    const availablePoints = user.total_points - user.points_claimed;
+    const availablePoints = user.total_points - (user.points_claimed || 0);
     
     if (availablePoints < pointsAmount) {
       return res.status(400).json({ 
@@ -100,22 +100,22 @@ export default async function handler(req, res) {
       });
     }
     
-    // 4. Generate unique nonce
-    const nonce = ethers.utils.id(
+    // 4. Generate unique nonce (ETHERS V6 SYNTAX)
+    const nonce = ethers.id(
       `${address}-${pointsAmount}-${Date.now()}-${Math.random()}`
     );
     
-    // 5. Create signature
+    // 5. Create signature (ETHERS V6 SYNTAX)
     const signer = new ethers.Wallet(BACKEND_PRIVATE_KEY);
     
     // Message format: keccak256(user, pointsAmount, nonce)
-    const messageHash = ethers.utils.solidityKeccak256(
+    const messageHash = ethers.solidityPackedKeccak256(
       ['address', 'uint256', 'bytes32'],
       [address, pointsAmount, nonce]
     );
     
     const signature = await signer.signMessage(
-      ethers.utils.arrayify(messageHash)
+      ethers.getBytes(messageHash)
     );
     
     // 6. Store pending claim (for tracking)
@@ -153,6 +153,9 @@ export default async function handler(req, res) {
     
   } catch (error) {
     console.error('API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      details: error.message 
+    });
   }
 }
