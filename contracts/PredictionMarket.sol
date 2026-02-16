@@ -38,7 +38,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         uint256 yesMultiplier;  // e.g., 200 = 2.0x (in basis points)
         uint256 noMultiplier;   // e.g., 150 = 1.5x
         uint256 protocolFee;    // Fee collected from losing pool at resolution
+        // Time-decaying odds configuration
+        bool useTimeDecay;      // Enable time-based odds decay
+        uint256 decayStartTime; // When decay begins (timestamp)
+        uint256 minMultiplier;  // Floor for decayed odds (e.g., 120 = 1.2x)
     }
+
     
     struct MultiChoiceMarket {
         string[] options;
@@ -71,7 +76,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         uint8 choice;
         uint256 amount;
         bool claimed;
+        uint256 effectiveMultiplier;  // Time-decayed multiplier at bet time
     }
+
     
     uint256 public marketCounter;
     mapping(uint256 => Market) public markets;
@@ -88,6 +95,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     uint256 public constant WITHDRAWAL_DELAY = 48 hours;
     uint256 public constant MIN_MULTIPLIER = 101; // 1.01x minimum
     uint256 public constant MAX_MULTIPLIER = 1000; // 10x maximum
+    
+    // Time decay defaults
+    uint256 public constant DEFAULT_DECAY_START_PERCENT = 50; // 50% of duration
+    uint256 public constant DEFAULT_MIN_MULTIPLIER = 120; // 1.2x floor
+
 
     
     uint256 public accumulatedFees;
@@ -107,11 +119,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     address[] public leaderboard;
     mapping(address => uint256) public leaderboardPosition;
     
-    event MarketCreated(uint256 indexed marketId, MarketType marketType, string asset, bool useFixedOdds);
-    event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount);
+    event MarketCreated(uint256 indexed marketId, MarketType marketType, string asset, bool useFixedOdds, bool useTimeDecay);
+    event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier);
     event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee);
     event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount);
     event FeesWithdrawn(address indexed owner, uint256 amount);
+
     
     constructor(address _usdc, address _owner) {
         usdc = IERC20(_usdc);
@@ -126,20 +139,31 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     // ==================== CREATE MARKETS WITH ODDS ====================
     
     /**
-     * @notice Create binary market with optional fixed odds
+     * @notice Create binary market with optional fixed odds and time decay
      * @param asset The crypto asset
      * @param duration Market duration in seconds
      * @param yesMultiplier Fixed multiplier for UP (0 = use pool odds)
      * @param noMultiplier Fixed multiplier for DOWN (0 = use pool odds)
+     * @param useTimeDecay Enable time-based odds decay
+     * @param decayStartPercent Percentage of duration when decay starts (0-100)
+     * @param minMultiplier Floor for decayed odds (0 = use default 1.2x)
      */
     function createMarketWithOdds(
         string memory asset,
         uint256 duration,
         uint256 yesMultiplier,
-        uint256 noMultiplier
+        uint256 noMultiplier,
+        bool useTimeDecay,
+        uint256 decayStartPercent,
+        uint256 minMultiplier
     ) public onlyOwner returns (uint256) {
+
         require(address(priceFeeds[asset]) != address(0), "Price feed not set");
         require(duration >= 60 && duration <= 7 days, "Invalid duration");
+        require(decayStartPercent <= 100, "Invalid decay start percent");
+        if (minMultiplier > 0) {
+            require(minMultiplier >= MIN_MULTIPLIER && minMultiplier <= MAX_MULTIPLIER, "Min multiplier out of range");
+        }
         
         int256 currentPrice = getCurrentPrice(asset);
         require(currentPrice > 0, "Invalid price");
@@ -149,6 +173,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         uint256 endTime = startTime + duration;
         
         bool useFixedOdds = (yesMultiplier > 0 && noMultiplier > 0);
+        
+        // Calculate decay start time
+        uint256 decayStartTime = useTimeDecay ? 
+            startTime + (duration * (decayStartPercent > 0 ? decayStartPercent : DEFAULT_DECAY_START_PERCENT) / 100) : 
+            0;
+        uint256 finalMinMultiplier = minMultiplier > 0 ? minMultiplier : DEFAULT_MIN_MULTIPLIER;
         
         markets[marketId] = Market({
             id: marketId,
@@ -166,29 +196,41 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             useFixedOdds: useFixedOdds,
             yesMultiplier: yesMultiplier,
             noMultiplier: noMultiplier,
-            protocolFee: 0
+            protocolFee: 0,
+            useTimeDecay: useTimeDecay,
+            decayStartTime: decayStartTime,
+            minMultiplier: finalMinMultiplier
         });
         
-        emit MarketCreated(marketId, MarketType.BINARY, asset, useFixedOdds);
+        emit MarketCreated(marketId, MarketType.BINARY, asset, useFixedOdds, useTimeDecay);
         return marketId;
     }
+
     
     /**
-     * @notice Create multi-choice market with optional fixed odds
+     * @notice Create multi-choice market with optional fixed odds and time decay
      */
     function createMultiChoiceMarketWithOdds(
         string memory asset,
         string[] memory options,
         string memory question,
         uint256 duration,
-        uint256[] memory multipliers
+        uint256[] memory multipliers,
+        bool useTimeDecay,
+        uint256 decayStartPercent,
+        uint256 minMultiplier
     ) external onlyOwner whenNotPaused returns (uint256) {
+
         require(options.length >= 2 && options.length <= 10, "2-10 options required");
         require(duration >= 60 && duration <= 7 days, "Invalid duration");
+        require(decayStartPercent <= 100, "Invalid decay start percent");
         
         // Validate multipliers
         for (uint8 i = 0; i < multipliers.length; i++) {
             require(multipliers[i] >= MIN_MULTIPLIER && multipliers[i] <= MAX_MULTIPLIER, "Multiplier out of range");
+        }
+        if (minMultiplier > 0) {
+            require(minMultiplier >= MIN_MULTIPLIER && minMultiplier <= MAX_MULTIPLIER, "Min multiplier out of range");
         }
 
         
@@ -197,6 +239,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         uint256 endTime = startTime + duration;
         
         bool useFixedOdds = multipliers.length == options.length;
+        
+        // Calculate decay start time
+        uint256 decayStartTime = useTimeDecay ? 
+            startTime + (duration * (decayStartPercent > 0 ? decayStartPercent : DEFAULT_DECAY_START_PERCENT) / 100) : 
+            0;
+        uint256 finalMinMultiplier = minMultiplier > 0 ? minMultiplier : DEFAULT_MIN_MULTIPLIER;
         
         markets[marketId] = Market({
             id: marketId,
@@ -214,7 +262,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             useFixedOdds: useFixedOdds,
             yesMultiplier: 0,
             noMultiplier: 0,
-            protocolFee: 0
+            protocolFee: 0,
+            useTimeDecay: useTimeDecay,
+            decayStartTime: decayStartTime,
+            minMultiplier: finalMinMultiplier
         });
         
         MultiChoiceMarket storage mcMarket = multiChoiceMarkets[marketId];
@@ -226,28 +277,37 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             }
         }
         
-        emit MarketCreated(marketId, MarketType.MULTI_CHOICE, question, useFixedOdds);
+        emit MarketCreated(marketId, MarketType.MULTI_CHOICE, question, useFixedOdds, useTimeDecay);
         return marketId;
     }
+
     
     /**
-     * @notice Create range market with optional fixed odds
+     * @notice Create range market with optional fixed odds and time decay
      */
     function createRangeMarketWithOdds(
         string memory asset,
         uint256[] memory rangeMins,
         uint256[] memory rangeMaxs,
         uint256 duration,
-        uint256[] memory multipliers
+        uint256[] memory multipliers,
+        bool useTimeDecay,
+        uint256 decayStartPercent,
+        uint256 minMultiplier
     ) external onlyOwner whenNotPaused returns (uint256) {
+
         require(rangeMins.length == rangeMaxs.length, "Mismatched ranges");
         require(rangeMins.length >= 2 && rangeMins.length <= 10, "2-10 ranges required");
         require(duration >= 60 && duration <= 7 days, "Invalid duration");
         require(address(priceFeeds[asset]) != address(0), "Price feed not set");
+        require(decayStartPercent <= 100, "Invalid decay start percent");
         
         // Validate multipliers
         for (uint8 i = 0; i < multipliers.length; i++) {
             require(multipliers[i] >= MIN_MULTIPLIER && multipliers[i] <= MAX_MULTIPLIER, "Multiplier out of range");
+        }
+        if (minMultiplier > 0) {
+            require(minMultiplier >= MIN_MULTIPLIER && minMultiplier <= MAX_MULTIPLIER, "Min multiplier out of range");
         }
 
         
@@ -259,6 +319,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         uint256 endTime = startTime + duration;
         
         bool useFixedOdds = multipliers.length == rangeMins.length;
+        
+        // Calculate decay start time
+        uint256 decayStartTime = useTimeDecay ? 
+            startTime + (duration * (decayStartPercent > 0 ? decayStartPercent : DEFAULT_DECAY_START_PERCENT) / 100) : 
+            0;
+        uint256 finalMinMultiplier = minMultiplier > 0 ? minMultiplier : DEFAULT_MIN_MULTIPLIER;
         
         markets[marketId] = Market({
             id: marketId,
@@ -276,7 +342,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             useFixedOdds: useFixedOdds,
             yesMultiplier: 0,
             noMultiplier: 0,
-            protocolFee: 0
+            protocolFee: 0,
+            useTimeDecay: useTimeDecay,
+            decayStartTime: decayStartTime,
+            minMultiplier: finalMinMultiplier
         });
         
         RangeMarket storage rMarket = rangeMarkets[marketId];
@@ -289,25 +358,34 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             }
         }
         
-        emit MarketCreated(marketId, MarketType.RANGE, asset, useFixedOdds);
+        emit MarketCreated(marketId, MarketType.RANGE, asset, useFixedOdds, useTimeDecay);
         return marketId;
     }
+
     
     /**
-     * @notice Create time-based market with optional fixed odds
+     * @notice Create time-based market with optional fixed odds and time decay
      */
     function createTimeMarketWithOdds(
         string memory asset,
         uint256 targetPrice,
         uint256[] memory timeframes,
-        uint256[] memory multipliers
+        uint256[] memory multipliers,
+        bool useTimeDecay,
+        uint256 decayStartPercent,
+        uint256 minMultiplier
     ) external onlyOwner whenNotPaused returns (uint256) {
+
         require(timeframes.length >= 2 && timeframes.length <= 5, "2-5 timeframes required");
         require(address(priceFeeds[asset]) != address(0), "Price feed not set");
+        require(decayStartPercent <= 100, "Invalid decay start percent");
         
         // Validate multipliers
         for (uint8 i = 0; i < multipliers.length; i++) {
             require(multipliers[i] >= MIN_MULTIPLIER && multipliers[i] <= MAX_MULTIPLIER, "Multiplier out of range");
+        }
+        if (minMultiplier > 0) {
+            require(minMultiplier >= MIN_MULTIPLIER && minMultiplier <= MAX_MULTIPLIER, "Min multiplier out of range");
         }
 
         
@@ -319,6 +397,13 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         uint256 endTime = startTime + timeframes[timeframes.length - 1];
         
         bool useFixedOdds = multipliers.length == timeframes.length;
+        
+        // Calculate decay start time (based on total duration)
+        uint256 duration = endTime - startTime;
+        uint256 decayStartTime = useTimeDecay ? 
+            startTime + (duration * (decayStartPercent > 0 ? decayStartPercent : DEFAULT_DECAY_START_PERCENT) / 100) : 
+            0;
+        uint256 finalMinMultiplier = minMultiplier > 0 ? minMultiplier : DEFAULT_MIN_MULTIPLIER;
         
         markets[marketId] = Market({
             id: marketId,
@@ -336,7 +421,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             useFixedOdds: useFixedOdds,
             yesMultiplier: 0,
             noMultiplier: 0,
-            protocolFee: 0
+            protocolFee: 0,
+            useTimeDecay: useTimeDecay,
+            decayStartTime: decayStartTime,
+            minMultiplier: finalMinMultiplier
         });
         
         TimeMarket storage tMarket = timeMarkets[marketId];
@@ -349,9 +437,111 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             }
         }
         
-        emit MarketCreated(marketId, MarketType.TIME_BASED, asset, useFixedOdds);
+        emit MarketCreated(marketId, MarketType.TIME_BASED, asset, useFixedOdds, useTimeDecay);
         return marketId;
     }
+
+    
+    // ==================== TIME DECAY CALCULATIONS ====================
+    
+    /**
+     * @notice Calculate time-decayed multiplier for a market
+     * @param market The market struct
+     * @param baseMultiplier The original multiplier before decay
+     * @return decayedMultiplier The effective multiplier after time decay
+     */
+    function _calculateDecayedMultiplier(
+        Market memory market,
+        uint256 baseMultiplier
+    ) internal view returns (uint256) {
+        // If time decay is not enabled or hasn't started, return base multiplier
+        if (!market.useTimeDecay || block.timestamp < market.decayStartTime) {
+            return baseMultiplier;
+        }
+        
+        // If we're past end time, return minimum multiplier
+        if (block.timestamp >= market.endTime) {
+            return market.minMultiplier;
+        }
+        
+        // Calculate decay progress (0 to 1 in basis points)
+        uint256 decayDuration = market.endTime - market.decayStartTime;
+        uint256 timeElapsed = block.timestamp - market.decayStartTime;
+        
+        // Linear decay: multiplier decreases proportionally with time
+        uint256 decayProgress = (timeElapsed * 10000) / decayDuration; // 0-10000 (0% to 100%)
+        
+        // Calculate decay amount
+        uint256 maxDecay = baseMultiplier - market.minMultiplier;
+        uint256 actualDecay = (maxDecay * decayProgress) / 10000;
+        
+        uint256 decayedMultiplier = baseMultiplier - actualDecay;
+        
+        // Ensure we don't go below minimum
+        return decayedMultiplier > market.minMultiplier ? decayedMultiplier : market.minMultiplier;
+    }
+    
+    /**
+     * @notice Get the effective multiplier for a specific choice at current time
+     * @param marketId The market ID
+     * @param choice The choice index
+     * @return effectiveMultiplier The time-adjusted multiplier
+     */
+    function getEffectiveMultiplier(uint256 marketId, uint8 choice) public view returns (uint256) {
+        Market memory market = markets[marketId];
+        
+        uint256 baseMultiplier;
+        
+        if (market.marketType == MarketType.BINARY) {
+            baseMultiplier = (choice == 1) ? market.yesMultiplier : market.noMultiplier;
+        } else if (market.marketType == MarketType.MULTI_CHOICE) {
+            baseMultiplier = multiChoiceMarkets[marketId].optionMultipliers[choice];
+        } else if (market.marketType == MarketType.RANGE) {
+            baseMultiplier = rangeMarkets[marketId].rangeMultipliers[choice];
+        } else if (market.marketType == MarketType.TIME_BASED) {
+            baseMultiplier = timeMarkets[marketId].timeframeMultipliers[choice];
+        } else {
+            return 200; // Default 2.0x
+        }
+        
+        return _calculateDecayedMultiplier(market, baseMultiplier);
+    }
+    
+    /**
+     * @notice Get current decay status for a market
+     * @param marketId The market ID
+     * @return isDecaying Whether decay is currently active
+     * @return decayProgress Progress from 0-10000 (0% to 100%)
+     * @return currentMultiplier Current effective minimum multiplier
+     */
+    function getDecayStatus(uint256 marketId) external view returns (
+        bool isDecaying,
+        uint256 decayProgress,
+        uint256 currentMultiplier
+    ) {
+        Market memory market = markets[marketId];
+        
+        if (!market.useTimeDecay) {
+            return (false, 0, 0);
+        }
+        
+        if (block.timestamp < market.decayStartTime) {
+            return (false, 0, market.minMultiplier);
+        }
+        
+        if (block.timestamp >= market.endTime) {
+            return (true, 10000, market.minMultiplier);
+        }
+        
+        uint256 decayDuration = market.endTime - market.decayStartTime;
+        uint256 timeElapsed = block.timestamp - market.decayStartTime;
+        uint256 progress = (timeElapsed * 10000) / decayDuration;
+        
+        // Return the configured minimum multiplier as the current floor
+        return (true, progress, market.minMultiplier);
+    }
+
+
     
     // ==================== PLACE BETS ====================
     
@@ -391,17 +581,37 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         
         market.totalBets++;
         
+        // Calculate effective multiplier at bet time
+        uint256 effectiveMultiplier = 0;
+        if (market.useFixedOdds) {
+            uint256 baseMultiplier;
+            if (market.marketType == MarketType.BINARY) {
+                baseMultiplier = (choice == 1) ? market.yesMultiplier : market.noMultiplier;
+            } else if (market.marketType == MarketType.MULTI_CHOICE) {
+                baseMultiplier = multiChoiceMarkets[marketId].optionMultipliers[choice];
+            } else if (market.marketType == MarketType.RANGE) {
+                baseMultiplier = rangeMarkets[marketId].rangeMultipliers[choice];
+            } else if (market.marketType == MarketType.TIME_BASED) {
+                baseMultiplier = timeMarkets[marketId].timeframeMultipliers[choice];
+            } else {
+                baseMultiplier = 200;
+            }
+            effectiveMultiplier = _calculateDecayedMultiplier(market, baseMultiplier);
+        }
+        
         Position memory position = Position({
             marketId: marketId,
             user: msg.sender,
             predictedUp: (choice == 1 && market.marketType == MarketType.BINARY),
             choice: choice,
             amount: amount,
-            claimed: false
+            claimed: false,
+            effectiveMultiplier: effectiveMultiplier
         });
         
         uint256 positionIndex = marketPositions[marketId].length;
         marketPositions[marketId].push(position);
+
         
         if (userMarketPositions[marketId][msg.sender].length == 0) {
             userPositions[msg.sender].push(marketId);
@@ -410,8 +620,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         
         userStats[msg.sender].totalBets++;
         
-        emit BetPlaced(marketId, msg.sender, choice, amount);
+        emit BetPlaced(marketId, msg.sender, choice, amount, effectiveMultiplier);
+
     }
+
     
     // ==================== RESOLVE MARKETS ====================
     
@@ -867,7 +1079,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     }
     
     /**
-     * @notice Calculate potential payout for a bet
+     * @notice Calculate potential payout for a bet with time-decayed odds
      * @param marketId The market ID
      * @param choice The choice (0/1 for binary, index for others)
      * @param amount Bet amount
@@ -882,8 +1094,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
         
         if (market.marketType == MarketType.BINARY) {
             if (market.useFixedOdds) {
-                uint256 multiplier = choice == 1 ? market.yesMultiplier : market.noMultiplier;
-                return (amount * multiplier) / 100;
+                // Apply time decay to multiplier
+                uint256 baseMultiplier = choice == 1 ? market.yesMultiplier : market.noMultiplier;
+                uint256 effectiveMultiplier = _calculateDecayedMultiplier(market, baseMultiplier);
+                return (amount * effectiveMultiplier) / 100;
             } else {
                 uint256 winningPool = choice == 1 ? market.yesPool + amount : market.noPool + amount;
                 uint256 losingPool = choice == 1 ? market.noPool : market.yesPool;
@@ -897,8 +1111,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             }
         } else if (market.marketType == MarketType.MULTI_CHOICE) {
             if (market.useFixedOdds) {
-                uint256 multiplier = multiChoiceMarkets[marketId].optionMultipliers[choice];
-                return (amount * multiplier) / 100;
+                // Apply time decay to multiplier
+                uint256 baseMultiplier = multiChoiceMarkets[marketId].optionMultipliers[choice];
+                uint256 effectiveMultiplier = _calculateDecayedMultiplier(market, baseMultiplier);
+                return (amount * effectiveMultiplier) / 100;
             } else {
                 // Pool-based calculation
                 uint256 winningPool = multiChoiceMarkets[marketId].optionPools[choice] + amount;
@@ -916,13 +1132,26 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
                 uint256 share = (amount * losingPoolAfterFee) / winningPool;
                 return amount + share;
             }
+        } else if (market.marketType == MarketType.RANGE) {
+            if (market.useFixedOdds) {
+                uint256 baseMultiplier = rangeMarkets[marketId].rangeMultipliers[choice];
+                uint256 effectiveMultiplier = _calculateDecayedMultiplier(market, baseMultiplier);
+                return (amount * effectiveMultiplier) / 100;
+            }
+        } else if (market.marketType == MarketType.TIME_BASED) {
+            if (market.useFixedOdds) {
+                uint256 baseMultiplier = timeMarkets[marketId].timeframeMultipliers[choice];
+                uint256 effectiveMultiplier = _calculateDecayedMultiplier(market, baseMultiplier);
+                return (amount * effectiveMultiplier) / 100;
+            }
         }
         
         return amount; // Default return
     }
+
     
     /**
-     * @notice Get current multipliers/odds for a market
+     * @notice Get current multipliers/odds for a market with time decay applied
      * @param marketId The market ID
      * @return multipliers Array of current multipliers (in basis points)
      */
@@ -933,8 +1162,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             multipliers = new uint256[](2);
             
             if (market.useFixedOdds) {
-                multipliers[0] = market.noMultiplier;
-                multipliers[1] = market.yesMultiplier;
+                // Apply time decay to multipliers
+                multipliers[0] = _calculateDecayedMultiplier(market, market.noMultiplier);
+                multipliers[1] = _calculateDecayedMultiplier(market, market.yesMultiplier);
             } else {
                 // Calculate dynamic odds based on pools
                 uint256 total = market.yesPool + market.noPool;
@@ -953,7 +1183,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
             
             if (market.useFixedOdds) {
                 for (uint8 i = 0; i < mcMarket.options.length; i++) {
-                    multipliers[i] = mcMarket.optionMultipliers[i];
+                    // Apply time decay to each multiplier
+                    multipliers[i] = _calculateDecayedMultiplier(market, mcMarket.optionMultipliers[i]);
                 }
             } else {
                 uint256 totalPool = 0;
@@ -969,8 +1200,53 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
                     }
                 }
             }
+        } else if (market.marketType == MarketType.RANGE) {
+            RangeMarket storage rMarket = rangeMarkets[marketId];
+            multipliers = new uint256[](rMarket.rangeMins.length);
+            
+            if (market.useFixedOdds) {
+                for (uint8 i = 0; i < rMarket.rangeMins.length; i++) {
+                    multipliers[i] = _calculateDecayedMultiplier(market, rMarket.rangeMultipliers[i]);
+                }
+            } else {
+                uint256 totalPool = 0;
+                for (uint8 i = 0; i < rMarket.rangeMins.length; i++) {
+                    totalPool += rMarket.rangePools[i];
+                }
+                
+                for (uint8 i = 0; i < rMarket.rangeMins.length; i++) {
+                    if (totalPool == 0) {
+                        multipliers[i] = 200;
+                    } else {
+                        multipliers[i] = totalPool > 0 ? (totalPool * 200) / (rMarket.rangePools[i] + 1) : 200;
+                    }
+                }
+            }
+        } else if (market.marketType == MarketType.TIME_BASED) {
+            TimeMarket storage tMarket = timeMarkets[marketId];
+            multipliers = new uint256[](tMarket.timeframes.length);
+            
+            if (market.useFixedOdds) {
+                for (uint8 i = 0; i < tMarket.timeframes.length; i++) {
+                    multipliers[i] = _calculateDecayedMultiplier(market, tMarket.timeframeMultipliers[i]);
+                }
+            } else {
+                uint256 totalPool = 0;
+                for (uint8 i = 0; i < tMarket.timeframes.length; i++) {
+                    totalPool += tMarket.timeframePools[i];
+                }
+                
+                for (uint8 i = 0; i < tMarket.timeframes.length; i++) {
+                    if (totalPool == 0) {
+                        multipliers[i] = 200;
+                    } else {
+                        multipliers[i] = totalPool > 0 ? (totalPool * 200) / (tMarket.timeframePools[i] + 1) : 200;
+                    }
+                }
+            }
         }
         
         return multipliers;
     }
+
 }

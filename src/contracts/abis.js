@@ -319,8 +319,38 @@ export const PREDICTION_MARKET_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+  
+  // ==================== TIME DECAY FUNCTIONS ====================
+  
+  // Get Effective Multiplier with Time Decay Applied
+  {
+    "inputs": [
+      {"internalType": "uint256","name": "marketId","type": "uint256"},
+      {"internalType": "uint8","name": "choice","type": "uint8"}
+    ],
+    "name": "getEffectiveMultiplier",
+    "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  
+  // Get Time Decay Status
+  {
+    "inputs": [{"internalType": "uint256","name": "marketId","type": "uint256"}],
+    "name": "getTimeDecayStatus",
+    "outputs": [
+      {"internalType": "bool","name": "useTimeDecay","type": "bool"},
+      {"internalType": "uint256","name": "decayStartTime","type": "uint256"},
+      {"internalType": "uint256","name": "minMultiplier","type": "uint256"},
+      {"internalType": "uint256","name": "currentMultiplier","type": "uint256"},
+      {"internalType": "uint256","name": "timeRemaining","type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
 
   // ==================== EVENTS ====================
+
   {
     "anonymous": false,
     "inputs": [

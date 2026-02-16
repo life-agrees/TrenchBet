@@ -14,12 +14,14 @@ import {
   Timer,
   AlertCircle,
   Zap,
-  Star
+  Star,
+  TrendingDown as DecayIcon
 } from 'lucide-react';
-
 
 import { useCountdown, getUrgency } from '../hooks/useCountdown';
 import { useCurrentPrice } from '../hooks/useCurrentPrice';
+import { useTimeDecay } from '../hooks/useTimeDecay';
+
 import { 
   generateMarketTitle, 
   generateMarketDescription,
@@ -33,8 +35,11 @@ import {
   formatOddsDisplay, 
   calculateMarketPercentages,
   calculateRangePosition,
-  getRangeStatus
+  getRangeStatus,
+  formatDecayDisplay,
+  getDecayPhase
 } from '../marketUtils';
+
 import { MiniPriceChart, ActivityBadge, WinProbability } from './Marketcomponents';
 import { MarketCardSkeleton } from './SkeletonLoader';
 
@@ -80,8 +85,16 @@ export const MarketCard = ({
   // Live countdown timer
   const countdown = useCountdown(market?.endTime);
   const urgency = getUrgency(countdown);
+  
+  // Time decay tracking
+  const { decayDisplay, isLatePhase, isDecaying } = useTimeDecay(market);
+  const decayPhase = useMemo(() => {
+    if (!market || !market.useTimeDecay) return null;
+    return getDecayPhase(market);
+  }, [market]);
 
   // Show skeleton loader while loading
+
   if (isLoading || !market) {
     return <MarketCardSkeleton />;
   }
@@ -200,8 +213,16 @@ export const MarketCard = ({
           {getMarketTypeLabel(market.marketType)}
         </div>
         <div className="ml-auto flex items-center gap-2">
+          {/* Time Decay Badge */}
+          {decayDisplay.showBadge && (
+            <div className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 ${decayDisplay.badgeColor}`}>
+              <DecayIcon className="w-3 h-3" />
+              {decayDisplay.label}
+            </div>
+          )}
           <ActivityBadge totalBets={market.totalBets || 0} resolved={market.resolved} />
           {onToggleFavorite && (
+
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -366,6 +387,15 @@ export const MarketCard = ({
         </div>
       )}
 
+      {/* Time Decay Warning */}
+      {isLatePhase && (
+        <div className="mb-3 p-2 rounded-lg border border-red-500/30 bg-red-500/10 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <span className="text-xs text-red-400 font-bold">Late Phase: Reduced Odds</span>
+        </div>
+      )}
+
+
       {/* Market Type Specific Betting UI */}
       {market.marketType === 0 && (
         /* Binary Market - Price Up/Down */
@@ -373,8 +403,13 @@ export const MarketCard = ({
           <button
             onClick={handleYesClick}
             disabled={isPlacingBet || market.resolved || countdown.expired}
-            className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative"
           >
+            {isDecaying && (
+              <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
+                DECAY
+              </div>
+            )}
             <div className="flex items-center justify-center gap-1 mb-1">
               {isPlacingBet ? (
                 <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
@@ -388,11 +423,17 @@ export const MarketCard = ({
             </div>
             <WinProbability market={market} choice="yes" />
           </button>
+
           <button
             onClick={handleNoClick}
             disabled={isPlacingBet || market.resolved || countdown.expired}
-            className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+            className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative"
           >
+            {isDecaying && (
+              <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
+                DECAY
+              </div>
+            )}
             <div className="flex items-center justify-center gap-1 mb-1">
               {isPlacingBet ? (
                 <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
@@ -406,6 +447,7 @@ export const MarketCard = ({
             </div>
             <WinProbability market={market} choice="no" />
           </button>
+
         </div>
       )}
 

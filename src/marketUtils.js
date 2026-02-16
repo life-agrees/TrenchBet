@@ -357,3 +357,235 @@ export const getRangeStatus = (currentPrice, range) => {
     borderColor: 'border-orange-500/30'
   };
 };
+
+// ==================== TIME DECAY UTILITIES ====================
+
+/**
+ * Calculate time-decayed multiplier based on current time
+ * @param {Object} market - Market object with decay configuration
+ * @param {number} baseMultiplier - Original multiplier before decay (in basis points, e.g., 200 = 2.0x)
+ * @param {number} currentTime - Current timestamp in seconds (optional, defaults to now)
+ * @returns {number} Decayed multiplier in basis points
+ */
+export const calculateTimeDecayedMultiplier = (market, baseMultiplier, currentTime = null) => {
+  if (!market || !market.useTimeDecay || !baseMultiplier) {
+    return baseMultiplier;
+  }
+  
+  const now = currentTime || Math.floor(Date.now() / 1000);
+  const startTime = market.startTime;
+  const endTime = market.endTime;
+  const decayStartTime = market.decayStartTime;
+  const minMultiplier = market.minMultiplier || 120; // Default 1.2x
+  
+  // If decay hasn't started yet, return base multiplier
+  if (now < decayStartTime) {
+    return baseMultiplier;
+  }
+  
+  // If market has ended, return minimum multiplier
+  if (now >= endTime) {
+    return minMultiplier;
+  }
+  
+  // Calculate decay progress (0 to 1)
+  const decayDuration = endTime - decayStartTime;
+  const timeElapsed = now - decayStartTime;
+  const decayProgress = Math.min(1, Math.max(0, timeElapsed / decayDuration));
+  
+  // Linear decay calculation
+  const maxDecay = baseMultiplier - minMultiplier;
+  const actualDecay = Math.floor(maxDecay * decayProgress);
+  const decayedMultiplier = baseMultiplier - actualDecay;
+  
+  // Ensure we don't go below minimum
+  return Math.max(minMultiplier, decayedMultiplier);
+};
+
+/**
+ * Get the current decay phase for a market
+ * @param {Object} market - Market object with decay configuration
+ * @param {number} currentTime - Current timestamp in seconds (optional)
+ * @returns {Object} Decay phase info { phase, progress, isDecaying, timeUntilDecay }
+ */
+export const getDecayPhase = (market, currentTime = null) => {
+  if (!market || !market.useTimeDecay) {
+    return { 
+      phase: 'no_decay', 
+      progress: 0, 
+      isDecaying: false, 
+      timeUntilDecay: 0,
+      timeUntilEnd: 0
+    };
+  }
+  
+  const now = currentTime || Math.floor(Date.now() / 1000);
+  const startTime = market.startTime;
+  const endTime = market.endTime;
+  const decayStartTime = market.decayStartTime;
+  
+  const timeUntilDecay = Math.max(0, decayStartTime - now);
+  const timeUntilEnd = Math.max(0, endTime - now);
+  
+  // Phase 1: Before decay starts
+  if (now < decayStartTime) {
+    return {
+      phase: 'pre_decay',
+      progress: 0,
+      isDecaying: false,
+      timeUntilDecay,
+      timeUntilEnd,
+      decayStartTime
+    };
+  }
+  
+  // Phase 2: During decay
+  if (now < endTime) {
+    const decayDuration = endTime - decayStartTime;
+    const timeElapsed = now - decayStartTime;
+    const progress = Math.min(1, timeElapsed / decayDuration);
+    
+    return {
+      phase: 'decaying',
+      progress: Math.round(progress * 100), // 0-100%
+      isDecaying: true,
+      timeUntilDecay: 0,
+      timeUntilEnd,
+      decayStartTime
+    };
+  }
+  
+  // Phase 3: After market ends
+  return {
+    phase: 'ended',
+    progress: 100,
+    isDecaying: true,
+    timeUntilDecay: 0,
+    timeUntilEnd: 0,
+    decayStartTime
+  };
+};
+
+/**
+ * Format decay information for display
+ * @param {Object} decayPhase - Result from getDecayPhase()
+ * @returns {Object} Display info { label, color, countdownText, warning }
+ */
+export const formatDecayDisplay = (decayPhase) => {
+  if (!decayPhase || decayPhase.phase === 'no_decay') {
+    return { 
+      label: 'Fixed Odds', 
+      color: 'gray',
+      countdownText: '',
+      warning: false,
+      showBadge: false
+    };
+  }
+  
+  if (decayPhase.phase === 'pre_decay') {
+    const minutes = Math.ceil(decayPhase.timeUntilDecay / 60);
+    return {
+      label: 'Full Odds',
+      color: 'green',
+      countdownText: minutes > 0 ? `Decays in ${minutes}m` : 'Decaying soon',
+      warning: false,
+      showBadge: true,
+      badgeColor: 'bg-green-500/20 text-green-400'
+    };
+  }
+  
+  if (decayPhase.phase === 'decaying') {
+    const minutes = Math.ceil(decayPhase.timeUntilEnd / 60);
+    const progress = decayPhase.progress;
+    
+    // Color changes based on progress
+    let color = 'yellow';
+    let badgeColor = 'bg-yellow-500/20 text-yellow-400';
+    if (progress > 75) {
+      color = 'red';
+      badgeColor = 'bg-red-500/20 text-red-400';
+    } else if (progress > 50) {
+      color = 'orange';
+      badgeColor = 'bg-orange-500/20 text-orange-400';
+    }
+    
+    return {
+      label: 'Decaying',
+      color,
+      countdownText: minutes > 0 ? `${minutes}m left` : 'Ending soon',
+      warning: progress > 75,
+      showBadge: true,
+      badgeColor,
+      progress
+    };
+  }
+  
+  // Ended
+  return {
+    label: 'Ended',
+    color: 'gray',
+    countdownText: 'Market closed',
+    warning: false,
+    showBadge: true,
+    badgeColor: 'bg-gray-500/20 text-gray-400'
+  };
+};
+
+/**
+ * Calculate time remaining until odds decay starts
+ * @param {Object} market - Market object with decay configuration
+ * @returns {number} Seconds until decay starts (0 if already started)
+ */
+export const getTimeUntilDecay = (market) => {
+  if (!market || !market.useTimeDecay) {
+    return 0;
+  }
+  
+  const now = Math.floor(Date.now() / 1000);
+  return Math.max(0, market.decayStartTime - now);
+};
+
+/**
+ * Calculate the effective multiplier at a specific time for display
+ * @param {Object} market - Market object
+ * @param {number} choice - Choice index
+ * @param {number} currentTime - Current timestamp (optional)
+ * @returns {number} Effective multiplier value (e.g., 2.0 for 2x)
+ */
+export const getEffectiveMultiplierDisplay = (market, choice, currentTime = null) => {
+  if (!market) return 2.0;
+  
+  let baseMultiplier;
+  
+  // Get base multiplier based on market type and choice
+  if (market.marketType === 0) { // Binary
+    baseMultiplier = choice === 1 ? (market.yesMultiplier || 200) : (market.noMultiplier || 200);
+  } else if (market.multipliers && market.multipliers[choice] !== undefined) {
+    baseMultiplier = market.multipliers[choice];
+  } else {
+    baseMultiplier = 200; // Default 2.0x
+  }
+  
+  // Apply time decay if enabled
+  const decayedMultiplier = calculateTimeDecayedMultiplier(market, baseMultiplier, currentTime);
+  
+  // Convert from basis points to decimal
+  return decayedMultiplier / 100;
+};
+
+/**
+ * Default decay configuration options
+ */
+export const DECAY_CONFIG = {
+  DEFAULT_START_PERCENT: 50, // 50% of duration
+  DEFAULT_MIN_MULTIPLIER: 120, // 1.2x
+  MIN_MULTIPLIER: 101, // 1.01x minimum
+  MAX_MULTIPLIER: 1000, // 10x maximum
+  START_PERCENT_OPTIONS: [50, 60, 70, 80],
+  MIN_ODDS_OPTIONS: [
+    { value: 110, label: '1.1x' },
+    { value: 120, label: '1.2x' },
+    { value: 130, label: '1.3x' },
+    { value: 150, label: '1.5x' }
+  ]
+};

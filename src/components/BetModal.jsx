@@ -1,9 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw, BarChart3, Target, Timer } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw, BarChart3, Target, Timer, TrendingDown as DecayIcon } from 'lucide-react';
 
 import { useBetPlacement } from '../hooks/useBetPlacement';
-import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout } from '../marketUtils';
+import { useTimeDecay } from '../hooks/useTimeDecay';
+import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout, getEffectiveMultiplierDisplay } from '../marketUtils';
 import { createLogger } from '../utils/logger';
+
 
 const logger = createLogger('BetModal');
 
@@ -39,6 +41,17 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
   const [inputError, setInputError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const { placeBet, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess } = useBetPlacement();
+  
+  // Time decay tracking
+  const { 
+    decayDisplay, 
+    isLatePhase, 
+    isDecaying, 
+    timeUntilDecayDisplay,
+    getEffectiveMultiplier,
+    getOddsDropCountdown 
+  } = useTimeDecay(market);
+
 
 
   // Clear input error when amount changes
@@ -97,24 +110,44 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
   const assetInfo = getAssetInfo(market.asset);
   const AssetIcon = assetInfo.icon;
 
-  // Calculate odds for display
+  // Calculate odds for display with time decay applied
   const yesOdds = useMemo(() => {
+    const baseMultiplier = market.yesMultiplier || 200;
+    const effectiveMultiplier = market.useTimeDecay 
+      ? getEffectiveMultiplier(1) * 100 // Convert back to basis points
+      : baseMultiplier;
+    
     return formatOddsDisplay({
       useFixedOdds: market.useFixedOdds,
-      multiplier: market.yesMultiplier,
+      multiplier: effectiveMultiplier,
       poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).upPercentage,
       choice: 1
     });
-  }, [market]);
+  }, [market, getEffectiveMultiplier]);
 
   const noOdds = useMemo(() => {
+    const baseMultiplier = market.noMultiplier || 200;
+    const effectiveMultiplier = market.useTimeDecay 
+      ? getEffectiveMultiplier(0) * 100 // Convert back to basis points
+      : baseMultiplier;
+    
     return formatOddsDisplay({
       useFixedOdds: market.useFixedOdds,
-      multiplier: market.noMultiplier,
+      multiplier: effectiveMultiplier,
       poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).downPercentage,
       choice: 0
     });
-  }, [market]);
+  }, [market, getEffectiveMultiplier]);
+
+  // Get odds countdown for display
+  const oddsCountdown = useMemo(() => {
+    if (!market?.useTimeDecay || !market.useFixedOdds) return null;
+    const baseMultiplier = market.marketType === 0 
+      ? (position === 'yes' ? market.yesMultiplier : market.noMultiplier) || 200
+      : (market.multipliers?.[selectedChoice] || 200);
+    return getOddsDropCountdown(baseMultiplier, 10);
+  }, [market, position, selectedChoice, getOddsDropCountdown]);
+
 
   // Calculate potential payout based on current input and market type
   const potentialPayout = useMemo(() => {
@@ -257,7 +290,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
           <p className="text-gray-400 text-sm">{market.title}</p>
 
           {/* Market Type Indicator */}
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
             <div className="px-2 py-1 rounded-md bg-gray-700/50 text-gray-400 text-xs font-medium border border-gray-600">
               {getMarketTypeLabel(market.marketType)}
             </div>
@@ -266,7 +299,18 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                 Target: ${market.targetPrice.toLocaleString?.() || market.targetPrice}
               </div>
             )}
+            {/* Time Decay Badge */}
+            {decayDisplay.showBadge && (
+              <div className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 ${decayDisplay.badgeColor}`}>
+                <DecayIcon className="w-3 h-3" />
+                {decayDisplay.label}
+                {timeUntilDecayDisplay && (
+                  <span className="opacity-75">({timeUntilDecayDisplay})</span>
+                )}
+              </div>
+            )}
           </div>
+
 
           {/* Balance Display */}
 
@@ -492,6 +536,31 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             )}
           </div>
 
+          {/* Time Decay Warning */}
+          {isLatePhase && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <span className="text-red-400 font-semibold">Late Phase Warning:</span>
+                  <span className="text-red-300/80"> Odds have significantly decayed. You're betting with reduced returns due to limited time remaining.</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Odds Decay Countdown */}
+          {oddsCountdown && oddsCountdown.secondsUntil > 0 && oddsCountdown.secondsUntil < 300 && (
+            <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-orange-400" />
+                <span className="text-sm text-orange-400">
+                  Odds drop to <span className="font-bold">{oddsCountdown.futureMultiplier}x</span> in {oddsCountdown.display}!
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Potential Payout Calculator */}
           {amount && parseFloat(amount) > 0 && !inputError && (
             <div className="bg-gradient-to-r from-green-900/20 to-emerald-900/20 border border-green-500/30 rounded-xl p-4 space-y-3">
@@ -507,15 +576,34 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                 </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-400">Multiplier</span>
-                <span className="text-blue-400 font-medium">
-                  {market.marketType === 0 
-                    ? (position === 'yes' ? yesOdds.multiplier?.toFixed(2) : noOdds.multiplier?.toFixed(2))
-                    : market.useFixedOdds && market.multipliers 
-                      ? (market.multipliers[selectedChoice] / 100).toFixed(2)
-                      : '2.00'
-                  }x
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-blue-400 font-medium">
+                    {market.marketType === 0 
+                      ? (position === 'yes' ? yesOdds.multiplier?.toFixed(2) : noOdds.multiplier?.toFixed(2))
+                      : market.useFixedOdds && market.multipliers 
+                        ? getEffectiveMultiplier(selectedChoice).toFixed(2)
+                        : '2.00'
+                    }x
+                  </span>
+                  {market.useTimeDecay && isDecaying && (
+                    <span className="text-xs text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded">
+                      Decayed
+                    </span>
+                  )}
+                </div>
               </div>
+                {/* Show base odds if decayed */}
+                {market.useTimeDecay && isDecaying && market.useFixedOdds && (
+                  <div className="flex justify-between items-center text-xs text-gray-500">
+                    <span>Base Odds</span>
+                    <span className="line-through">
+                      {market.marketType === 0 
+                        ? ((position === 'yes' ? market.yesMultiplier : market.noMultiplier) / 100).toFixed(2)
+                        : (market.multipliers?.[selectedChoice] / 100).toFixed(2)
+                      }x
+                    </span>
+                  </div>
+                )}
 
                 <div className="h-px bg-green-500/20 my-2" />
                 <div className="flex justify-between items-center">
@@ -534,6 +622,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
             </div>
           )}
+
 
           {/* Transaction Status Indicator */}
           {isPlacingBet && status && (

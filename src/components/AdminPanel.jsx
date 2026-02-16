@@ -61,6 +61,9 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     yesMultiplier: 200,
     noMultiplier: 200,
     useFixedOdds: false,
+    useTimeDecay: false,
+    decayStartPercent: 50,
+    minMultiplier: 120,
   });
 
   const [multiChoiceForm, setMultiChoiceForm] = useState({
@@ -70,6 +73,9 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     duration: 60,
     multipliers: [200, 200, 200],
     useFixedOdds: false,
+    useTimeDecay: false,
+    decayStartPercent: 50,
+    minMultiplier: 120,
   });
 
   const [rangeForm, setRangeForm] = useState({
@@ -82,6 +88,9 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     duration: 30,
     multipliers: [200, 200, 200],
     useFixedOdds: false,
+    useTimeDecay: false,
+    decayStartPercent: 50,
+    minMultiplier: 120,
   });
 
   const [timeForm, setTimeForm] = useState({
@@ -94,7 +103,11 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     ],
     multipliers: [300, 200, 150],
     useFixedOdds: true,
+    useTimeDecay: false,
+    decayStartPercent: 50,
+    minMultiplier: 120,
   });
+
 
   // Transaction states
   const [isPending, setIsPending] = useState(false);

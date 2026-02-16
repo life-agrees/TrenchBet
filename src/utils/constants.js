@@ -123,6 +123,7 @@ export const CONTRACTS = {
   // USDC on Base Sepolia Testnet (NOT mainnet!)
   // This is the testnet USDC contract for testing
   USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  // PredictionMarket contract
-  PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x0000000000000000000000000000000000000000',
+  // PredictionMarket contract - Updated with Time-Decay Odds feature
+  PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x5c07E771b5BC9e574b551A3f032AE3A8A3BeeE9E',
+
 };
