@@ -37,8 +37,9 @@ export const HowItWorksSection = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {steps.map((step, index) => (
-            <div key={index} className="relative">
-              <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-[#c0ff00]/50 transition-all group">
+            <div key={index} className="relative h-full">
+              <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-[#c0ff00]/50 transition-all group h-full flex flex-col">
+
                 <div className="w-12 h-12 bg-[#c0ff00]/20 rounded-xl flex items-center justify-center mb-4 group-hover:bg-[#c0ff00]/30 transition-colors">
                   <step.icon className="w-6 h-6 text-[#c0ff00]" />
                 </div>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { sdk } from '@farcaster/miniapp-sdk';
 import App from './app';
 import ErrorBoundary from './components/ErrorBoundary';
+import PreLoader from './components/PreLoader';
 import { config } from './config/wagmi';
 import { Analytics } from '@vercel/analytics/react';
 import { DURATIONS, CACHE } from './utils/constants';
@@ -13,6 +14,7 @@ import { createLogger } from './utils/logger';
 import { initSentry } from './config/sentry';
 import '@rainbow-me/rainbowkit/styles.css';
 import './index.css';
+
 
 // Initialize Sentry error tracking
 initSentry();
@@ -48,23 +50,35 @@ const initFarcaster = async () => {
 
 initFarcaster();
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <WagmiProvider config={config}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider 
-            theme={darkTheme({
-              accentColor: '#CDFF00',
-              accentColorForeground: '#0a0e12',
-              borderRadius: 'large',
-            })}
-          >
-            <App />
-            <Analytics />
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
-    </ErrorBoundary>
-  </React.StrictMode>
-);
+// Root component with PreLoader
+const Root = () => {
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleLoadingComplete = () => {
+    setIsLoading(false);
+  };
+
+  return (
+    <React.StrictMode>
+      {isLoading && <PreLoader onLoadingComplete={handleLoadingComplete} />}
+      <ErrorBoundary>
+        <WagmiProvider config={config}>
+          <QueryClientProvider client={queryClient}>
+            <RainbowKitProvider 
+              theme={darkTheme({
+                accentColor: '#CDFF00',
+                accentColorForeground: '#0a0e12',
+                borderRadius: 'large',
+              })}
+            >
+              <App />
+              <Analytics />
+            </RainbowKitProvider>
+          </QueryClientProvider>
+        </WagmiProvider>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);

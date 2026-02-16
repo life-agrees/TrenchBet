@@ -365,3 +365,42 @@ body {
 .link-hover-underline:hover::after {
   width: 100%;
 }
+
+/* PreLoader Animations */
+@keyframes text-shimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes loader-exit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+
+/* PreLoader specific utilities */
+.animate-text-shimmer {
+  animation: text-shimmer 3s ease-in-out infinite;
+  background-size: 200% 200%;
+}
+
+.animate-loader-exit {
+  animation: loader-exit 0.8s ease-out forwards;
+}
+
+/* Reduced motion support for preloader */
+@media (prefers-reduced-motion: reduce) {
+  .animate-text-shimmer,
+  .animate-loader-exit {
+    animation: none;
+  }
+}
