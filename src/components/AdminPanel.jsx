@@ -689,9 +689,13 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           BigInt(binaryForm.duration * 60),
           binaryForm.useFixedOdds ? BigInt(binaryForm.yesMultiplier) : BigInt(0),
           binaryForm.useFixedOdds ? BigInt(binaryForm.noMultiplier) : BigInt(0),
+          binaryForm.useTimeDecay,
+          BigInt(binaryForm.decayStartPercent),
+          BigInt(binaryForm.minMultiplier),
         ],
         account: address
       });
+
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
@@ -731,9 +735,13 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           sanitizeInput(multiChoiceForm.question),
           BigInt(multiChoiceForm.duration * 60),
           multiChoiceForm.useFixedOdds ? multiChoiceForm.multipliers.slice(0, validOptions.length).map((m) => BigInt(m)) : [],
+          multiChoiceForm.useTimeDecay,
+          BigInt(multiChoiceForm.decayStartPercent),
+          BigInt(multiChoiceForm.minMultiplier),
         ],
         account: address
       });
+
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
@@ -764,9 +772,13 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           rangeMaxs,
           BigInt(rangeForm.duration * 60),
           rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
+          rangeForm.useTimeDecay,
+          BigInt(rangeForm.decayStartPercent),
+          BigInt(rangeForm.minMultiplier),
         ],
         account: address
       });
+
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
@@ -796,6 +808,9 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           targetPriceBigInt,
           timeframeSeconds,
           timeForm.useFixedOdds ? timeForm.multipliers.map((m) => BigInt(m)) : [],
+          timeForm.useTimeDecay,
+          BigInt(timeForm.decayStartPercent),
+          BigInt(timeForm.minMultiplier),
         ],
         account: address
       });
@@ -809,6 +824,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       setIsPending(false);
     }
   };
+
 
   const handleCreate = () => {
     if (!walletClient || !address) {

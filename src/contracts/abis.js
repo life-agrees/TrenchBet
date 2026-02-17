@@ -64,7 +64,10 @@ export const PREDICTION_MARKET_ABI = [
           {"internalType": "bool","name": "useFixedOdds","type": "bool"},
           {"internalType": "uint256","name": "yesMultiplier","type": "uint256"},
           {"internalType": "uint256","name": "noMultiplier","type": "uint256"},
-          {"internalType": "uint256","name": "protocolFee","type": "uint256"}
+          {"internalType": "uint256","name": "protocolFee","type": "uint256"},
+          {"internalType": "bool","name": "useTimeDecay","type": "bool"},
+          {"internalType": "uint256","name": "decayStartTime","type": "uint256"},
+          {"internalType": "uint256","name": "minMultiplier","type": "uint256"}
         ],
         "internalType": "struct PredictionMarket.Market",
         "name": "",
@@ -74,6 +77,7 @@ export const PREDICTION_MARKET_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+
   {
     "inputs": [],
     "name": "accumulatedFees",
@@ -117,9 +121,11 @@ export const PREDICTION_MARKET_ABI = [
           {"internalType": "bool","name": "predictedUp","type": "bool"},
           {"internalType": "uint8","name": "choice","type": "uint8"},
           {"internalType": "uint256","name": "amount","type": "uint256"},
-          {"internalType": "bool","name": "claimed","type": "bool"}
+          {"internalType": "bool","name": "claimed","type": "bool"},
+          {"internalType": "uint256","name": "effectiveMultiplier","type": "uint256"}
         ],
         "internalType": "struct PredictionMarket.Position[]",
+
         "name": "",
         "type": "tuple[]"
       }
@@ -177,63 +183,79 @@ export const PREDICTION_MARKET_ABI = [
   // ==================== NEW FUNCTIONS FOR CUSTOM ODDS ====================
 
   
-  // Binary Market with Custom Odds
+  // Binary Market with Custom Odds and Time Decay
   {
     "inputs": [
       {"internalType": "string","name": "asset","type": "string"},
       {"internalType": "uint256","name": "duration","type": "uint256"},
       {"internalType": "uint256","name": "yesMultiplier","type": "uint256"},
-      {"internalType": "uint256","name": "noMultiplier","type": "uint256"}
+      {"internalType": "uint256","name": "noMultiplier","type": "uint256"},
+      {"internalType": "bool","name": "useTimeDecay","type": "bool"},
+      {"internalType": "uint256","name": "decayStartPercent","type": "uint256"},
+      {"internalType": "uint256","name": "minMultiplier","type": "uint256"}
     ],
     "name": "createMarketWithOdds",
     "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
     "stateMutability": "nonpayable",
     "type": "function"
   },
+
   
-  // Multi-Choice Market with Custom Odds
+  // Multi-Choice Market with Custom Odds and Time Decay
   {
     "inputs": [
       {"internalType": "string","name": "asset","type": "string"},
       {"internalType": "string[]","name": "options","type": "string[]"},
       {"internalType": "string","name": "question","type": "string"},
       {"internalType": "uint256","name": "duration","type": "uint256"},
-      {"internalType": "uint256[]","name": "multipliers","type": "uint256[]"}
+      {"internalType": "uint256[]","name": "multipliers","type": "uint256[]"},
+      {"internalType": "bool","name": "useTimeDecay","type": "bool"},
+      {"internalType": "uint256","name": "decayStartPercent","type": "uint256"},
+      {"internalType": "uint256","name": "minMultiplier","type": "uint256"}
     ],
     "name": "createMultiChoiceMarketWithOdds",
     "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
     "stateMutability": "nonpayable",
     "type": "function"
   },
+
   
-  // Range Market with Custom Odds
+  // Range Market with Custom Odds and Time Decay
   {
     "inputs": [
       {"internalType": "string","name": "asset","type": "string"},
       {"internalType": "uint256[]","name": "rangeMins","type": "uint256[]"},
       {"internalType": "uint256[]","name": "rangeMaxs","type": "uint256[]"},
       {"internalType": "uint256","name": "duration","type": "uint256"},
-      {"internalType": "uint256[]","name": "multipliers","type": "uint256[]"}
+      {"internalType": "uint256[]","name": "multipliers","type": "uint256[]"},
+      {"internalType": "bool","name": "useTimeDecay","type": "bool"},
+      {"internalType": "uint256","name": "decayStartPercent","type": "uint256"},
+      {"internalType": "uint256","name": "minMultiplier","type": "uint256"}
     ],
     "name": "createRangeMarketWithOdds",
     "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
     "stateMutability": "nonpayable",
     "type": "function"
   },
+
   
-  // Time-Based Market with Custom Odds
+  // Time-Based Market with Custom Odds and Time Decay
   {
     "inputs": [
       {"internalType": "string","name": "asset","type": "string"},
       {"internalType": "uint256","name": "targetPrice","type": "uint256"},
       {"internalType": "uint256[]","name": "timeframes","type": "uint256[]"},
-      {"internalType": "uint256[]","name": "multipliers","type": "uint256[]"}
+      {"internalType": "uint256[]","name": "multipliers","type": "uint256[]"},
+      {"internalType": "bool","name": "useTimeDecay","type": "bool"},
+      {"internalType": "uint256","name": "decayStartPercent","type": "uint256"},
+      {"internalType": "uint256","name": "minMultiplier","type": "uint256"}
     ],
     "name": "createTimeMarketWithOdds",
     "outputs": [{"internalType": "uint256","name": "","type": "uint256"}],
     "stateMutability": "nonpayable",
     "type": "function"
   },
+
   
   // Get Multi-Choice Options
   {
@@ -334,20 +356,19 @@ export const PREDICTION_MARKET_ABI = [
     "type": "function"
   },
   
-  // Get Time Decay Status
+  // Get Decay Status
   {
     "inputs": [{"internalType": "uint256","name": "marketId","type": "uint256"}],
-    "name": "getTimeDecayStatus",
+    "name": "getDecayStatus",
     "outputs": [
-      {"internalType": "bool","name": "useTimeDecay","type": "bool"},
-      {"internalType": "uint256","name": "decayStartTime","type": "uint256"},
-      {"internalType": "uint256","name": "minMultiplier","type": "uint256"},
-      {"internalType": "uint256","name": "currentMultiplier","type": "uint256"},
-      {"internalType": "uint256","name": "timeRemaining","type": "uint256"}
+      {"internalType": "bool","name": "isDecaying","type": "bool"},
+      {"internalType": "uint256","name": "decayProgress","type": "uint256"},
+      {"internalType": "uint256","name": "currentMultiplier","type": "uint256"}
     ],
     "stateMutability": "view",
     "type": "function"
   },
+
 
   // ==================== EVENTS ====================
 
