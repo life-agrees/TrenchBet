@@ -112,32 +112,47 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
 
   // Calculate odds for display with time decay applied
   const yesOdds = useMemo(() => {
-    const baseMultiplier = market.yesMultiplier || 200;
-    const effectiveMultiplier = market.useTimeDecay 
-      ? getEffectiveMultiplier(1) * 100 // Convert back to basis points
-      : baseMultiplier;
+    // When time decay is enabled, always use the effective multiplier
+    if (market.useTimeDecay) {
+      const effectiveMultiplier = getEffectiveMultiplier(1);
+      return {
+        text: `${safeToFixed(effectiveMultiplier, 2)}x Odds`,
+        percentage: Math.round(100 / effectiveMultiplier),
+        isFixed: true,
+        multiplier: effectiveMultiplier
+      };
+    }
     
+    // Otherwise use standard format
     return formatOddsDisplay({
       useFixedOdds: market.useFixedOdds,
-      multiplier: effectiveMultiplier,
+      multiplier: market.yesMultiplier || 200,
       poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).upPercentage,
       choice: 1
     });
   }, [market, getEffectiveMultiplier]);
 
   const noOdds = useMemo(() => {
-    const baseMultiplier = market.noMultiplier || 200;
-    const effectiveMultiplier = market.useTimeDecay 
-      ? getEffectiveMultiplier(0) * 100 // Convert back to basis points
-      : baseMultiplier;
+    // When time decay is enabled, always use the effective multiplier
+    if (market.useTimeDecay) {
+      const effectiveMultiplier = getEffectiveMultiplier(0);
+      return {
+        text: `${safeToFixed(effectiveMultiplier, 2)}x Odds`,
+        percentage: Math.round(100 / effectiveMultiplier),
+        isFixed: true,
+        multiplier: effectiveMultiplier
+      };
+    }
     
+    // Otherwise use standard format
     return formatOddsDisplay({
       useFixedOdds: market.useFixedOdds,
-      multiplier: effectiveMultiplier,
+      multiplier: market.noMultiplier || 200,
       poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).downPercentage,
       choice: 0
     });
   }, [market, getEffectiveMultiplier]);
+
 
   // Get odds countdown for display
   const oddsCountdown = useMemo(() => {
@@ -161,15 +176,20 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
       const selectedOdds = position === 'yes' ? yesOdds : noOdds;
       multiplier = selectedOdds.multiplier || 1;
     } else if (market.useFixedOdds && market.multipliers) {
-      // Other market types with fixed odds
-      multiplier = (market.multipliers[selectedChoice] || 200) / 100;
+      // Other market types with fixed odds - apply time decay if enabled
+      const baseMultiplier = market.multipliers[selectedChoice] || 200;
+      multiplier = market.useTimeDecay 
+        ? getEffectiveMultiplier(selectedChoice)
+        : baseMultiplier / 100;
     } else {
+
       // Dynamic odds default
       multiplier = 2.0;
     }
     
     return calculatePayout(betAmount, multiplier);
-  }, [amount, position, selectedChoice, yesOdds, noOdds, market]);
+  }, [amount, position, selectedChoice, yesOdds, noOdds, market, getEffectiveMultiplier]);
+
 
 
   const potentialProfit = useMemo(() => {
@@ -427,8 +447,11 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {market.options.map((option, idx) => {
-                  const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-                  const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+                  // When time decay is enabled, always show the decayed multiplier
+                  const effectiveMultiplier = market.useTimeDecay 
+                    ? getEffectiveMultiplier(idx)
+                    : (market.multipliers?.[idx] || 200) / 100;
+                  const oddsText = `${safeToFixed(effectiveMultiplier, 2)}x`;
                   return (
                     <button
                       key={idx}
@@ -444,6 +467,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             </div>
           )}
 
+
+
           {market.marketType === 2 && market.ranges && (
             /* Range Market - Range Selection */
             <div className="space-y-2">
@@ -453,8 +478,11 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
               <div className="space-y-2">
                 {market.ranges.map((range, idx) => {
-                  const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-                  const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+                  // When time decay is enabled, always show the decayed multiplier
+                  const effectiveMultiplier = market.useTimeDecay 
+                    ? getEffectiveMultiplier(idx)
+                    : (market.multipliers?.[idx] || 200) / 100;
+                  const oddsText = `${safeToFixed(effectiveMultiplier, 2)}x`;
                   const rangeLabel = `$${range.min?.toLocaleString?.() || range.min} - $${range.max?.toLocaleString?.() || range.max}`;
                   return (
                     <button
@@ -471,6 +499,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             </div>
           )}
 
+
+
           {market.marketType === 3 && market.timeframes && (
             /* Time-Based Market - Timeframe Selection */
             <div className="space-y-2">
@@ -480,8 +510,11 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {market.timeframes.map((tf, idx) => {
-                  const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-                  const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+                  // When time decay is enabled, always show the decayed multiplier
+                  const effectiveMultiplier = market.useTimeDecay 
+                    ? getEffectiveMultiplier(idx)
+                    : (market.multipliers?.[idx] || 200) / 100;
+                  const oddsText = `${safeToFixed(effectiveMultiplier, 2)}x`;
                   return (
                     <button
                       key={idx}
@@ -496,6 +529,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
               </div>
             </div>
           )}
+
+
 
 
           <div>
@@ -580,9 +615,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                   <span className="text-blue-400 font-medium">
                     {market.marketType === 0 
                       ? (position === 'yes' ? yesOdds.multiplier?.toFixed(2) : noOdds.multiplier?.toFixed(2))
-                      : market.useFixedOdds && market.multipliers 
-                        ? getEffectiveMultiplier(selectedChoice).toFixed(2)
-                        : '2.00'
+                      : getEffectiveMultiplier(selectedChoice).toFixed(2)
                     }x
                   </span>
                   {market.useTimeDecay && isDecaying && (
@@ -592,8 +625,9 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                   )}
                 </div>
               </div>
+
                 {/* Show base odds if decayed */}
-                {market.useTimeDecay && isDecaying && market.useFixedOdds && (
+                {market.useTimeDecay && isDecaying && (
                   <div className="flex justify-between items-center text-xs text-gray-500">
                     <span>Base Odds</span>
                     <span className="line-through">
@@ -604,6 +638,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                     </span>
                   </div>
                 )}
+
 
                 <div className="h-px bg-green-500/20 my-2" />
                 <div className="flex justify-between items-center">

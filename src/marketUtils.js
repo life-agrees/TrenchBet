@@ -364,7 +364,7 @@ export const getRangeStatus = (currentPrice, range) => {
  * Calculate time-decayed multiplier based on current time
  * @param {Object} market - Market object with decay configuration
  * @param {number} baseMultiplier - Original multiplier before decay (in basis points, e.g., 200 = 2.0x)
- * @param {number} currentTime - Current timestamp in seconds (optional, defaults to now)
+ * @param {number} currentTime - Current timestamp in milliseconds (optional, defaults to now)
  * @returns {number} Decayed multiplier in basis points
  */
 export const calculateTimeDecayedMultiplier = (market, baseMultiplier, currentTime = null) => {
@@ -372,8 +372,8 @@ export const calculateTimeDecayedMultiplier = (market, baseMultiplier, currentTi
     return baseMultiplier;
   }
   
-  const now = currentTime || Math.floor(Date.now() / 1000);
-  const startTime = market.startTime;
+  // Use milliseconds consistently (matching market.startTime, endTime, decayStartTime)
+  const now = currentTime || Date.now();
   const endTime = market.endTime;
   const decayStartTime = market.decayStartTime;
   const minMultiplier = market.minMultiplier || 120; // Default 1.2x
@@ -405,7 +405,7 @@ export const calculateTimeDecayedMultiplier = (market, baseMultiplier, currentTi
 /**
  * Get the current decay phase for a market
  * @param {Object} market - Market object with decay configuration
- * @param {number} currentTime - Current timestamp in seconds (optional)
+ * @param {number} currentTime - Current timestamp in milliseconds (optional)
  * @returns {Object} Decay phase info { phase, progress, isDecaying, timeUntilDecay }
  */
 export const getDecayPhase = (market, currentTime = null) => {
@@ -419,8 +419,8 @@ export const getDecayPhase = (market, currentTime = null) => {
     };
   }
   
-  const now = currentTime || Math.floor(Date.now() / 1000);
-  const startTime = market.startTime;
+  // Use milliseconds consistently
+  const now = currentTime || Date.now();
   const endTime = market.endTime;
   const decayStartTime = market.decayStartTime;
   
@@ -483,7 +483,8 @@ export const formatDecayDisplay = (decayPhase) => {
   }
   
   if (decayPhase.phase === 'pre_decay') {
-    const minutes = Math.ceil(decayPhase.timeUntilDecay / 60);
+    // Convert milliseconds to minutes for display
+    const minutes = Math.ceil(decayPhase.timeUntilDecay / 60000);
     return {
       label: 'Full Odds',
       color: 'green',
@@ -495,7 +496,8 @@ export const formatDecayDisplay = (decayPhase) => {
   }
   
   if (decayPhase.phase === 'decaying') {
-    const minutes = Math.ceil(decayPhase.timeUntilEnd / 60);
+    // Convert milliseconds to minutes for display
+    const minutes = Math.ceil(decayPhase.timeUntilEnd / 60000);
     const progress = decayPhase.progress;
     
     // Color changes based on progress
@@ -534,14 +536,14 @@ export const formatDecayDisplay = (decayPhase) => {
 /**
  * Calculate time remaining until odds decay starts
  * @param {Object} market - Market object with decay configuration
- * @returns {number} Seconds until decay starts (0 if already started)
+ * @returns {number} Milliseconds until decay starts (0 if already started)
  */
 export const getTimeUntilDecay = (market) => {
   if (!market || !market.useTimeDecay) {
     return 0;
   }
   
-  const now = Math.floor(Date.now() / 1000);
+  const now = Date.now();
   return Math.max(0, market.decayStartTime - now);
 };
 
@@ -549,7 +551,7 @@ export const getTimeUntilDecay = (market) => {
  * Calculate the effective multiplier at a specific time for display
  * @param {Object} market - Market object
  * @param {number} choice - Choice index
- * @param {number} currentTime - Current timestamp (optional)
+ * @param {number} currentTime - Current timestamp in milliseconds (optional)
  * @returns {number} Effective multiplier value (e.g., 2.0 for 2x)
  */
 export const getEffectiveMultiplierDisplay = (market, choice, currentTime = null) => {

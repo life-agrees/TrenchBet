@@ -15,12 +15,13 @@ const logger = createLogger('useTimeDecay');
  * @returns {Object} Decay state and helper functions
  */
 export function useTimeDecay(market) {
-  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+  // Use milliseconds consistently (matching market.startTime, endTime, decayStartTime)
+  const [currentTime, setCurrentTime] = useState(Date.now());
   
   // Update current time every second
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(Math.floor(Date.now() / 1000));
+      setCurrentTime(Date.now());
     }, 1000);
     
     return () => clearInterval(interval);
@@ -61,7 +62,7 @@ export function useTimeDecay(market) {
     return decayPhase.isDecaying;
   }, [decayPhase]);
   
-  // Get time until decay starts (in seconds)
+  // Get time until decay starts (in milliseconds)
   const timeUntilDecay = useMemo(() => {
     if (!market || !market.useTimeDecay) return 0;
     return Math.max(0, market.decayStartTime - currentTime);
@@ -69,9 +70,10 @@ export function useTimeDecay(market) {
   
   // Format time until decay for display
   const timeUntilDecayDisplay = useMemo(() => {
-    const seconds = timeUntilDecay;
-    if (seconds <= 0) return '';
+    const ms = timeUntilDecay;
+    if (ms <= 0) return '';
     
+    const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     
@@ -98,6 +100,7 @@ export function useTimeDecay(market) {
     const minMultiplier = market.minMultiplier || 120;
     
     // Calculate what the multiplier will be at next threshold
+    // All times are now in milliseconds
     const decayDuration = market.endTime - market.decayStartTime;
     const timeElapsed = currentTime - market.decayStartTime;
     const currentProgress = timeElapsed / decayDuration;
@@ -105,10 +108,11 @@ export function useTimeDecay(market) {
     // Find next threshold
     const nextProgress = Math.ceil(currentProgress * (100 / nextThreshold)) * (nextThreshold / 100);
     const targetTime = market.decayStartTime + (decayDuration * nextProgress);
-    const secondsUntil = Math.max(0, targetTime - currentTime);
+    const msUntil = Math.max(0, targetTime - currentTime);
     
-    if (secondsUntil <= 0) return null;
+    if (msUntil <= 0) return null;
     
+    const secondsUntil = Math.floor(msUntil / 1000);
     const minutes = Math.floor(secondsUntil / 60);
     const hours = Math.floor(minutes / 60);
     
@@ -155,11 +159,11 @@ export function useTimeDecay(market) {
  * @returns {Object} Map of market IDs to decay states
  */
 export function useMultipleTimeDecays(markets) {
-  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+  const [currentTime, setCurrentTime] = useState(Date.now());
   
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(Math.floor(Date.now() / 1000));
+      setCurrentTime(Date.now());
     }, 1000);
     
     return () => clearInterval(interval);

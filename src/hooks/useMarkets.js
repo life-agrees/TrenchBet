@@ -188,11 +188,18 @@ async function fetchSingleMarket(publicClient, marketId) {
       protocolFee: market.protocolFee ? Number(market.protocolFee) : 0,
       winningChoice: market.winningChoice !== undefined ? Number(market.winningChoice) : null,
       
+      // Time decay fields - CRITICAL for decay calculations
+      useTimeDecay: market.useTimeDecay || false,
+      decayStartTime: market.decayStartTime ? Number(market.decayStartTime) * 1000 : Number(market.startTime) * 1000,
+      minMultiplier: market.minMultiplier ? Number(market.minMultiplier) : 120,
+
+      
       // UI helpers
       name: getCoinName(market.asset || 'BTC'),
       color: getCoinColor(market.asset || 'BTC'),
       status: market.resolved ? 'resolved' : 'active',
     };
+
 
     // Step 3: Fetch type-specific data
     if (marketType === 1) {
