@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePublicClient } from 'wagmi';
 import { formatUnits } from 'viem';
-import { CONTRACTS } from '../config/wagmi';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { CONTRACTS } from '../utils/constants';
+import { 
+  PREDICTION_MARKET_CORE_ABI, 
+  PREDICTION_MARKET_TYPES_ABI 
+} from '../contracts/abis';
 import { DURATIONS, TIME, PRICE, BATCH } from '../utils/constants';
 import { createLogger } from '../utils/logger';
 import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../marketUtils';
@@ -10,8 +13,29 @@ import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../mar
 const logger = createLogger('useMarkets');
 
 /**
- * Enhanced useMarkets hook with all features
- * Fetches all market data including ranges, timeframes, calculated prices, and UI helpers
+ * Helper to get contract info based on market type
+ * Binary markets (type 0) -> Core contract
+ * Multi/Range/Time markets (types 1-3) -> Types contract
+ */
+function getContractForMarketType(marketType) {
+  if (marketType === 0) {
+    return {
+      address: CONTRACTS.PREDICTION_MARKET_CORE,
+      abi: PREDICTION_MARKET_CORE_ABI,
+      source: 'core'
+    };
+  }
+  return {
+    address: CONTRACTS.PREDICTION_MARKET_TYPES,
+    abi: PREDICTION_MARKET_TYPES_ABI,
+    source: 'types'
+  };
+}
+
+
+/**
+ * Enhanced useMarkets hook with dual contract support
+ * Fetches from both Core (binary) and Types (multi/range/time) contracts
  */
 export function useMarkets() {
   const publicClient = usePublicClient();
@@ -20,8 +44,8 @@ export function useMarkets() {
   const [error, setError] = useState(null);
 
   const fetchMarkets = useCallback(async () => {
-    if (!publicClient || !CONTRACTS.PREDICTION_MARKET) {
-      logger.warn('Missing publicClient or contract address');
+    if (!publicClient || !CONTRACTS.PREDICTION_MARKET_CORE || !CONTRACTS.PREDICTION_MARKET_TYPES) {
+      logger.warn('Missing publicClient or contract addresses');
       setIsLoading(false);
       return;
     }
@@ -29,67 +53,91 @@ export function useMarkets() {
     try {
       setError(null);
       
-      // Get total market count
-      const marketCounter = await publicClient.readContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'marketCounter'
-      });
+      // Fetch market counters from BOTH contracts concurrently
+      const [coreCounter, typesCounter] = await Promise.all([
+        publicClient.readContract({
+          address: CONTRACTS.PREDICTION_MARKET_CORE,
+          abi: PREDICTION_MARKET_CORE_ABI,
+          functionName: 'marketCounter'
+        }),
+        publicClient.readContract({
+          address: CONTRACTS.PREDICTION_MARKET_TYPES,
+          abi: PREDICTION_MARKET_TYPES_ABI,
+          functionName: 'marketCounter'
+        })
+      ]);
 
-      const totalMarkets = Number(marketCounter);
-      logger.info(`Fetching ${totalMarkets} markets...`);
+      const coreTotal = Number(coreCounter);
+      const typesTotal = Number(typesCounter);
+      logger.info(`Fetching markets: ${coreTotal} from Core, ${typesTotal} from Types`);
 
-      if (totalMarkets === 0) {
-        setMarkets([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Only show loading on initial fetch, not on background refreshes
+      // Only show loading on initial fetch
       if (markets.length === 0) {
         setIsLoading(true);
       }
 
-      // Use batching to avoid overwhelming the RPC
-      const startIndex = Math.max(0, totalMarkets - 50);
-      const batchSize = BATCH.MARKET_BATCH_SIZE;
-      const validMarkets = [];
-      
-      // Process in batches
-      for (let batchStart = startIndex; batchStart < totalMarkets; batchStart += batchSize) {
-        const batchEnd = Math.min(batchStart + batchSize, totalMarkets);
-        const batchIndices = Array.from(
-          { length: batchEnd - batchStart }, 
-          (_, i) => batchStart + i
-        );
-        
-        try {
-          // Fetch batch in parallel
-          const batchPromises = batchIndices.map(i => fetchSingleMarket(publicClient, i));
-          const batchResults = await Promise.all(batchPromises);
-          
-          validMarkets.push(...batchResults.filter(m => m !== null));
-          
-          // Small delay between batches to be nice to the RPC
-          if (batchEnd < totalMarkets) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        } catch (err) {
-          logger.error(`Error fetching batch ${batchStart}-${batchEnd}:`, err);
-          // Continue with next batch instead of failing entirely
-        }
-      }
+      // Fetch from both contracts in parallel
+      const [coreMarkets, typesMarkets] = await Promise.all([
+        fetchMarketsFromContract(publicClient, 0, coreTotal, 'core'),
+        fetchMarketsFromContract(publicClient, 0, typesTotal, 'types')
+      ]);
 
-      setMarkets(validMarkets);
+      // Combine and sort by end time (newest first)
+      const allMarkets = [...coreMarkets, ...typesMarkets].sort((a, b) => b.endTime - a.endTime);
+      
+      setMarkets(allMarkets);
       setIsLoading(false);
       
-      logger.info(`Successfully fetched ${validMarkets.length} markets`);
+      logger.info(`Successfully fetched ${allMarkets.length} markets (${coreMarkets.length} core, ${typesMarkets.length} types)`);
     } catch (err) {
       logger.error('Failed to fetch markets:', err);
       setError(err.message || 'Failed to fetch markets');
       setIsLoading(false);
     }
   }, [publicClient, markets.length]);
+
+  /**
+   * Fetch markets from a specific contract
+   */
+  async function fetchMarketsFromContract(publicClient, startIndex, totalCount, contractType) {
+    if (totalCount === 0) return [];
+    
+    const contract = contractType === 'core' 
+      ? { address: CONTRACTS.PREDICTION_MARKET_CORE, abi: PREDICTION_MARKET_CORE_ABI }
+      : { address: CONTRACTS.PREDICTION_MARKET_TYPES, abi: PREDICTION_MARKET_TYPES_ABI };
+
+    const validMarkets = [];
+    const batchSize = BATCH.MARKET_BATCH_SIZE;
+    
+    // Process in batches
+    for (let batchStart = startIndex; batchStart < totalCount; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize, totalCount);
+      const batchIndices = Array.from(
+        { length: batchEnd - batchStart }, 
+        (_, i) => batchStart + i
+      );
+      
+      try {
+        // Fetch batch in parallel
+        const batchPromises = batchIndices.map(i => 
+          fetchSingleMarket(publicClient, i, contract, contractType)
+        );
+        const batchResults = await Promise.all(batchPromises);
+        
+        validMarkets.push(...batchResults.filter(m => m !== null));
+        
+        // Small delay between batches
+        if (batchEnd < totalCount) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } catch (err) {
+        logger.error(`Error fetching ${contractType} batch ${batchStart}-${batchEnd}:`, err);
+      }
+    }
+    
+    return validMarkets;
+  }
+
 
   // Fetch on mount and every 30 seconds
   useEffect(() => {
@@ -134,17 +182,18 @@ export function useMarkets() {
 /**
  * Fetch a single market with all its data
  */
-async function fetchSingleMarket(publicClient, marketId) {
+async function fetchSingleMarket(publicClient, marketId, contract, contractType) {
   try {
     // Step 1: Get base market data
     const market = await publicClient.readContract({
-      address: CONTRACTS.PREDICTION_MARKET,
-      abi: PREDICTION_MARKET_ABI,
+      address: contract.address,
+      abi: contract.abi,
       functionName: 'getMarket',
       args: [BigInt(marketId)]
     });
 
     const marketType = Number(market.marketType);
+
 
     // Calculate pools and prices
     const yesPool = market.yesPool ? Number(formatUnits(market.yesPool, 6)) : 0;
@@ -201,30 +250,40 @@ async function fetchSingleMarket(publicClient, marketId) {
     };
 
 
-    // Step 3: Fetch type-specific data
-    if (marketType === 1) {
-      // MULTI-CHOICE: Fetch options
-      baseMarket.options = await fetchMultiChoiceOptions(publicClient, marketId);
-      baseMarket.multipliers = await fetchMultipliers(publicClient, marketId);
-      baseMarket.choicePools = market.choicePools 
-        ? market.choicePools.map(p => Number(formatUnits(p, 6))) 
-        : [];
-    } 
-    else if (marketType === 2) {
-      // RANGE: Fetch ranges
-      const rangeData = await fetchRangeData(publicClient, marketId);
-      baseMarket.ranges = rangeData.ranges;
-      baseMarket.multipliers = await fetchMultipliers(publicClient, marketId);
-    } 
-    else if (marketType === 3) {
-      // TIME: Fetch target price and timeframes
-      const timeData = await fetchTimeData(publicClient, marketId);
-      baseMarket.targetPrice = timeData.targetPrice;
-      baseMarket.timeframes = timeData.timeframes;
-      baseMarket.multipliers = await fetchMultipliers(publicClient, marketId);
+    // Tag with contract source for later use
+    baseMarket.contractSource = contractType;
+    baseMarket.contractAddress = contract.address;
+
+    // Step 3: Fetch type-specific data (only from Types contract)
+    if (contractType === 'types') {
+      if (marketType === 1) {
+        // MULTI-CHOICE: Fetch options
+        baseMarket.options = await fetchMultiChoiceOptions(publicClient, marketId, contract);
+        baseMarket.multipliers = await fetchMultipliers(publicClient, marketId, contract);
+        baseMarket.choicePools = market.choicePools 
+          ? market.choicePools.map(p => Number(formatUnits(p, 6))) 
+          : [];
+      } 
+      else if (marketType === 2) {
+        // RANGE: Fetch ranges
+        const rangeData = await fetchRangeData(publicClient, marketId, contract);
+        baseMarket.ranges = rangeData.ranges;
+        baseMarket.multipliers = await fetchMultipliers(publicClient, marketId, contract);
+      } 
+      else if (marketType === 3) {
+        // TIME: Fetch target price and timeframes
+        const timeData = await fetchTimeData(publicClient, marketId, contract);
+        baseMarket.targetPrice = timeData.targetPrice;
+        baseMarket.timeframes = timeData.timeframes;
+        baseMarket.multipliers = await fetchMultipliers(publicClient, marketId, contract);
+      }
+    } else {
+      // Binary market (type 0) from Core contract
+      baseMarket.multipliers = [baseMarket.yesMultiplier, baseMarket.noMultiplier];
     }
 
     return baseMarket;
+
 
   } catch (error) {
     logger.warn(`Failed to fetch market ${marketId}:`, error.message);
@@ -235,11 +294,11 @@ async function fetchSingleMarket(publicClient, marketId) {
 /**
  * Fetch multi-choice options
  */
-async function fetchMultiChoiceOptions(publicClient, marketId) {
+async function fetchMultiChoiceOptions(publicClient, marketId, contract) {
   try {
     const options = await publicClient.readContract({
-      address: CONTRACTS.PREDICTION_MARKET,
-      abi: PREDICTION_MARKET_ABI,
+      address: contract.address,
+      abi: contract.abi,
       functionName: 'getMultiChoiceOptions',
       args: [BigInt(marketId)]
     });
@@ -253,14 +312,15 @@ async function fetchMultiChoiceOptions(publicClient, marketId) {
 /**
  * Fetch range market data
  */
-async function fetchRangeData(publicClient, marketId) {
+async function fetchRangeData(publicClient, marketId, contract) {
   try {
     const data = await publicClient.readContract({
-      address: CONTRACTS.PREDICTION_MARKET,
-      abi: PREDICTION_MARKET_ABI,
+      address: contract.address,
+      abi: contract.abi,
       functionName: 'getRangeMarketData',
       args: [BigInt(marketId)]
     });
+
 
     const mins = data.mins || data[0] || [];
     const maxs = data.maxs || data[1] || [];
@@ -280,14 +340,15 @@ async function fetchRangeData(publicClient, marketId) {
 /**
  * Fetch time market data
  */
-async function fetchTimeData(publicClient, marketId) {
+async function fetchTimeData(publicClient, marketId, contract) {
   try {
     const data = await publicClient.readContract({
-      address: CONTRACTS.PREDICTION_MARKET,
-      abi: PREDICTION_MARKET_ABI,
+      address: contract.address,
+      abi: contract.abi,
       functionName: 'getTimeMarketData',
       args: [BigInt(marketId)]
     });
+
 
     const targetPrice = data.targetPrice || data[0];
     const timeframeSeconds = data.timeframes || data[1] || [];
@@ -313,11 +374,11 @@ async function fetchTimeData(publicClient, marketId) {
 /**
  * Fetch multipliers for any market type
  */
-async function fetchMultipliers(publicClient, marketId) {
+async function fetchMultipliers(publicClient, marketId, contract) {
   try {
     const multipliers = await publicClient.readContract({
-      address: CONTRACTS.PREDICTION_MARKET,
-      abi: PREDICTION_MARKET_ABI,
+      address: contract.address,
+      abi: contract.abi,
       functionName: 'getCurrentOdds',
       args: [BigInt(marketId)]
     });
@@ -327,6 +388,10 @@ async function fetchMultipliers(publicClient, marketId) {
     return [];
   }
 }
+
+// Export helper for other hooks
+export { getContractForMarketType };
+
 
 /**
  * Format timeframe seconds to human-readable label

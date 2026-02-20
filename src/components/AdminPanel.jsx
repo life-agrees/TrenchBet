@@ -7,9 +7,34 @@ import { toast } from 'react-hot-toast';
 import DashboardTab from './DashboardTab';
 import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
-import { CONTRACTS } from '../config/wagmi';
-import { PREDICTION_MARKET_ABI, ERC20_ABI } from '../contracts/abis';
+import { CONTRACTS } from '../utils/constants';
+import { 
+  PREDICTION_MARKET_CORE_ABI, 
+  PREDICTION_MARKET_TYPES_ABI, 
+  ERC20_ABI 
+} from '../contracts/abis';
 import { sanitizeInput } from '../utils/inputSanitization';
+
+/**
+ * Helper to get contract info based on market type
+ * Binary markets (type 0) -> Core contract
+ * Multi/Range/Time markets (types 1-3) -> Types contract
+ */
+function getContractForMarketType(marketType) {
+  if (marketType === 0 || marketType === 'binary') {
+    return {
+      address: CONTRACTS.PREDICTION_MARKET_CORE,
+      abi: PREDICTION_MARKET_CORE_ABI,
+      source: 'core'
+    };
+  }
+  return {
+    address: CONTRACTS.PREDICTION_MARKET_TYPES,
+    abi: PREDICTION_MARKET_TYPES_ABI,
+    source: 'types'
+  };
+}
+
 
 export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   const [internalIsOpen, setInternalIsOpen] = useState(false);
@@ -113,17 +138,27 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   const [isPending, setIsPending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  // Admin check - dynamically fetch contract owner
-  const { data: contractOwner, isLoading: isLoadingOwner } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET,
-    abi: PREDICTION_MARKET_ABI,
+  // Admin check - dynamically fetch contract owner from BOTH contracts
+  const { data: coreOwner, isLoading: isLoadingCoreOwner } = useReadContract({
+    address: CONTRACTS.PREDICTION_MARKET_CORE,
+    abi: PREDICTION_MARKET_CORE_ABI,
     functionName: 'owner',
-    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET,
+    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET_CORE,
   });
 
-  const isAdmin = address && contractOwner 
-    ? address.toLowerCase() === contractOwner.toLowerCase() 
+  const { data: typesOwner, isLoading: isLoadingTypesOwner } = useReadContract({
+    address: CONTRACTS.PREDICTION_MARKET_TYPES,
+    abi: PREDICTION_MARKET_TYPES_ABI,
+    functionName: 'owner',
+    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET_TYPES,
+  });
+
+  const isAdmin = address && (coreOwner || typesOwner)
+    ? address.toLowerCase() === (coreOwner?.toLowerCase() || typesOwner?.toLowerCase())
     : false;
+
+  const isLoadingOwner = isLoadingCoreOwner || isLoadingTypesOwner;
+
 
 
   // --- PRICE FETCHING ---
@@ -131,12 +166,24 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     if (!publicClient || !asset) return null;
     setIsPriceLoading(true);
     try {
-      const price = await publicClient.readContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'getCurrentPrice',
-        args: [asset],
-      });
+      // Try Core contract first, then Types
+      let price;
+      try {
+        price = await publicClient.readContract({
+          address: CONTRACTS.PREDICTION_MARKET_CORE,
+          abi: PREDICTION_MARKET_CORE_ABI,
+          functionName: 'getCurrentPrice',
+          args: [asset],
+        });
+      } catch (coreError) {
+        // Fallback to Types contract
+        price = await publicClient.readContract({
+          address: CONTRACTS.PREDICTION_MARKET_TYPES,
+          abi: PREDICTION_MARKET_TYPES_ABI,
+          functionName: 'getCurrentPrice',
+          args: [asset],
+        });
+      }
 
       const priceNumber = parseFloat(formatUnits(price, 8));
       setCurrentAssetPrice(priceNumber);
@@ -149,6 +196,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       setIsPriceLoading(false);
     }
   }, [publicClient]);
+
 
   // Effect: Fetch price whenever Asset or Market Type changes
   useEffect(() => {
@@ -234,8 +282,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
 
   // Fetch dashboard stats
   const fetchStats = async () => {
-    if (!publicClient || !CONTRACTS.PREDICTION_MARKET) {
-      console.error('Missing publicClient or contract address');
+    if (!publicClient || !CONTRACTS.PREDICTION_MARKET_CORE || !CONTRACTS.PREDICTION_MARKET_TYPES) {
+      console.error('Missing publicClient or contract addresses');
       return;
     }
 
@@ -243,62 +291,111 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     setIsLoadingStats(true);
 
     try {
-      // 1. Get market counter
-      let marketCounter = 0n;
+      // 1. Get market counters from BOTH contracts
+      let coreCounter = 0n;
+      let typesCounter = 0n;
+      
       try {
-        marketCounter = await publicClient.readContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'marketCounter'
-        });
-        console.log('✅ Market counter:', marketCounter.toString());
+        [coreCounter, typesCounter] = await Promise.all([
+          publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET_CORE,
+            abi: PREDICTION_MARKET_CORE_ABI,
+            functionName: 'marketCounter'
+          }),
+          publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET_TYPES,
+            abi: PREDICTION_MARKET_TYPES_ABI,
+            functionName: 'marketCounter'
+          })
+        ]);
+        console.log('✅ Market counters:', { core: coreCounter.toString(), types: typesCounter.toString() });
       } catch (error) {
-        console.warn('⚠️ marketCounter() not available:', error.message);
+        console.warn('⚠️ marketCounter() failed:', error.message);
       }
 
-      // 2. Get accumulated fees
-      let accumulatedFees = 0n;
+      const totalMarkets = Number(coreCounter) + Number(typesCounter);
+
+      // 2. Get accumulated fees from BOTH contracts
+      let coreFees = 0n;
+      let typesFees = 0n;
+      
       try {
-        accumulatedFees = await publicClient.readContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'accumulatedFees'
+        [coreFees, typesFees] = await Promise.all([
+          publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET_CORE,
+            abi: PREDICTION_MARKET_CORE_ABI,
+            functionName: 'accumulatedFees'
+          }).catch(() => 0n),
+          publicClient.readContract({
+            address: CONTRACTS.PREDICTION_MARKET_TYPES,
+            abi: PREDICTION_MARKET_TYPES_ABI,
+            functionName: 'accumulatedFees'
+          }).catch(() => 0n)
+        ]);
+        console.log('✅ Accumulated fees:', { 
+          core: formatUnits(coreFees, 6), 
+          types: formatUnits(typesFees, 6) 
         });
-        console.log('✅ Accumulated fees:', formatUnits(accumulatedFees, 6), 'USDC');
       } catch (error) {
-        console.warn('⚠️ accumulatedFees() not available:', error.message);
+        console.warn('⚠️ accumulatedFees() failed:', error.message);
       }
 
-      // 3. Get contract USDC balance
-      let contractBalance = 0n;
+      const accumulatedFees = coreFees + typesFees;
+
+      // 3. Get contract USDC balances from BOTH contracts
+      let coreBalance = 0n;
+      let typesBalance = 0n;
+      
       try {
-        contractBalance = await publicClient.readContract({
-          address: CONTRACTS.USDC,
-          abi: ERC20_ABI,
-          functionName: 'balanceOf',
-          args: [CONTRACTS.PREDICTION_MARKET]
+        [coreBalance, typesBalance] = await Promise.all([
+          publicClient.readContract({
+            address: CONTRACTS.USDC,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [CONTRACTS.PREDICTION_MARKET_CORE]
+          }).catch(() => 0n),
+          publicClient.readContract({
+            address: CONTRACTS.USDC,
+            abi: ERC20_ABI,
+            functionName: 'balanceOf',
+            args: [CONTRACTS.PREDICTION_MARKET_TYPES]
+          }).catch(() => 0n)
+        ]);
+        console.log('✅ Contract balances:', { 
+          core: formatUnits(coreBalance, 6), 
+          types: formatUnits(typesBalance, 6) 
         });
-        console.log('✅ Contract balance:', formatUnits(contractBalance, 6), 'USDC');
       } catch (error) {
         console.warn('⚠️ balanceOf() failed:', error.message);
       }
 
-      // 4. Get bet events for user count and volume
+      const contractBalance = coreBalance + typesBalance;
+
+      // 4. Get bet events from BOTH contracts
       let totalBets = 0;
       let totalVolume = 0n;
       let uniqueUsers = new Set();
 
       try {
-        const logs = await publicClient.getLogs({
-          address: CONTRACTS.PREDICTION_MARKET,
-          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-          fromBlock: 'earliest',
-          toBlock: 'latest'
-        });
+        const [coreLogs, typesLogs] = await Promise.all([
+          publicClient.getLogs({
+            address: CONTRACTS.PREDICTION_MARKET_CORE,
+            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          }).catch(() => []),
+          publicClient.getLogs({
+            address: CONTRACTS.PREDICTION_MARKET_TYPES,
+            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
+            fromBlock: 'earliest',
+            toBlock: 'latest'
+          }).catch(() => [])
+        ]);
 
-        console.log(`✅ Found ${logs.length} bet events`);
+        const allLogs = [...coreLogs, ...typesLogs];
+        console.log(`✅ Found ${allLogs.length} bet events (${coreLogs.length} core, ${typesLogs.length} types)`);
 
-        logs.forEach(log => {
+        allLogs.forEach(log => {
           if (log.args.user) {
             uniqueUsers.add(log.args.user.toLowerCase());
           }
@@ -307,7 +404,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           }
         });
 
-        totalBets = logs.length;
+        totalBets = allLogs.length;
       } catch (error) {
         console.warn('⚠️ Event fetching failed:', error.message);
       }
@@ -323,7 +420,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       console.log('✅ Stats updated:', {
         users: uniqueUsers.size,
         volume: formatUnits(totalVolume, 6),
-        bets: totalBets
+        bets: totalBets,
+        totalMarkets
       });
 
     } catch (error) {
@@ -334,9 +432,9 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
+
   /**
    * Helper function to format timeframe labels
-   * ADD THIS to AdminPanel.jsx (before fetchSingleMarket)
    */
   const formatTimeframeLabel = (seconds) => {
     const hours = seconds / 3600;
@@ -352,14 +450,14 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
 
   /**
    * Fetch a single market with all type-specific data
-   * ADD THIS NEW FUNCTION to AdminPanel.jsx (before fetchMarkets)
+   * Updated for dual contract architecture
    */
-  const fetchSingleMarket = async (publicClient, marketId) => {
+  const fetchSingleMarket = async (publicClient, marketId, contract, contractType) => {
     try {
       // Step 1: Get base market data
       const market = await publicClient.readContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: contract.address,
+        abi: contract.abi,
         functionName: 'getMarket',
         args: [BigInt(marketId)]
       });
@@ -384,111 +482,121 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         useFixedOdds: market.useFixedOdds || false,
         yesPool: market.yesPool ? Number(market.yesPool) / 1e6 : 0,
         noPool: market.noPool ? Number(market.noPool) / 1e6 : 0,
+        contractSource: contractType,
+        contractAddress: contract.address,
       };
 
-      // Step 3: Fetch type-specific data
-      if (marketType === 1) {
-        // MULTI-CHOICE: Fetch options
-        try {
-          const options = await publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getMultiChoiceOptions',
-            args: [BigInt(marketId)]
-          });
-          baseMarket.options = options || [];
-        } catch (error) {
-          console.warn(`Failed to fetch options for market ${marketId}:`, error.message);
-          baseMarket.options = [];
+      // Step 3: Fetch type-specific data (only from Types contract)
+      if (contractType === 'types') {
+        if (marketType === 1) {
+          // MULTI-CHOICE: Fetch options
+          try {
+            const options = await publicClient.readContract({
+              address: contract.address,
+              abi: contract.abi,
+              functionName: 'getMultiChoiceOptions',
+              args: [BigInt(marketId)]
+            });
+            baseMarket.options = options || [];
+          } catch (error) {
+            console.warn(`Failed to fetch options for market ${marketId}:`, error.message);
+            baseMarket.options = [];
+          }
+
+          // Fetch multipliers
+          try {
+            const multipliers = await publicClient.readContract({
+              address: contract.address,
+              abi: contract.abi,
+              functionName: 'getCurrentOdds',
+              args: [BigInt(marketId)]
+            });
+            baseMarket.multipliers = (multipliers || []).map(m => Number(m));
+          } catch (error) {
+            baseMarket.multipliers = [];
+          }
+        } 
+        else if (marketType === 2) {
+          // RANGE: Fetch ranges
+          try {
+            const rangeData = await publicClient.readContract({
+              address: contract.address,
+              abi: contract.abi,
+              functionName: 'getRangeMarketData',
+              args: [BigInt(marketId)]
+            });
+
+            const mins = rangeData.mins || rangeData[0] || [];
+            const maxs = rangeData.maxs || rangeData[1] || [];
+
+            baseMarket.ranges = mins.map((min, idx) => ({
+              min: Number(min) / 1e8,
+              max: Number(maxs[idx]) / 1e8
+            }));
+          } catch (error) {
+            console.warn(`Failed to fetch range data for market ${marketId}:`, error.message);
+            baseMarket.ranges = [];
+          }
+
+          // Fetch multipliers
+          try {
+            const multipliers = await publicClient.readContract({
+              address: contract.address,
+              abi: contract.abi,
+              functionName: 'getCurrentOdds',
+              args: [BigInt(marketId)]
+            });
+            baseMarket.multipliers = (multipliers || []).map(m => Number(m));
+          } catch (error) {
+            baseMarket.multipliers = [];
+          }
+        } 
+        else if (marketType === 3) {
+          // TIME: Fetch target price and timeframes
+          try {
+            const timeData = await publicClient.readContract({
+              address: contract.address,
+              abi: contract.abi,
+              functionName: 'getTimeMarketData',
+              args: [BigInt(marketId)]
+            });
+
+            const targetPrice = timeData.targetPrice || timeData[0];
+            const timeframeSeconds = timeData.timeframes || timeData[1] || [];
+
+            baseMarket.targetPrice = Number(targetPrice) / 1e8;
+            baseMarket.timeframes = timeframeSeconds.map((seconds, idx) => {
+              const secondsNum = Number(seconds);
+              return {
+                label: formatTimeframeLabel(secondsNum),
+                seconds: secondsNum
+              };
+            });
+          } catch (error) {
+            console.warn(`Failed to fetch time data for market ${marketId}:`, error.message);
+            baseMarket.targetPrice = 0;
+            baseMarket.timeframes = [];
+          }
+
+          // Fetch multipliers
+          try {
+            const multipliers = await publicClient.readContract({
+              address: contract.address,
+              abi: contract.abi,
+              functionName: 'getCurrentOdds',
+              args: [BigInt(marketId)]
+            });
+            baseMarket.multipliers = (multipliers || []).map(m => Number(m));
+          } catch (error) {
+            baseMarket.multipliers = [];
+          }
         }
-
-        // Fetch multipliers
-        try {
-          const multipliers = await publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getCurrentOdds',
-            args: [BigInt(marketId)]
-          });
-          baseMarket.multipliers = (multipliers || []).map(m => Number(m));
-        } catch (error) {
-          baseMarket.multipliers = [];
-        }
-      } 
-      else if (marketType === 2) {
-        // RANGE: Fetch ranges
-        try {
-          const rangeData = await publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getRangeMarketData',
-            args: [BigInt(marketId)]
-          });
-
-          const mins = rangeData.mins || rangeData[0] || [];
-          const maxs = rangeData.maxs || rangeData[1] || [];
-
-          baseMarket.ranges = mins.map((min, idx) => ({
-            min: Number(min) / 1e8,
-            max: Number(maxs[idx]) / 1e8
-          }));
-        } catch (error) {
-          console.warn(`Failed to fetch range data for market ${marketId}:`, error.message);
-          baseMarket.ranges = [];
-        }
-
-        // Fetch multipliers
-        try {
-          const multipliers = await publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getCurrentOdds',
-            args: [BigInt(marketId)]
-          });
-          baseMarket.multipliers = (multipliers || []).map(m => Number(m));
-        } catch (error) {
-          baseMarket.multipliers = [];
-        }
-      } 
-      else if (marketType === 3) {
-        // TIME: Fetch target price and timeframes
-        try {
-          const timeData = await publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getTimeMarketData',
-            args: [BigInt(marketId)]
-          });
-
-          const targetPrice = timeData.targetPrice || timeData[0];
-          const timeframeSeconds = timeData.timeframes || timeData[1] || [];
-
-          baseMarket.targetPrice = Number(targetPrice) / 1e8;
-          baseMarket.timeframes = timeframeSeconds.map((seconds, idx) => {
-            const secondsNum = Number(seconds);
-            return {
-              label: formatTimeframeLabel(secondsNum),
-              seconds: secondsNum
-            };
-          });
-        } catch (error) {
-          console.warn(`Failed to fetch time data for market ${marketId}:`, error.message);
-          baseMarket.targetPrice = 0;
-          baseMarket.timeframes = [];
-        }
-
-        // Fetch multipliers
-        try {
-          const multipliers = await publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET,
-            abi: PREDICTION_MARKET_ABI,
-            functionName: 'getCurrentOdds',
-            args: [BigInt(marketId)]
-          });
-          baseMarket.multipliers = (multipliers || []).map(m => Number(m));
-        } catch (error) {
-          baseMarket.multipliers = [];
-        }
+      } else {
+        // Binary market (type 0) from Core contract
+        baseMarket.multipliers = [
+          market.yesMultiplier ? Number(market.yesMultiplier) : 0,
+          market.noMultiplier ? Number(market.noMultiplier) : 0
+        ];
       }
 
       return baseMarket;
@@ -499,55 +607,70 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
+
   /**
-   * FIXED fetchMarkets function for AdminPanel.jsx
-   * Replace the existing fetchMarkets function (around line 200)
+   * Fetch markets from a specific contract
    */
-
-  // Fetch markets for manage tab
-  const fetchMarkets = async () => {
-    if (!publicClient || !CONTRACTS.PREDICTION_MARKET) {
-      console.error('Missing publicClient or contract address');
-      return;
-    }
-
-    console.log('📋 Fetching markets...');
-    setIsLoadingMarkets(true);
-
+  const fetchMarketsFromContract = async (publicClient, contract, contractType) => {
     try {
-      // Get total market count
-      let marketCounter = 0n;
-      try {
-        marketCounter = await publicClient.readContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'marketCounter'
-        });
-        console.log('✅ Total markets:', marketCounter.toString());
-      } catch (error) {
-        console.error('❌ marketCounter() failed:', error.message);
-        toast.error('Cannot fetch markets - contract may be missing marketCounter()');
-        setIsLoadingMarkets(false);
-        return;
-      }
+      const marketCounter = await publicClient.readContract({
+        address: contract.address,
+        abi: contract.abi,
+        functionName: 'marketCounter'
+      });
 
-      if (marketCounter === 0n) {
-        console.log('ℹ️ No markets created yet');
-        setMarkets([]);
-        setIsLoadingMarkets(false);
-        return;
-      }
+      const totalMarkets = Number(marketCounter);
+      console.log(`📋 Fetching ${totalMarkets} markets from ${contractType}...`);
+
+      if (totalMarkets === 0) return [];
 
       // Fetch each market with full data
       const marketPromises = [];
-      for (let i = 0; i < Number(marketCounter); i++) {
-        marketPromises.push(fetchSingleMarket(publicClient, i));
+      for (let i = 0; i < totalMarkets; i++) {
+        marketPromises.push(fetchSingleMarket(publicClient, i, contract, contractType));
       }
 
       const validMarkets = (await Promise.all(marketPromises)).filter(m => m !== null);
+      console.log(`✅ Loaded ${validMarkets.length} markets from ${contractType}`);
+      
+      return validMarkets;
+    } catch (error) {
+      console.warn(`⚠️ Failed to fetch markets from ${contractType}:`, error.message);
+      return [];
+    }
+  };
 
-      console.log(`✅ Loaded ${validMarkets.length} markets`);
-      setMarkets(validMarkets);
+  // Fetch markets for manage tab
+  const fetchMarkets = async () => {
+    if (!publicClient || !CONTRACTS.PREDICTION_MARKET_CORE || !CONTRACTS.PREDICTION_MARKET_TYPES) {
+      console.error('Missing publicClient or contract addresses');
+      return;
+    }
+
+    console.log('📋 Fetching markets from both contracts...');
+    setIsLoadingMarkets(true);
+
+    try {
+      // Fetch from both contracts in parallel
+      const coreContract = {
+        address: CONTRACTS.PREDICTION_MARKET_CORE,
+        abi: PREDICTION_MARKET_CORE_ABI
+      };
+      const typesContract = {
+        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        abi: PREDICTION_MARKET_TYPES_ABI
+      };
+
+      const [coreMarkets, typesMarkets] = await Promise.all([
+        fetchMarketsFromContract(publicClient, coreContract, 'core'),
+        fetchMarketsFromContract(publicClient, typesContract, 'types')
+      ]);
+
+      // Combine and sort by end time
+      const allMarkets = [...coreMarkets, ...typesMarkets].sort((a, b) => b.endTime - a.endTime);
+
+      console.log(`✅ Loaded ${allMarkets.length} markets total (${coreMarkets.length} core, ${typesMarkets.length} types)`);
+      setMarkets(allMarkets);
 
     } catch (error) {
       console.error('❌ Failed to fetch markets:', error);
@@ -556,6 +679,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       setIsLoadingMarkets(false);
     }
   };
+
 
 
   // Handle withdraw fees
@@ -572,20 +696,50 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
 
     try {
       setIsPending(true);
-      const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'withdrawFees',
-        account: address
-      });
+      
+      // Withdraw from both contracts
+      const withdrawPromises = [];
+      
+      if (CONTRACTS.PREDICTION_MARKET_CORE) {
+        withdrawPromises.push(
+          walletClient.writeContract({
+            address: CONTRACTS.PREDICTION_MARKET_CORE,
+            abi: PREDICTION_MARKET_CORE_ABI,
+            functionName: 'withdrawFees',
+            account: address
+          }).catch(err => {
+            console.log('Core withdraw skipped or failed:', err.message);
+            return null;
+          })
+        );
+      }
+      
+      if (CONTRACTS.PREDICTION_MARKET_TYPES) {
+        withdrawPromises.push(
+          walletClient.writeContract({
+            address: CONTRACTS.PREDICTION_MARKET_TYPES,
+            abi: PREDICTION_MARKET_TYPES_ABI,
+            functionName: 'withdrawFees',
+            account: address
+          }).catch(err => {
+            console.log('Types withdraw skipped or failed:', err.message);
+            return null;
+          })
+        );
+      }
 
       toast.loading('Withdrawing fees...', { id: 'withdraw' });
       setIsConfirming(true);
 
-      await publicClient.waitForTransactionReceipt({ hash });
+      const results = await Promise.all(withdrawPromises);
+      const successCount = results.filter(r => r !== null).length;
 
-      toast.success('Fees withdrawn successfully!', { id: 'withdraw' });
-      fetchStats(); // Refresh stats
+      if (successCount > 0) {
+        toast.success(`Fees withdrawn from ${successCount} contract(s)!`, { id: 'withdraw' });
+        fetchStats(); // Refresh stats
+      } else {
+        toast.error('No fees were withdrawn', { id: 'withdraw' });
+      }
 
     } catch (error) {
       console.error('Withdraw error:', error);
@@ -596,7 +750,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
-  // Handle resolve market
+
+  // ✅ FIXED: Handle resolve market (removed duplicate, uses correct contracts)
   const handleResolve = async (market) => {
     if (!walletClient || !address) {
       toast.error('Please connect wallet');
@@ -606,6 +761,9 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     try {
       setResolvingId(market.id);
       setIsPending(true);
+
+      // ✅ Get correct contract based on market.contractSource
+      const contract = getContractForMarketType(market.marketType);
 
       let hash;
       let functionName = 'resolveMarket';
@@ -621,8 +779,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         }
 
         hash = await walletClient.writeContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
+          address: contract.address,
+          abi: contract.abi,
           functionName: 'resolveMultiChoiceMarket',
           args: [BigInt(market.id), winningChoice],
           account: address
@@ -630,8 +788,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       } else if (market.marketType === 2) { // RANGE
         functionName = 'resolveRangeMarket';
         hash = await walletClient.writeContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
+          address: contract.address,
+          abi: contract.abi,
           functionName: functionName,
           args: [BigInt(market.id)],
           account: address
@@ -639,16 +797,16 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       } else if (market.marketType === 3) { // TIME
         functionName = 'resolveTimeMarket';
         hash = await walletClient.writeContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
+          address: contract.address,
+          abi: contract.abi,
           functionName: functionName,
           args: [BigInt(market.id)],
           account: address
         });
       } else { // BINARY (0)
         hash = await walletClient.writeContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
+          address: contract.address,
+          abi: contract.abi,
           functionName: 'resolveMarket',
           args: [BigInt(market.id)],
           account: address
@@ -673,7 +831,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
-  // --- CREATE MARKETS ---
+  // ✅ FIXED: Create Binary Market (uses CORE contract)
   const createBinaryMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -681,8 +839,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       toast.loading('Creating binary market...', { id: 'create-market' });
       
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PREDICTION_MARKET_CORE,  // ✅ FIXED: Use Core contract
+        abi: PREDICTION_MARKET_CORE_ABI,             // ✅ FIXED: Use Core ABI
         functionName: 'createMarketWithOdds',
         args: [
           sanitizeInput(binaryForm.asset),
@@ -707,6 +865,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
+  // ✅ FIXED: Create MultiChoice Market (uses TYPES contract)
   const createMultiChoiceMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -726,8 +885,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       toast.loading('Creating multi-choice market...', { id: 'create-market' });
       
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PREDICTION_MARKET_TYPES,  // ✅ FIXED: Use Types contract
+        abi: PREDICTION_MARKET_TYPES_ABI,             // ✅ FIXED: Use Types ABI
         functionName: 'createMultiChoiceMarketWithOdds',
         args: [
           sanitizeInput(multiChoiceForm.asset),
@@ -753,6 +912,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
+  // ✅ FIXED: Create Range Market (uses TYPES contract)
   const createRangeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -763,8 +923,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       toast.loading('Creating range market...', { id: 'create-market' });
       
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PREDICTION_MARKET_TYPES,  // ✅ FIXED: Use Types contract
+        abi: PREDICTION_MARKET_TYPES_ABI,             // ✅ FIXED: Use Types ABI
         functionName: 'createRangeMarketWithOdds',
         args: [
           sanitizeInput(rangeForm.asset),
@@ -790,6 +950,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
+  // ✅ ALREADY CORRECT: Create Time Market (uses TYPES contract)
   const createTimeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -800,8 +961,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       toast.loading('Creating time-based market...', { id: 'create-market' });
       
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        abi: PREDICTION_MARKET_TYPES_ABI,
         functionName: 'createTimeMarketWithOdds',
         args: [
           sanitizeInput(timeForm.asset),
@@ -824,6 +985,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       setIsPending(false);
     }
   };
+
 
 
   const handleCreate = () => {
@@ -918,12 +1080,13 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
                   stats={stats}
                   isLoadingStats={isLoadingStats}
                   handleWithdraw={handleWithdraw}
-                  contractAddress={CONTRACTS.PREDICTION_MARKET}
+                  contractAddress={CONTRACTS.PREDICTION_MARKET_CORE}
                   isPending={isPending}
                   isConfirming={isConfirming}
-                  onNavigate={setActiveTab}  // ✨ NEW: Enables quick action buttons
+                  onNavigate={setActiveTab}
                 />
               )}
+
 
 
               {activeTab === 'create' && (

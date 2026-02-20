@@ -81,7 +81,16 @@ export const CONTRACTS = {
   USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   // PredictionMarket contract
   PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x0000000000000000000000000000000000000000',
+  // TrenchyReferrals contract - Referral tracking system
+  REFERRALS: import.meta.env.VITE_REFERRALS_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
+  // TrenchyAchievements contract - Achievements & badges system
+  ACHIEVEMENTS: import.meta.env.VITE_ACHIEVEMENTS_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
+  // LaunchAirdrop contract - Airdrop for early users
+  AIRDROP: import.meta.env.VITE_AIRDROP_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
+  // FirstBetInsurance contract - Insurance for first bet
+  INSURANCE: import.meta.env.VITE_INSURANCE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
 };
+
 
 // Price Feeds (Chainlink on Base Sepolia)
 export const PRICE_FEEDS = {

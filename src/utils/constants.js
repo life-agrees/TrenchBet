@@ -3,6 +3,18 @@
  * All magic numbers should be defined here for maintainability
  */
 
+// ==========================================
+// MODULAR PREDICTION MARKET CONTRACTS (Phase 2)
+// Deployed to Base Sepolia: 2024
+// ==========================================
+export const PREDICTION_MARKET_CORE_ADDRESS = "0xb8f08E9CF766389A534dcE49C72E33F92fC4bc30";
+export const PREDICTION_MARKET_TYPES_ADDRESS = "0x5BdD5381a283Fb04167019BE35b2102429c8d621";
+export const CHAINLINK_RESOLVER_ADDRESS = "0xd7DF4928590768666A427605BeCE3156C22D199E";
+export const TRENCHY_STAKING_ADDRESS = "0x2513f27B994523B2DB87dE2F3c6C79d6E1557228";
+// Note: PredictionMarketPayoutLib is embedded at compile time, no separate address needed
+
+
+
 // Time durations in milliseconds
 export const DURATIONS = {
   DEBOUNCE: 300,                    // Search input debounce
@@ -123,7 +135,90 @@ export const CONTRACTS = {
   // USDC on Base Sepolia Testnet (NOT mainnet!)
   // This is the testnet USDC contract for testing
   USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  // PredictionMarket contract - Updated with Time-Decay Odds feature
+  // PredictionMarket contract - DEPRECATED: Use PREDICTION_MARKET_CORE or PREDICTION_MARKET_TYPES
   PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x5c07E771b5BC9e574b551A3f032AE3A8A3BeeE9E',
+  // Modular Prediction Market Contracts (Phase 2)
+  // Core contract: Handles binary (UP/DOWN) markets
+  PREDICTION_MARKET_CORE: import.meta.env.VITE_PREDICTION_MARKET_CORE_ADDRESS || PREDICTION_MARKET_CORE_ADDRESS,
+  // Types contract: Handles multi-choice, range, and time-based markets
+  PREDICTION_MARKET_TYPES: import.meta.env.VITE_PREDICTION_MARKET_TYPES_ADDRESS || PREDICTION_MARKET_TYPES_ADDRESS,
 
+  // TrenchyReferrals contract - Referral tracking system
+  REFERRALS: import.meta.env.VITE_REFERRALS_CONTRACT_ADDRESS || '0xF5f960a38d6cCF8EabD06fF6fcB15Ee1bBA4021f',
+  // TrenchyAchievements contract - Achievements & badges system
+  ACHIEVEMENTS: import.meta.env.VITE_ACHIEVEMENTS_CONTRACT_ADDRESS || '0x52D0F8A6c40807d149f382E89949511378056781',
+  // TrenchyStreaks contract - Streak tracking system
+  STREAKS: import.meta.env.VITE_STREAKS_CONTRACT_ADDRESS || '0xcBB0b5e027a4C2baFCAa928949d889B577646C70',
+  // LaunchAirdrop contract - Airdrop for early users
+  AIRDROP: import.meta.env.VITE_AIRDROP_CONTRACT_ADDRESS || '0x0971F70091Dc0F956033e991FBF8A9e803a5Ff3b',
+  // FirstBetInsurance contract - Insurance for first bet
+  INSURANCE: import.meta.env.VITE_INSURANCE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
+
+  // ChainlinkResolver contract - Automated market resolution
+  CHAINLINK_RESOLVER: import.meta.env.VITE_CHAINLINK_RESOLVER_ADDRESS || '0xd7DF4928590768666A427605BeCE3156C22D199E',
+  // TrenchyStaking contract - Tiered staking system
+  STAKING: import.meta.env.VITE_STAKING_CONTRACT_ADDRESS || '0x2513f27B994523B2DB87dE2F3c6C79d6E1557228',
+
+};
+
+// Export individual addresses for convenience
+// Note: CHAINLINK_RESOLVER_ADDRESS and TRENCHY_STAKING_ADDRESS are defined at the top of this file
+
+// Referral System Configuration
+
+export const REFERRAL = {
+  REWARD_AMOUNT: '10', // TRENCHY tokens per referral
+  MAX_REFERRALS_PER_USER: 100,
+};
+
+// Achievement Configuration
+export const ACHIEVEMENTS = {
+  // Achievement IDs
+  FIRST_BET: 0,
+  WIN_STREAK_3: 1,
+  WIN_STREAK_5: 2,
+  WHALE: 3,
+  SHARPSHOOTER: 4,
+  EARLY_BIRD: 5,
+  SPEED_DEMON: 6,
+  SOCIAL_BUTTERFLY: 7,
+  DIAMOND_HANDS: 8,
+  ORACLE: 9,
+  TRENDSETTER: 10,
+  FOUNDER: 11,
+  
+  // Points per achievement
+  POINTS: {
+    FIRST_BET: 50,
+    WIN_STREAK_3: 100,
+    WIN_STREAK_5: 200,
+    WHALE: 150,
+    SHARPSHOOTER: 300,
+    EARLY_BIRD: 50,
+    SPEED_DEMON: 100,
+    SOCIAL_BUTTERFLY: 150,
+    DIAMOND_HANDS: 250,
+    ORACLE: 500,
+    TRENDSETTER: 75,
+    FOUNDER: 1000,
+  },
+};
+
+// Airdrop Configuration
+export const AIRDROP = {
+  AMOUNT: '100', // TRENCHY tokens
+  MAX_RECIPIENTS: 1000,
+};
+
+// Insurance Configuration
+export const INSURANCE = {
+  MAX_COVERAGE: '100', // USDC
+};
+
+// Bet Credits Configuration
+export const BET_CREDITS = {
+  DEFAULT_AWARD_AMOUNT: '20', // USDC equivalent
+  STREAK_REQUIREMENT: 3, // days
+  VOLUME_REQUIREMENT: 10, // bets
+  REFERRAL_REQUIREMENT: 2, // friends
 };

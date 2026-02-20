@@ -105,7 +105,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     uint256 public accumulatedFees;
     uint256 public lastFeeWithdrawal;
     
+    // Bet credits system - non-withdrawable USDC for betting
+    mapping(address => uint256) public betCredits;
+    
     mapping(address => UserStats) public userStats;
+
     
     struct UserStats {
         uint256 totalBets;
@@ -124,6 +128,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee);
     event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount);
     event FeesWithdrawn(address indexed owner, uint256 amount);
+    event BetCreditAwarded(address indexed user, uint256 amount);
+    event BetCreditUsed(address indexed user, uint256 amount);
+
 
     
     constructor(address _usdc, address _owner) {
@@ -1077,6 +1084,177 @@ contract PredictionMarket is ReentrancyGuard, Ownable, Pausable {
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         IERC20(token).transfer(msg.sender, amount);
     }
+    
+    // ==================== BET CREDITS SYSTEM ====================
+    
+    /**
+     * @notice Award bet credits to a user (admin only)
+     * @param user User address to award credits to
+     * @param amount Amount of USDC credits to award
+     */
+    function awardBetCredit(address user, uint256 amount) external onlyOwner {
+        require(amount > 0, "Amount must be > 0");
+        require(user != address(0), "Invalid user address");
+        
+        // Transfer USDC from admin to contract
+        require(usdc.transferFrom(msg.sender, address(this), amount), "USDC transfer failed");
+        
+        betCredits[user] += amount;
+        
+        emit BetCreditAwarded(user, amount);
+    }
+    
+    /**
+     * @notice Get user's bet credit balance
+     * @param user User address
+     * @return Bet credit balance
+     */
+    function getBetCredits(address user) external view returns (uint256) {
+        return betCredits[user];
+    }
+    
+    /**
+     * @notice Place a bet using bet credits
+     * @param marketId Market ID to bet on
+     * @param choice Choice index
+     * @param creditAmount Amount of credits to use
+     */
+    function placeBetWithCredits(
+        uint256 marketId,
+        uint8 choice,
+        uint256 creditAmount
+    ) external nonReentrant whenNotPaused {
+        require(creditAmount > 0, "Credit amount must be > 0");
+        require(betCredits[msg.sender] >= creditAmount, "Insufficient bet credits");
+        
+        // Deduct credits first
+        betCredits[msg.sender] -= creditAmount;
+        emit BetCreditUsed(msg.sender, creditAmount);
+        
+        // Place the bet with credits
+        _placeBetInternal(marketId, choice, creditAmount, true);
+    }
+    
+    /**
+     * @notice Place a bet using both credits and real USDC
+     * @param marketId Market ID to bet on
+     * @param choice Choice index
+     * @param usdcAmount Amount of real USDC to use
+     * @param creditAmount Amount of credits to use
+     */
+    function placeBetWithMixed(
+        uint256 marketId,
+        uint8 choice,
+        uint256 usdcAmount,
+        uint256 creditAmount
+    ) external nonReentrant whenNotPaused {
+        require(usdcAmount > 0 || creditAmount > 0, "Must bet something");
+        
+        uint256 totalBet = usdcAmount + creditAmount;
+        
+        // Handle credits
+        if (creditAmount > 0) {
+            require(betCredits[msg.sender] >= creditAmount, "Insufficient bet credits");
+            betCredits[msg.sender] -= creditAmount;
+            emit BetCreditUsed(msg.sender, creditAmount);
+        }
+        
+        // Handle USDC transfer
+        if (usdcAmount > 0) {
+            require(usdc.transferFrom(msg.sender, address(this), usdcAmount), "USDC transfer failed");
+        }
+        
+        // Place the combined bet
+        _placeBetInternal(marketId, choice, totalBet, creditAmount > 0);
+    }
+    
+    /**
+     * @notice Internal function to place a bet
+     * @param marketId Market ID
+     * @param choice Choice index
+     * @param amount Total bet amount
+     * @param usedCredits Whether credits were used
+     */
+    function _placeBetInternal(
+        uint256 marketId,
+        uint8 choice,
+        uint256 amount,
+        bool usedCredits
+    ) internal {
+        Market storage market = markets[marketId];
+        require(market.startTime > 0, "Market does not exist");
+        require(block.timestamp < market.endTime, "Market has ended");
+        require(!market.resolved, "Market already resolved");
+        require(amount > 0 && amount <= MAX_BET_AMOUNT, "Invalid amount");
+        
+        if (market.marketType == MarketType.BINARY) {
+            require(choice <= 1, "Invalid binary choice");
+        } else if (market.marketType == MarketType.MULTI_CHOICE) {
+            require(choice < multiChoiceMarkets[marketId].options.length, "Invalid option");
+        } else if (market.marketType == MarketType.RANGE) {
+            require(choice < rangeMarkets[marketId].rangeMins.length, "Invalid range");
+        } else if (market.marketType == MarketType.TIME_BASED) {
+            require(choice < timeMarkets[marketId].timeframes.length, "Invalid timeframe");
+        }
+        
+        // Update pools
+        if (market.marketType == MarketType.BINARY) {
+            if (choice == 1) {
+                market.yesPool += amount;
+            } else {
+                market.noPool += amount;
+            }
+        } else if (market.marketType == MarketType.MULTI_CHOICE) {
+            multiChoiceMarkets[marketId].optionPools[choice] += amount;
+        } else if (market.marketType == MarketType.RANGE) {
+            rangeMarkets[marketId].rangePools[choice] += amount;
+        } else if (market.marketType == MarketType.TIME_BASED) {
+            timeMarkets[marketId].timeframePools[choice] += amount;
+        }
+        
+        market.totalBets++;
+        
+        // Calculate effective multiplier at bet time
+        uint256 effectiveMultiplier = 0;
+        if (market.useFixedOdds) {
+            uint256 baseMultiplier;
+            if (market.marketType == MarketType.BINARY) {
+                baseMultiplier = (choice == 1) ? market.yesMultiplier : market.noMultiplier;
+            } else if (market.marketType == MarketType.MULTI_CHOICE) {
+                baseMultiplier = multiChoiceMarkets[marketId].optionMultipliers[choice];
+            } else if (market.marketType == MarketType.RANGE) {
+                baseMultiplier = rangeMarkets[marketId].rangeMultipliers[choice];
+            } else if (market.marketType == MarketType.TIME_BASED) {
+                baseMultiplier = timeMarkets[marketId].timeframeMultipliers[choice];
+            } else {
+                baseMultiplier = 200;
+            }
+            effectiveMultiplier = _calculateDecayedMultiplier(market, baseMultiplier);
+        }
+        
+        Position memory position = Position({
+            marketId: marketId,
+            user: msg.sender,
+            predictedUp: (choice == 1 && market.marketType == MarketType.BINARY),
+            choice: choice,
+            amount: amount,
+            claimed: false,
+            effectiveMultiplier: effectiveMultiplier
+        });
+        
+        uint256 positionIndex = marketPositions[marketId].length;
+        marketPositions[marketId].push(position);
+        
+        if (userMarketPositions[marketId][msg.sender].length == 0) {
+            userPositions[msg.sender].push(marketId);
+        }
+        userMarketPositions[marketId][msg.sender].push(positionIndex);
+        
+        userStats[msg.sender].totalBets++;
+        
+        emit BetPlaced(marketId, msg.sender, choice, amount, effectiveMultiplier);
+    }
+
     
     /**
      * @notice Calculate potential payout for a bet with time-decayed odds

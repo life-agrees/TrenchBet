@@ -8,7 +8,9 @@ import 'dotenv/config';
 
 // === CONFIG ===
 const ALCHEMY_URL = `https://base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
-const CONTRACT_ADDRESS = process.env.PREDICTION_MARKET_ADDRESS;
+const CORE_CONTRACT_ADDRESS = process.env.PREDICTION_MARKET_CORE_ADDRESS;
+const TYPES_CONTRACT_ADDRESS = process.env.PREDICTION_MARKET_TYPES_ADDRESS;
+
 
 // Supabase client
 const supabase = createClient(
@@ -171,7 +173,8 @@ async function handleWinningsClaimed(log) {
 // === POLLING LISTENER ===
 async function startListener() {
   console.log('🚀 TrenchyBet Points Listener Starting...');
-  console.log(`📍 Watching contract: ${CONTRACT_ADDRESS}`);
+  console.log(`📍 Watching Core: ${CORE_CONTRACT_ADDRESS}`);
+  console.log(`📍 Watching Types: ${TYPES_CONTRACT_ADDRESS}`);
   
   // Get the latest block number
   const latestBlock = await publicClient.getBlockNumber();
@@ -192,33 +195,53 @@ async function startListener() {
       
       console.log(`🔍 Scanning blocks ${lastProcessedBlock + 1n} to ${currentBlock}...`);
       
-      // Fetch BetPlaced events
-      const betLogs = await publicClient.getLogs({
-        address: CONTRACT_ADDRESS,
-        event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-        fromBlock: lastProcessedBlock + 1n,
-        toBlock: currentBlock,
-      });
+      // Fetch BetPlaced events from BOTH contracts
+      const [coreBetLogs, typesBetLogs] = await Promise.all([
+        publicClient.getLogs({
+          address: CORE_CONTRACT_ADDRESS,
+          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
+          fromBlock: lastProcessedBlock + 1n,
+          toBlock: currentBlock,
+        }),
+        publicClient.getLogs({
+          address: TYPES_CONTRACT_ADDRESS,
+          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
+          fromBlock: lastProcessedBlock + 1n,
+          toBlock: currentBlock,
+        })
+      ]);
       
-      // Fetch WinningsClaimed events
-      const winLogs = await publicClient.getLogs({
-        address: CONTRACT_ADDRESS,
-        event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
-        fromBlock: lastProcessedBlock + 1n,
-        toBlock: currentBlock,
-      });
+      // Fetch WinningsClaimed events from BOTH contracts
+      const [coreWinLogs, typesWinLogs] = await Promise.all([
+        publicClient.getLogs({
+          address: CORE_CONTRACT_ADDRESS,
+          event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
+          fromBlock: lastProcessedBlock + 1n,
+          toBlock: currentBlock,
+        }),
+        publicClient.getLogs({
+          address: TYPES_CONTRACT_ADDRESS,
+          event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
+          fromBlock: lastProcessedBlock + 1n,
+          toBlock: currentBlock,
+        })
+      ]);
+      
+      // Combine logs from both contracts
+      const allBetLogs = [...coreBetLogs, ...typesBetLogs];
+      const allWinLogs = [...coreWinLogs, ...typesWinLogs];
       
       // Process events sequentially (to avoid race conditions)
-      for (const log of betLogs) {
+      for (const log of allBetLogs) {
         await handleBetPlaced(log);
       }
       
-      for (const log of winLogs) {
+      for (const log of allWinLogs) {
         await handleWinningsClaimed(log);
       }
       
-      if (betLogs.length > 0 || winLogs.length > 0) {
-        console.log(`✅ Processed ${betLogs.length} bets, ${winLogs.length} wins`);
+      if (allBetLogs.length > 0 || allWinLogs.length > 0) {
+        console.log(`✅ Processed ${allBetLogs.length} bets (${coreBetLogs.length} core, ${typesBetLogs.length} types), ${allWinLogs.length} wins (${coreWinLogs.length} core, ${typesWinLogs.length} types)`);
         console.log('');
       }
       
@@ -230,6 +253,7 @@ async function startListener() {
     }
   }, 5000); // Poll every 5 seconds
 }
+
 
 // === STARTUP ===
 async function main() {

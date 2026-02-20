@@ -18,6 +18,10 @@ import PointsBalance from './components/PointsBalance';
 import PointsHistoryModal from './components/PointsHistoryModal';
 import ShareModal from './components/ShareModal';
 import NotificationSettings from './components/NotificationSettings';
+import NotificationCenter from './components/NotificationCenter';
+import ReferralDashboard from './components/ReferralDashboard';
+import AchievementsPage from './components/AchievementsPage';
+import AirdropClaimModal from './components/AirdropClaimModal';
 import MarketCard from './components/MarketCard';
 import BetModal from './components/BetModal';
 import VirtualMarketList from './components/VirtualMarketList';
@@ -30,8 +34,12 @@ import { calculateMarketPercentages, formatOddsDisplay } from './marketUtils';
 // Custom hooks
 import { useMarkets } from './hooks/useMarkets';
 import { useUserBets } from './hooks/useUserBets';
-import { useNotifications } from './hooks/useNotifications';
+import { useEnhancedNotifications } from './hooks/useEnhancedNotifications';
 import { useUserStats } from './hooks/useUserStats';
+import { useReferrals } from './hooks/useReferrals';
+import { useAchievements } from './hooks/useAchievements';
+import { useBetCredits } from './hooks/useBetCredits';
+import { useFirstBetInsurance } from './hooks/useFirstBetInsurance';
 import { useBetPlacement } from './hooks/useBetPlacement';
 import { useAdminOwner } from './hooks/useAdminOwner';
 import { useBalance } from './hooks/useBalance';
@@ -40,8 +48,6 @@ import { usePrefetchMarket } from './hooks/usePrefetchMarket';
 import { useCurrentPrices } from './hooks/useCurrentPrice';
 import { useFavorites } from './hooks/useFavorites';
 import { trackBetPlaced } from './services/analyticsService';
-
-
 
 // Skeleton components
 import { MarketCardSkeleton } from './components/SkeletonLoader';
@@ -59,7 +65,6 @@ const getMarketLabel = (marketType, asset) => {
     0: 'Binary UP/DOWN',
     1: 'Multi-Choice',
     2: 'Range Market',
-    3: 'Time-Based',
   };
   return `${asset} - ${typeMap[marketType] || 'Unknown Market'}`;
 };
@@ -93,8 +98,13 @@ const App = () => {
   // Custom hooks - ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets } = useMarkets();
   const { userBets, ongoingBets, pendingBets, wonBets, lostBets, isLoading: isLoadingUserBets, error: userBetsError, refresh: refreshUserBets } = useUserBets(address, markets);
-  const { enabled: notificationsEnabled, showNotification, isSupported: notificationsSupported } = useNotifications();
+  const { enabled: notificationsEnabled, showNotification, isSupported: notificationsSupported, notificationCenter, unreadCount, markAsRead, markAllAsRead } = useEnhancedNotifications();
   const userStats = useUserStats(userBets, wonBets, lostBets, pendingBets);
+  const { stats: referralStats, generateReferralCode, shareReferral } = useReferrals();
+  const { achievements, checkAchievements, shareAchievement } = useAchievements();
+  const { credits: betCredits, placeBetWithCredits } = useBetCredits();
+  const { insuranceStatus, claimInsurance } = useFirstBetInsurance();
+
 
 
   const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
@@ -138,6 +148,11 @@ const App = () => {
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showPointsHistory, setShowPointsHistory] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  const [showReferralDashboard, setShowReferralDashboard] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
+  const [showAirdropModal, setShowAirdropModal] = useState(false);
+
   const [sortBy, setSortBy] = useState('endingSoon');
 
 
@@ -768,8 +783,37 @@ const App = () => {
       )}
 
       {showAdminPanel && <AdminPanel isOpen={showAdminPanel} onClose={handleCloseAdminPanel} />}
+      
+      <NotificationCenter 
+        isOpen={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)}
+        notifications={notificationCenter}
+        unreadCount={unreadCount}
+        onMarkAsRead={markAsRead}
+        onMarkAllAsRead={markAllAsRead}
+      />
+      
+      <ReferralDashboard 
+        isOpen={showReferralDashboard} 
+        onClose={() => setShowReferralDashboard(false)}
+        stats={referralStats}
+        onShare={shareReferral}
+      />
+      
+      <AchievementsPage 
+        isOpen={showAchievements} 
+        onClose={() => setShowAchievements(false)}
+        achievements={achievements}
+        onShare={shareAchievement}
+      />
+      
+      <AirdropClaimModal 
+        isOpen={showAirdropModal} 
+        onClose={() => setShowAirdropModal(false)}
+      />
 
       <AddFundsModal 
+
         isOpen={showAddFundsModal} 
         onClose={() => setShowAddFundsModal(false)} 
         network={chain?.name || 'Base Sepolia'} 

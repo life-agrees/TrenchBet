@@ -112,17 +112,26 @@ export const useAppStore = create(
 
       // ==================== NOTIFICATIONS ====================
       notifications: [],
+      notificationCenter: [], // Persistent notification history
+      unreadNotifications: 0,
       
       addNotification: (notification) => {
         const id = Date.now();
+        const notificationWithId = { id, ...notification, timestamp: Date.now(), read: false };
+        
         set((state) => ({
           notifications: [
             ...state.notifications,
-            { id, ...notification, timestamp: Date.now() }
-          ]
+            notificationWithId
+          ],
+          notificationCenter: [
+            notificationWithId,
+            ...state.notificationCenter
+          ].slice(0, 100), // Keep last 100 notifications
+          unreadNotifications: state.unreadNotifications + 1
         }));
         
-        // Auto-remove after 5 seconds
+        // Auto-remove toast after 5 seconds
         setTimeout(() => {
           get().removeNotification(id);
         }, 5000);
@@ -135,6 +144,96 @@ export const useAppStore = create(
           notifications: state.notifications.filter(n => n.id !== id)
         }));
       },
+      
+      markNotificationRead: (id) => {
+        set((state) => ({
+          notificationCenter: state.notificationCenter.map(n => 
+            n.id === id ? { ...n, read: true } : n
+          ),
+          unreadNotifications: Math.max(0, state.unreadNotifications - 1)
+        }));
+      },
+      
+      markAllNotificationsRead: () => {
+        set((state) => ({
+          notificationCenter: state.notificationCenter.map(n => ({ ...n, read: true })),
+          unreadNotifications: 0
+        }));
+      },
+      
+      clearNotificationCenter: () => {
+        set({ notificationCenter: [], unreadNotifications: 0 });
+      },
+
+      // ==================== REFERRAL STATE ====================
+      referralStats: null,
+      isLoadingReferrals: false,
+      
+      setReferralStats: (stats) => {
+        set({ referralStats: stats, isLoadingReferrals: false });
+        logger.info('Referral stats updated', stats);
+      },
+      
+      setReferralsLoading: (isLoading) => set({ isLoadingReferrals: isLoading }),
+
+      // ==================== ACHIEVEMENTS STATE ====================
+      achievements: [],
+      achievementStats: null,
+      isLoadingAchievements: false,
+      newlyUnlockedAchievements: [],
+      
+      setAchievements: (achievements) => {
+        set({ achievements, isLoadingAchievements: false });
+        logger.info('Achievements updated', { count: achievements.length });
+      },
+      
+      setAchievementStats: (stats) => set({ achievementStats: stats }),
+      
+      setAchievementsLoading: (isLoading) => set({ isLoadingAchievements: isLoading }),
+      
+      addNewlyUnlockedAchievement: (achievement) => {
+        set((state) => ({
+          newlyUnlockedAchievements: [...state.newlyUnlockedAchievements, achievement]
+        }));
+      },
+      
+      clearNewlyUnlockedAchievements: () => {
+        set({ newlyUnlockedAchievements: [] });
+      },
+
+      // ==================== BET CREDITS STATE ====================
+      betCredits: 0,
+      isLoadingBetCredits: false,
+      
+      setBetCredits: (credits) => {
+        set({ betCredits: credits, isLoadingBetCredits: false });
+        logger.info('Bet credits updated', { credits });
+      },
+      
+      setBetCreditsLoading: (isLoading) => set({ isLoadingBetCredits: isLoading }),
+
+      // ==================== AIRDROP STATE ====================
+      airdropStatus: null,
+      isLoadingAirdrop: false,
+      
+      setAirdropStatus: (status) => {
+        set({ airdropStatus: status, isLoadingAirdrop: false });
+        logger.info('Airdrop status updated', status);
+      },
+      
+      setAirdropLoading: (isLoading) => set({ isLoadingAirdrop: isLoading }),
+
+      // ==================== INSURANCE STATE ====================
+      insuranceStatus: null,
+      isLoadingInsurance: false,
+      
+      setInsuranceStatus: (status) => {
+        set({ insuranceStatus: status, isLoadingInsurance: false });
+        logger.info('Insurance status updated', status);
+      },
+      
+      setInsuranceLoading: (isLoading) => set({ isLoadingInsurance: isLoading }),
+
 
       // ==================== CACHE STATE ====================
       lastFetch: {
@@ -163,9 +262,19 @@ export const useAppStore = create(
           userBets: [],
           userStats: null,
           notifications: [],
+          notificationCenter: [],
+          unreadNotifications: 0,
+          referralStats: null,
+          achievements: [],
+          achievementStats: null,
+          newlyUnlockedAchievements: [],
+          betCredits: 0,
+          airdropStatus: null,
+          insuranceStatus: null,
         });
         logger.info('Store reset');
       },
+
     }),
     {
       name: 'trenchybet-storage',
@@ -185,5 +294,18 @@ export const selectUsdcBalance = (state) => state.usdcBalance;
 export const selectActiveView = (state) => state.activeView;
 export const selectModals = (state) => state.modals;
 export const selectIsLoadingMarkets = (state) => state.isLoadingMarkets;
+
+// New selectors for new features
+export const selectNotifications = (state) => state.notifications;
+export const selectNotificationCenter = (state) => state.notificationCenter;
+export const selectUnreadNotifications = (state) => state.unreadNotifications;
+export const selectReferralStats = (state) => state.referralStats;
+export const selectAchievements = (state) => state.achievements;
+export const selectAchievementStats = (state) => state.achievementStats;
+export const selectNewlyUnlockedAchievements = (state) => state.newlyUnlockedAchievements;
+export const selectBetCredits = (state) => state.betCredits;
+export const selectAirdropStatus = (state) => state.airdropStatus;
+export const selectInsuranceStatus = (state) => state.insuranceStatus;
+
 
 export default useAppStore;

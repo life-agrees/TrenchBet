@@ -1,0 +1,77 @@
+{
+  "network": "baseSepolia",
+  "timestamp": "2026-02-20T20:17:47.041Z",
+  "expectedOwner": "0x52ceb1cc4fe3cfacc5f0cd12ea7215734cb0aa3d",
+  "summary": {
+    "correct": 9,
+    "incorrect": 0,
+    "failed": 0,
+    "skipped": 0,
+    "total": 9
+  },
+  "results": [
+    {
+      "name": "PredictionMarketCore",
+      "status": "CORRECT",
+      "address": "0xb8f08E9CF766389A534dcE49C72E33F92fC4bc30",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "CRITICAL"
+    },
+    {
+      "name": "PredictionMarketTypes",
+      "status": "CORRECT",
+      "address": "0x5BdD5381a283Fb04167019BE35b2102429c8d621",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "CRITICAL"
+    },
+    {
+      "name": "ChainlinkResolver",
+      "status": "CORRECT",
+      "address": "0xd7DF4928590768666A427605BeCE3156C22D199E",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "HIGH"
+    },
+    {
+      "name": "TrenchyStaking",
+      "status": "CORRECT",
+      "address": "0x2513f27B994523B2DB87dE2F3c6C79d6E1557228",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "HIGH"
+    },
+    {
+      "name": "TrenchyReferrals",
+      "status": "CORRECT",
+      "address": "0xF5f960a38d6cCF8EabD06fF6fcB15Ee1bBA4021f",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "MEDIUM"
+    },
+    {
+      "name": "TrenchyAchievements",
+      "status": "CORRECT",
+      "address": "0x52D0F8A6c40807d149f382E89949511378056781",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "MEDIUM"
+    },
+    {
+      "name": "TrenchyStreaks",
+      "status": "CORRECT",
+      "address": "0xcBB0b5e027a4C2baFCAa928949d889B577646C70",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "LOW"
+    },
+    {
+      "name": "LaunchAirdrop",
+      "status": "CORRECT",
+      "address": "0x0971F70091Dc0F956033e991FBF8A9e803a5Ff3b",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "MEDIUM"
+    },
+    {
+      "name": "TrenchyPointsClaim",
+      "status": "CORRECT",
+      "address": "0xa9F203930c47b2594477Ae286d48A585ce840963",
+      "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+      "priority": "HIGH"
+    }
+  ]
+}
