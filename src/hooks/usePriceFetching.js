@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
 import { usePublicClient } from 'wagmi';
 import { formatUnits } from 'viem';
-import { CONTRACTS } from '../config/wagmi';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
+import { CHAINLINK_RESOLVER_ADDRESS } from '../utils/constants';
 import { createLogger } from '../utils/logger';
+
 
 const logger = createLogger('usePriceFetching');
 
@@ -22,11 +23,12 @@ export const usePriceFetching = () => {
     try {
       // Read price from Chainlink oracle via contract
       const price = await publicClient.readContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'getCurrentPrice',
+        address: CHAINLINK_RESOLVER_ADDRESS,
+        abi: CHAINLINK_RESOLVER_ABI,
+        functionName: 'getLatestPrice',
         args: [asset],
       });
+
       
       // Format: Chainlink uses 8 decimals
       const priceNumber = parseFloat(formatUnits(price, 8));

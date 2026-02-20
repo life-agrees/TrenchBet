@@ -109,37 +109,8 @@ async function main() {
     },
   ];
 
-  console.log("📋 CONTRACTS TO TRANSFER");
+  console.log("🔐 TRANSFERRING OWNERSHIP");
   console.log("─".repeat(70));
-  
-  let validContracts = 0;
-  contracts.forEach(contract => {
-    if (contract.address && contract.address !== "0x0000000000000000000000000000000000000000") {
-      console.log(`   [${contract.priority}] ${contract.name}`);
-      console.log(`   └─ ${contract.address}`);
-      validContracts++;
-    } else {
-      console.log(`   [SKIP] ${contract.name} - Not deployed`);
-    }
-  });
-  
-  console.log("");
-  console.log(`Total contracts to transfer: ${validContracts}`);
-  console.log("");
-
-  // Confirmation prompt (in production, you might want to add readline here)
-  console.log("⚠️  FINAL WARNING");
-  console.log("─".repeat(70));
-  console.log("This action is IRREVERSIBLE!");
-  console.log("Once transferred, only the new owner can control these contracts.");
-  console.log("");
-  console.log("Press Ctrl+C now to cancel, or wait 5 seconds to continue...");
-  console.log("");
-
-  // 5 second delay
-  await new Promise(resolve => setTimeout(resolve, 5000));
-
-  console.log("🚀 Starting ownership transfer...");
   console.log("");
 
   let successCount = 0;
@@ -150,106 +121,93 @@ async function main() {
   for (const contract of contracts) {
     // Skip if not deployed
     if (!contract.address || contract.address === "0x0000000000000000000000000000000000000000") {
-      console.log(`⏭️  Skipping ${contract.name} (not deployed)`);
-      console.log("");
+      console.log(`⏭️  ${contract.name} - Not deployed, skipping`);
       skipCount++;
+      results.push({
+        name: contract.name,
+        status: "NOT_DEPLOYED",
+        address: contract.address || "N/A"
+      });
       continue;
     }
 
-    console.log("─".repeat(70));
-    console.log(`🔄 Processing: ${contract.name}`);
-    console.log(`   Address: ${contract.address}`);
-    console.log(`   Priority: ${contract.priority}`);
-
     try {
-      // Get contract instance using Ownable interface
-      const instance = await hre.ethers.getContractAt(
-        "Ownable", 
-        contract.address
-      );
+      console.log(`\n🔸 ${contract.name} (${contract.priority})`);
+      console.log(`   Address: ${contract.address}`);
 
+      // Get contract instance with Ownable interface
+      const ownableContract = await hre.ethers.getContractAt("Ownable", contract.address);
+      
       // Check current owner
-      const currentOwner = await instance.owner();
+      const currentOwner = await ownableContract.owner();
       console.log(`   Current Owner: ${currentOwner}`);
 
       // Check if already transferred
       if (currentOwner.toLowerCase() === NEW_OWNER.toLowerCase()) {
-        console.log(`   ✅ Already owned by new owner - SKIPPING`);
-        console.log("");
+        console.log(`   ✅ Already owned by new owner`);
         successCount++;
-        results.push({ 
-          name: contract.name, 
-          status: "ALREADY_TRANSFERRED", 
-          address: contract.address 
+        results.push({
+          name: contract.name,
+          status: "ALREADY_TRANSFERRED",
+          address: contract.address,
+          currentOwner: currentOwner
         });
         continue;
       }
 
-      // Check if deployer is current owner
+      // Check if deployer is the owner
       if (currentOwner.toLowerCase() !== deployer.address.toLowerCase()) {
-        console.log(`   ⚠️  Not owned by deployer! Current owner: ${currentOwner}`);
-        console.log(`   ❌ SKIPPING - Cannot transfer`);
-        console.log("");
+        console.log(`   ❌ ERROR: Deployer is not the owner!`);
+        console.log(`   Current owner: ${currentOwner}`);
         failCount++;
-        results.push({ 
-          name: contract.name, 
-          status: "NOT_OWNER", 
+        results.push({
+          name: contract.name,
+          status: "NOT_CURRENT_OWNER",
           address: contract.address,
-          currentOwner 
+          currentOwner: currentOwner,
+          error: "Deployer is not the current owner"
         });
         continue;
       }
 
       // Transfer ownership
-      console.log(`   ⏳ Transferring ownership to ${NEW_OWNER}...`);
-      const tx = await instance.transferOwnership(NEW_OWNER);
-      console.log(`   📝 Transaction hash: ${tx.hash}`);
-      
+      console.log(`   📝 Transferring...`);
+      const tx = await ownableContract.transferOwnership(NEW_OWNER);
       console.log(`   ⏳ Waiting for confirmation...`);
-      const receipt = await tx.wait();
-      console.log(`   ✅ Confirmed in block ${receipt.blockNumber}`);
+      await tx.wait();
       
-      // Verify new owner
-      const newOwner = await instance.owner();
+      console.log(`   ✅ Transferred successfully!`);
+      console.log(`   TX: ${tx.hash}`);
+      successCount++;
       
-      if (newOwner.toLowerCase() === NEW_OWNER.toLowerCase()) {
-        console.log(`   ✅ VERIFIED: New owner is correct`);
-        console.log(`   ✓ ${newOwner}`);
-        successCount++;
-        results.push({ 
-          name: contract.name, 
-          status: "SUCCESS", 
-          address: contract.address,
-          txHash: tx.hash 
-        });
-      } else {
-        console.log(`   ❌ VERIFICATION FAILED: Owner is ${newOwner}`);
-        failCount++;
-        results.push({ 
-          name: contract.name, 
-          status: "VERIFICATION_FAILED", 
-          address: contract.address,
-          actualOwner: newOwner 
-        });
-      }
-      
-      console.log("");
-      
-    } catch (error) {
-      console.error(`   ❌ FAILED: ${error.message}`);
-      console.log("");
-      failCount++;
-      results.push({ 
-        name: contract.name, 
-        status: "FAILED", 
+      results.push({
+        name: contract.name,
+        status: "SUCCESS",
         address: contract.address,
-        error: error.message 
+        txHash: tx.hash,
+        currentOwner: NEW_OWNER
+      });
+
+      // Add delay between transfers to avoid rate limiting
+      if (contract.priority !== "LOW") {
+        console.log(`   ⏱️  Waiting 5 seconds before next transfer...`);
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+
+    } catch (error) {
+      console.log(`   ❌ FAILED: ${error.message}`);
+      failCount++;
+      results.push({
+        name: contract.name,
+        status: "FAILED",
+        address: contract.address,
+        error: error.message
       });
     }
   }
 
   // Final summary
-  console.log("═".repeat(70));
+  console.log("\n" + "═".repeat(70));
   console.log("📊 OWNERSHIP TRANSFER SUMMARY");
   console.log("═".repeat(70));
   console.log("");

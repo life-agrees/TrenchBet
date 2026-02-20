@@ -7,12 +7,15 @@ import { toast } from 'react-hot-toast';
 import DashboardTab from './DashboardTab';
 import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
-import { CONTRACTS } from '../utils/constants';
+import { CONTRACTS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
+
 import { 
   PREDICTION_MARKET_CORE_ABI, 
   PREDICTION_MARKET_TYPES_ABI, 
-  ERC20_ABI 
+  ERC20_ABI,
+  CHAINLINK_RESOLVER_ABI
 } from '../contracts/abis';
+
 import { sanitizeInput } from '../utils/inputSanitization';
 
 /**
@@ -119,7 +122,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   });
 
   const [timeForm, setTimeForm] = useState({
-    asset: 'SOL',
+    asset: 'LINK',
     targetPrice: 200,
     timeframes: [
       { label: '24 hours', seconds: 86400 },
@@ -132,6 +135,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     decayStartPercent: 50,
     minMultiplier: 120,
   });
+
 
 
   // Transaction states
@@ -165,37 +169,51 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   const fetchCurrentPrice = useCallback(async (asset) => {
     if (!publicClient || !asset) return null;
     setIsPriceLoading(true);
+    
     try {
-      // Try Core contract first, then Types
-      let price;
-      try {
-        price = await publicClient.readContract({
-          address: CONTRACTS.PREDICTION_MARKET_CORE,
-          abi: PREDICTION_MARKET_CORE_ABI,
-          functionName: 'getCurrentPrice',
-          args: [asset],
-        });
-      } catch (coreError) {
-        // Fallback to Types contract
-        price = await publicClient.readContract({
-          address: CONTRACTS.PREDICTION_MARKET_TYPES,
-          abi: PREDICTION_MARKET_TYPES_ABI,
-          functionName: 'getCurrentPrice',
-          args: [asset],
-        });
+      // Validate asset has a price feed
+      const normalizedAsset = asset.toUpperCase().trim();
+      
+      if (!hasChainlinkFeed(normalizedAsset)) {
+        console.warn(`Asset ${asset} does not have a Chainlink feed on Base Sepolia.`);
+        console.warn(`Supported assets: ${SUPPORTED_ASSETS.WITH_PRICE_FEEDS.join(', ')}`);
+        setCurrentAssetPrice(null);
+        return null;
       }
+
+      // Use ChainlinkResolver contract for price fetching
+      const price = await publicClient.readContract({
+        address: CHAINLINK_RESOLVER_ADDRESS,
+        abi: CHAINLINK_RESOLVER_ABI,
+        functionName: 'getLatestPrice',
+        args: [normalizedAsset],
+      });
 
       const priceNumber = parseFloat(formatUnits(price, 8));
       setCurrentAssetPrice(priceNumber);
       return priceNumber;
+      
     } catch (error) {
-      console.error(`Error fetching price for ${asset}:`, error);
+      const errorMessage = error?.message || '';
+      
+      if (errorMessage.includes('Price feed not found')) {
+        console.warn(`❌ Price feed not configured for ${asset}.`);
+        console.warn(`   Run: npx hardhat run scripts/configure-price-feeds.cjs --network baseSepolia`);
+      } else if (errorMessage.includes('reverted')) {
+        console.warn(`❌ Contract call reverted for ${asset}. Check if getLatestPrice() exists.`);
+      } else {
+        console.error(`Error fetching price for ${asset}:`, error);
+      }
+      
       setCurrentAssetPrice(null);
       return null;
     } finally {
       setIsPriceLoading(false);
     }
   }, [publicClient]);
+
+
+
 
 
   // Effect: Fetch price whenever Asset or Market Type changes
@@ -765,7 +783,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       // ✅ Get correct contract based on market.contractSource
       const contract = getContractForMarketType(market.marketType);
 
-      let hash;
+      let txHash;
       let functionName = 'resolveMarket';
 
       // Determine correct resolve function based on market type
@@ -778,7 +796,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           return;
         }
 
-        hash = await walletClient.writeContract({
+        txHash = await walletClient.writeContract({
           address: contract.address,
           abi: contract.abi,
           functionName: 'resolveMultiChoiceMarket',
@@ -787,7 +805,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         });
       } else if (market.marketType === 2) { // RANGE
         functionName = 'resolveRangeMarket';
-        hash = await walletClient.writeContract({
+        txHash = await walletClient.writeContract({
           address: contract.address,
           abi: contract.abi,
           functionName: functionName,
@@ -796,7 +814,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         });
       } else if (market.marketType === 3) { // TIME
         functionName = 'resolveTimeMarket';
-        hash = await walletClient.writeContract({
+        txHash = await walletClient.writeContract({
           address: contract.address,
           abi: contract.abi,
           functionName: functionName,
@@ -804,7 +822,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
           account: address
         });
       } else { // BINARY (0)
-        hash = await walletClient.writeContract({
+        txHash = await walletClient.writeContract({
           address: contract.address,
           abi: contract.abi,
           functionName: 'resolveMarket',
@@ -816,7 +834,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       toast.loading('Resolving market...', { id: 'resolve' });
       setIsConfirming(true);
 
-      await publicClient.waitForTransactionReceipt({ hash });
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
 
       toast.success('Market resolved!', { id: 'resolve' });
       fetchMarkets(); // Refresh markets
@@ -830,6 +848,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       setIsConfirming(false);
     }
   };
+
 
   // ✅ FIXED: Create Binary Market (uses CORE contract)
   const createBinaryMarket = async () => {

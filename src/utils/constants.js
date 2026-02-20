@@ -9,7 +9,8 @@
 // ==========================================
 export const PREDICTION_MARKET_CORE_ADDRESS = "0xb8f08E9CF766389A534dcE49C72E33F92fC4bc30";
 export const PREDICTION_MARKET_TYPES_ADDRESS = "0x5BdD5381a283Fb04167019BE35b2102429c8d621";
-export const CHAINLINK_RESOLVER_ADDRESS = "0xd7DF4928590768666A427605BeCE3156C22D199E";
+export const CHAINLINK_RESOLVER_ADDRESS = "0x2Faee1c49d6E4ec7908800e971448B675782ab84";
+
 export const TRENCHY_STAKING_ADDRESS = "0x2513f27B994523B2DB87dE2F3c6C79d6E1557228";
 // Note: PredictionMarketPayoutLib is embedded at compile time, no separate address needed
 
@@ -155,7 +156,8 @@ export const CONTRACTS = {
   INSURANCE: import.meta.env.VITE_INSURANCE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
 
   // ChainlinkResolver contract - Automated market resolution
-  CHAINLINK_RESOLVER: import.meta.env.VITE_CHAINLINK_RESOLVER_ADDRESS || '0xd7DF4928590768666A427605BeCE3156C22D199E',
+  CHAINLINK_RESOLVER: import.meta.env.VITE_CHAINLINK_RESOLVER_ADDRESS || CHAINLINK_RESOLVER_ADDRESS,
+
   // TrenchyStaking contract - Tiered staking system
   STAKING: import.meta.env.VITE_STAKING_CONTRACT_ADDRESS || '0x2513f27B994523B2DB87dE2F3c6C79d6E1557228',
 
@@ -222,3 +224,49 @@ export const BET_CREDITS = {
   VOLUME_REQUIREMENT: 10, // bets
   REFERRAL_REQUIREMENT: 2, // friends
 };
+// Add this to your constants.js file
+
+// ==========================================
+// SUPPORTED ASSETS (Base Sepolia)
+// ==========================================
+
+/**
+ * Assets that have Chainlink price feeds on Base Sepolia testnet
+ * IMPORTANT: Only these 3 assets have verified price feeds!
+ * Other assets (SOL, UNI, AAVE, etc.) do NOT have feeds on Base Sepolia
+ */
+export const SUPPORTED_ASSETS = {
+  // Assets with Chainlink price feeds on Base Sepolia
+  WITH_PRICE_FEEDS: ['BTC', 'ETH', 'LINK'],
+  
+  // Assets without price feeds (cannot be used for markets that require price data)
+  WITHOUT_PRICE_FEEDS: ['SOL', 'UNI', 'AAVE', 'CRV', 'MKR', 'COMP', 'YFI'],
+  
+  // All assets (for display purposes)
+  ALL: ['BTC', 'ETH', 'LINK', 'SOL', 'UNI', 'AAVE', 'CRV', 'MKR', 'COMP', 'YFI'],
+};
+
+/**
+ * Chainlink Price Feed addresses on Base Sepolia
+ * Source: https://docs.chain.link/data-feeds/price-feeds/addresses?network=base&page=1#base-sepolia-testnet
+ */
+export const CHAINLINK_PRICE_FEEDS = {
+  BTC: '0x0C466540F2f993d3DDA3b951c7Cb4a035E3c1C35',   // BTC/USD
+  ETH: '0x4aDC67696bA383F43DD60A9e78F306971eE0d43c',   // ETH/USD  
+  LINK: '0x59D46b0Cb5659Da2E79a0Bde27C0cdFBbA9d2C8E',  // LINK/USD
+};
+
+/**
+ * Check if an asset has a price feed on Base Sepolia
+ */
+export function hasChainlinkFeed(asset) {
+  return SUPPORTED_ASSETS.WITH_PRICE_FEEDS.includes(asset.toUpperCase());
+}
+
+/**
+ * Get Chainlink feed address for an asset
+ */
+export function getChainlinkFeed(asset) {
+  const upperAsset = asset.toUpperCase();
+  return CHAINLINK_PRICE_FEEDS[upperAsset] || null;
+}

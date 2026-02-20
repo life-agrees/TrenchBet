@@ -72,7 +72,31 @@ contract ChainlinkResolver is AutomationCompatibleInterface, Ownable, Reentrancy
     }
     
     /**
+     * @notice Get the latest price for an asset
+     * @param asset Asset symbol (e.g., "ETH", "BTC")
+     * @return The latest price from Chainlink (with 8 decimals)
+     */
+    function getLatestPrice(string memory asset) external view returns (int256) {
+        AggregatorV3Interface priceFeed = priceFeeds[asset];
+        require(address(priceFeed) != address(0), "Price feed not found");
+        
+        (
+            uint80 roundID,
+            int256 price,
+            uint256 startedAt,
+            uint256 timeStamp,
+            uint80 answeredInRound
+        ) = priceFeed.latestRoundData();
+        
+        require(price > 0, "Invalid price");
+        require(timeStamp > 0, "Round not complete");
+        
+        return price;
+    }
+    
+    /**
      * @notice Chainlink Keepers check function
+
      * @dev Scans for markets that need resolution
      * @return upkeepNeeded True if there are markets to resolve
      * @return performData Encoded array of market IDs to resolve

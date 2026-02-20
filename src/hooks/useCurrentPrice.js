@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { usePublicClient } from 'wagmi';
-import { CONTRACTS, PRICE_FEEDS } from '../config/wagmi';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { PRICE_FEEDS } from '../config/wagmi';
+import { CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
+import { CHAINLINK_RESOLVER_ADDRESS } from '../utils/constants';
 import { createLogger } from '../utils/logger';
+
 
 const logger = createLogger('useCurrentPrice');
 
@@ -19,7 +21,7 @@ export function useCurrentPrice(asset) {
     let isMounted = true;
 
     const fetchPrice = async () => {
-      if (!asset || !publicClient || !CONTRACTS.PREDICTION_MARKET) {
+      if (!asset || !publicClient || !CHAINLINK_RESOLVER_ADDRESS) {
         setIsLoading(false);
         return;
       }
@@ -28,11 +30,12 @@ export function useCurrentPrice(asset) {
         setIsLoading(true);
         
         const price = await publicClient.readContract({
-          address: CONTRACTS.PREDICTION_MARKET,
-          abi: PREDICTION_MARKET_ABI,
-          functionName: 'getCurrentPrice',
+          address: CHAINLINK_RESOLVER_ADDRESS,
+          abi: CHAINLINK_RESOLVER_ABI,
+          functionName: 'getLatestPrice',
           args: [asset]
         });
+
 
         if (isMounted && price) {
           // Convert from 8 decimals (Chainlink format)
@@ -76,7 +79,7 @@ export function useCurrentPrices(assets = ['BTC', 'ETH', 'SOL']) {
     let isMounted = true;
 
     const fetchPrices = async () => {
-      if (!assets || assets.length === 0 || !publicClient || !CONTRACTS.PREDICTION_MARKET) {
+      if (!assets || assets.length === 0 || !publicClient || !CHAINLINK_RESOLVER_ADDRESS) {
         setIsLoading(false);
         return;
       }
@@ -87,11 +90,12 @@ export function useCurrentPrices(assets = ['BTC', 'ETH', 'SOL']) {
         const pricePromises = assets.map(async (asset) => {
           try {
             const price = await publicClient.readContract({
-              address: CONTRACTS.PREDICTION_MARKET,
-              abi: PREDICTION_MARKET_ABI,
-              functionName: 'getCurrentPrice',
+              address: CHAINLINK_RESOLVER_ADDRESS,
+              abi: CHAINLINK_RESOLVER_ABI,
+              functionName: 'getLatestPrice',
               args: [asset]
             });
+
             
             // Convert from 8 decimals
             const formattedPrice = Number(price) / (10 ** 8);

@@ -5,8 +5,10 @@
 
 import { readContract, multicall } from 'wagmi/actions';
 import { CONTRACTS, config } from '../config/wagmi';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { PREDICTION_MARKET_ABI, CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
+import { CHAINLINK_RESOLVER_ADDRESS } from '../utils/constants';
 import { createLogger } from '../utils/logger';
+
 
 const logger = createLogger('marketService');
 
@@ -90,9 +92,9 @@ export const marketService = {
   async getCurrentPrice(asset) {
     try {
       const result = await readContract(config, {
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'getCurrentPrice',
+        address: CHAINLINK_RESOLVER_ADDRESS,
+        abi: CHAINLINK_RESOLVER_ABI,
+        functionName: 'getLatestPrice',
         args: [asset],
       });
       return Number(result);
@@ -101,6 +103,7 @@ export const marketService = {
       throw error;
     }
   },
+
 
   /**
    * Get odds for a market
@@ -266,6 +269,3 @@ export const marketService = {
       throw error;
     }
   },
-};
-
-export default marketService;
