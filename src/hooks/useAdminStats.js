@@ -7,6 +7,10 @@ import { createLogger } from '../utils/logger';
 
 const logger = createLogger('useAdminStats');
 
+// RPC block range limit - Base Sepolia limits eth_getLogs to 10,000 blocks
+const MAX_BLOCK_RANGE = 8000;
+
+
 export const useAdminStats = (contractAddress) => {
   const publicClient = usePublicClient();
   const [stats, setStats] = useState({
@@ -40,12 +44,20 @@ export const useAdminStats = (contractAddress) => {
         args: [contractAddress],
       });
 
+      // Get current block for safe range calculation
+      const currentBlock = await publicClient.getBlockNumber();
+      const fromBlock = currentBlock > BigInt(MAX_BLOCK_RANGE) 
+        ? currentBlock - BigInt(MAX_BLOCK_RANGE) 
+        : BigInt(0);
+
       // Get bet logs to calculate total volume and unique users
       const logs = await publicClient.getLogs({
         address: contractAddress,
         event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-        fromBlock: 'earliest'
+        fromBlock,
+        toBlock: 'latest'
       });
+
 
       const uniqueUsers = new Set();
       let volume = 0n;

@@ -77,18 +77,32 @@ const DashboardTab = ({
   }), [stats]);
 
 
+  // Helper to get safe block range (RPC limit is 10,000 blocks)
+  const getSafeBlockRange = async () => {
+    try {
+      const currentBlock = await publicClient.getBlockNumber();
+      const fromBlock = currentBlock > BigInt(5000) ? currentBlock - BigInt(5000) : BigInt(0);
+      return { fromBlock, toBlock: 'latest' };
+    } catch (err) {
+      // Fallback to recent blocks if we can't get current block
+      return { fromBlock: BigInt(-5000), toBlock: 'latest' };
+    }
+  };
+
   // Fetch recent activity
   const fetchRecentActivity = async () => {
     if (!publicClient) return;
     
     setIsLoadingActivity(true);
     try {
+      const { fromBlock, toBlock } = await getSafeBlockRange();
       const logs = await publicClient.getLogs({
         address: CONTRACTS.PREDICTION_MARKET,
         event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-        fromBlock: 'earliest',
-        toBlock: 'latest'
+        fromBlock,
+        toBlock
       });
+
 
       const recentLogs = logs.slice(-10).reverse(); // Last 10 bets
       const activities = [];
@@ -125,12 +139,14 @@ const DashboardTab = ({
     
     setIsLoadingLeaderboard(true);
     try {
+      const { fromBlock, toBlock } = await getSafeBlockRange();
       const logs = await publicClient.getLogs({
         address: CONTRACTS.PREDICTION_MARKET,
         event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-        fromBlock: 'earliest',
-        toBlock: 'latest'
+        fromBlock,
+        toBlock
       });
+
 
       // Aggregate by user
       const userTotals = {};

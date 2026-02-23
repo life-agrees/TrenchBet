@@ -18,14 +18,48 @@ const OWNER_ABI = [
   }
 ];
 
-export const useAdminOwner = (contractAddress) => {
+/**
+ * Check owner of a single contract
+ */
+const checkContractOwner = async (provider, contractAddress) => {
+  if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
+    return null;
+  }
+
+  try {
+    // Encode the owner() function call
+    const data = '0x8da5cb5b'; // keccak256('owner()') first 4 bytes
+    
+    const result = await provider.request({
+      method: 'eth_call',
+      params: [{
+        to: contractAddress,
+        data: data
+      }, 'latest']
+    });
+
+    if (result && result !== '0x') {
+      // Decode the address (remove 0x prefix and pad)
+      return '0x' + result.slice(26);
+    }
+    return null;
+  } catch (error) {
+    logger.warn(`Failed to check owner for ${contractAddress}:`, error.message);
+    return null;
+  }
+};
+
+export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
   const { address, isConnected } = useAccount();
   const [isOwner, setIsOwner] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [ownerAddress, setOwnerAddress] = useState(null);
 
   const checkOwnership = useCallback(async () => {
+    console.log('[useAdminOwner] checkOwnership called', { isConnected, address, coreContractAddress, typesContractAddress });
+    
     if (!isConnected || !address) {
+      console.log('[useAdminOwner] Not connected or no address');
       setIsOwner(false);
       setIsLoading(false);
       return;
@@ -34,71 +68,85 @@ export const useAdminOwner = (contractAddress) => {
     setIsLoading(true);
 
     try {
-      // If no contract address, use dev mode
-      if (!contractAddress) {
+      console.log('[useAdminOwner] Checking contract addresses...');
+      // If no contract addresses provided, use dev mode
+      if (!coreContractAddress && !typesContractAddress) {
+
         const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
         setIsOwner(isDevOwner);
         setOwnerAddress(DEV_OWNER_ADDRESS);
-        logger.info('Dev mode ownership:', { isDevOwner, address });
+        logger.info('Dev mode ownership (no contracts):', { isDevOwner, address });
         setIsLoading(false);
         return;
       }
 
-      // Try to read from contract using window.ethereum
+      // Try to read from contracts using window.ethereum
       if (window.ethereum) {
+        console.log('[useAdminOwner] window.ethereum available, checking contracts...');
         const provider = window.ethereum;
         
-        // Encode the owner() function call
-        const data = '0x8da5cb5b'; // keccak256('owner()') first 4 bytes
-        
-        const result = await provider.request({
-          method: 'eth_call',
-          params: [{
-            to: contractAddress,
-            data: data
-          }, 'latest']
-        });
+        // Check both contracts in parallel
+        const [coreOwner, typesOwner] = await Promise.all([
+          checkContractOwner(provider, coreContractAddress),
+          checkContractOwner(provider, typesContractAddress)
+        ]);
 
-        if (result && result !== '0x') {
-          // Decode the address (remove 0x prefix and pad)
-          const owner = '0x' + result.slice(26);
-          const matches = owner.toLowerCase() === address.toLowerCase();
-          
-          setOwnerAddress(owner);
-          setIsOwner(matches);
-          
-          logger.info('Contract ownership check:', { owner, address, matches });
-        } else {
-          // Fallback to dev mode
-          const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
-          setIsOwner(isDevOwner);
-          setOwnerAddress(DEV_OWNER_ADDRESS);
-        }
+        console.log('[useAdminOwner] Contract owners result:', { coreOwner, typesOwner });
+
+        const userAddressLower = address.toLowerCase();
+        const isCoreOwner = coreOwner && coreOwner.toLowerCase() === userAddressLower;
+        const isTypesOwner = typesOwner && typesOwner.toLowerCase() === userAddressLower;
+        
+        // User is owner if they own EITHER contract
+        const isAdmin = isCoreOwner || isTypesOwner;
+        
+        console.log('[useAdminOwner] Ownership check:', { userAddressLower, isCoreOwner, isTypesOwner, isAdmin });
+        
+        // Set the owner address to the first valid one found
+        const validOwner = coreOwner || typesOwner || DEV_OWNER_ADDRESS;
+        
+        setOwnerAddress(validOwner);
+        setIsOwner(isAdmin);
+        
+        logger.info('Contract ownership check:', { 
+          coreOwner, 
+          typesOwner, 
+          address, 
+          isCoreOwner, 
+          isTypesOwner, 
+          isAdmin 
+        });
       } else {
+        console.log('[useAdminOwner] window.ethereum NOT available');
+
         // No ethereum provider, use dev mode
         const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
         setIsOwner(isDevOwner);
         setOwnerAddress(DEV_OWNER_ADDRESS);
+        logger.info('Dev mode ownership (no provider):', { isDevOwner, address });
       }
     } catch (error) {
+      console.error('[useAdminOwner] Error checking ownership:', error);
       logger.error('Error checking ownership:', error);
       // Fallback to dev mode on any error
       const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
       setIsOwner(isDevOwner);
       setOwnerAddress(DEV_OWNER_ADDRESS);
     } finally {
+      console.log('[useAdminOwner] Setting isLoading to false, isOwner:', isOwner);
       setIsLoading(false);
     }
-  }, [address, isConnected, contractAddress]);
+  }, [address, isConnected, coreContractAddress, typesContractAddress]);
+
 
   useEffect(() => {
-    // Small delay to ensure React is fully initialized
-    const timeoutId = setTimeout(checkOwnership, 100);
+    // Run immediately without delay for faster admin detection
+    console.log('[useAdminOwner] Running ownership check...');
+    checkOwnership();
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
+    return () => {};
   }, [checkOwnership]);
+
 
   const refreshOwnership = useCallback(() => {
     checkOwnership();

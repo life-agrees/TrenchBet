@@ -1,6 +1,6 @@
 {
   "network": "baseSepolia",
-  "timestamp": "2026-02-20T20:17:47.041Z",
+  "timestamp": "2026-02-23T17:33:55.689Z",
   "expectedOwner": "0x52ceb1cc4fe3cfacc5f0cd12ea7215734cb0aa3d",
   "summary": {
     "correct": 9,
@@ -27,7 +27,7 @@
     {
       "name": "ChainlinkResolver",
       "status": "CORRECT",
-      "address": "0xd7DF4928590768666A427605BeCE3156C22D199E",
+      "address": "0x2Faee1c49d6E4ec7908800e971448B675782ab84",
       "owner": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
       "priority": "HIGH"
     },

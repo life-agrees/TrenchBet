@@ -63,6 +63,11 @@ async function main() {
   // List of all contracts to transfer
   const contracts = [
     {
+      name: "PredictionMarketProxy",
+      address: process.env.VITE_PREDICTION_MARKET_PROXY_ADDRESS,
+      priority: "CRITICAL",
+    },
+    {
       name: "PredictionMarketCore",
       address: process.env.VITE_PREDICTION_MARKET_CORE_ADDRESS,
       priority: "CRITICAL",
@@ -77,6 +82,7 @@ async function main() {
       address: process.env.VITE_CHAINLINK_RESOLVER_ADDRESS,
       priority: "HIGH",
     },
+
     {
       name: "TrenchyStaking",
       address: process.env.VITE_STAKING_CONTRACT_ADDRESS,

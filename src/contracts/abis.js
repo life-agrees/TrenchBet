@@ -511,9 +511,10 @@ export const PREDICTION_MARKET_CORE_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+  // markets mapping - public getter for Market struct
   {
     "inputs": [{"internalType": "uint256","name": "marketId","type": "uint256"}],
-    "name": "getMarket",
+    "name": "markets",
     "outputs": [
       {
         "components": [
@@ -545,6 +546,7 @@ export const PREDICTION_MARKET_CORE_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+
   {
     "inputs": [
       {"internalType": "uint256","name": "marketId","type": "uint256"},
@@ -704,9 +706,10 @@ export const PREDICTION_MARKET_TYPES_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+  // markets mapping - public getter for Market struct
   {
     "inputs": [{"internalType": "uint256","name": "marketId","type": "uint256"}],
-    "name": "getMarket",
+    "name": "markets",
     "outputs": [
       {
         "components": [
@@ -738,6 +741,7 @@ export const PREDICTION_MARKET_TYPES_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+
   {
     "inputs": [{"internalType": "uint256","name": "marketId","type": "uint256"}],
     "name": "getMultiChoiceOptions",

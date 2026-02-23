@@ -11,16 +11,24 @@ async function main() {
   console.log("═".repeat(70));
   console.log("");
 
-  // New ChainlinkResolver contract address
-  const CHAINLINK_RESOLVER_ADDRESS = "0x2Faee1c49d6E4ec7908800e971448B675782ab84";
+  // Get contract address from environment
+  const CHAINLINK_RESOLVER_ADDRESS = process.env.VITE_CHAINLINK_RESOLVER_ADDRESS;
   
   // Get new owner address from environment
   const NEW_OWNER = process.env.OWNER_ADDRESS;
+
   
   if (!NEW_OWNER) {
     console.error("❌ ERROR: OWNER_ADDRESS not set in .env file");
     console.log("💡 Add this to your .env:");
     console.log("   OWNER_ADDRESS=0x...");
+    process.exit(1);
+  }
+
+  if (!CHAINLINK_RESOLVER_ADDRESS) {
+    console.error("❌ ERROR: VITE_CHAINLINK_RESOLVER_ADDRESS not set in .env file");
+    console.log("💡 Add this to your .env:");
+    console.log("   VITE_CHAINLINK_RESOLVER_ADDRESS=0x...");
     process.exit(1);
   }
 
@@ -30,6 +38,13 @@ async function main() {
     console.log(`   Given: ${NEW_OWNER}`);
     process.exit(1);
   }
+
+  if (!hre.ethers.isAddress(CHAINLINK_RESOLVER_ADDRESS)) {
+    console.error("❌ ERROR: Invalid address format for VITE_CHAINLINK_RESOLVER_ADDRESS");
+    console.log(`   Given: ${CHAINLINK_RESOLVER_ADDRESS}`);
+    process.exit(1);
+  }
+
 
   const [deployer] = await hre.ethers.getSigners();
   const network = hre.network.name;

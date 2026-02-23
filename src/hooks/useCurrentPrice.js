@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { usePublicClient } from 'wagmi';
 import { PRICE_FEEDS } from '../config/wagmi';
 import { CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
-import { CHAINLINK_RESOLVER_ADDRESS } from '../utils/constants';
+import { CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS } from '../utils/constants';
 import { createLogger } from '../utils/logger';
 
 
 const logger = createLogger('useCurrentPrice');
+
 
 /**
  * Hook to fetch current price for a market asset
@@ -70,7 +71,8 @@ export function useCurrentPrice(asset) {
 /**
  * Hook to fetch current prices for multiple assets at once
  */
-export function useCurrentPrices(assets = ['BTC', 'ETH', 'SOL']) {
+export function useCurrentPrices(assets = ['BTC', 'ETH', 'LINK']) {
+
   const [prices, setPrices] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const publicClient = usePublicClient();
@@ -88,6 +90,12 @@ export function useCurrentPrices(assets = ['BTC', 'ETH', 'SOL']) {
         setIsLoading(true);
         
         const pricePromises = assets.map(async (asset) => {
+          // Skip unsupported assets
+          if (!SUPPORTED_ASSETS.WITH_PRICE_FEEDS.includes(asset.toUpperCase())) {
+            logger.warn(`Skipping unsupported asset: ${asset}`);
+            return [asset, null];
+          }
+
           try {
             const price = await publicClient.readContract({
               address: CHAINLINK_RESOLVER_ADDRESS,
@@ -96,15 +104,20 @@ export function useCurrentPrices(assets = ['BTC', 'ETH', 'SOL']) {
               args: [asset]
             });
 
-            
             // Convert from 8 decimals
             const formattedPrice = Number(price) / (10 ** 8);
             return [asset, formattedPrice];
           } catch (error) {
-            logger.error(`Error fetching ${asset} price:`, error);
+            const errorMessage = error?.message || '';
+            if (errorMessage.includes('Price feed not found')) {
+              logger.error(`Price feed not configured for ${asset}`);
+            } else {
+              logger.error(`Error fetching ${asset} price:`, error);
+            }
             return [asset, null];
           }
         });
+
 
         const results = await Promise.all(pricePromises);
         

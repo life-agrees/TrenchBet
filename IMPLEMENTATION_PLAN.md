@@ -315,3 +315,4 @@ VITE_INSURANCE_CONTRACT_ADDRESS=
 - Frontend should handle contract not deployed gracefully
 - Use existing error handling patterns from codebase
 - Follow existing code style and conventions
+

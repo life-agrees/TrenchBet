@@ -7,7 +7,8 @@ import { toast } from 'react-hot-toast';
 import DashboardTab from './DashboardTab';
 import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
-import { CONTRACTS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
+import { CONTRACTS, PROXY_ADDRESS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
+
 
 import { 
   PREDICTION_MARKET_CORE_ABI, 
@@ -17,13 +18,20 @@ import {
 } from '../contracts/abis';
 
 import { sanitizeInput } from '../utils/inputSanitization';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('AdminPanel');
+
 
 /**
  * Helper to get contract info based on market type
- * Binary markets (type 0) -> Core contract
- * Multi/Range/Time markets (types 1-3) -> Types contract
+ * CRITICAL FIX: Use actual contract addresses (not proxy) for market operations
+ * Proxy has isolated storage - markets created via proxy are NOT visible when reading from Core directly
+ * Binary markets (type 0) -> Uses Core contract directly
+ * Multi/Range/Time markets (types 1-3) -> Uses Types contract directly
  */
 function getContractForMarketType(marketType) {
+  // Use actual contract addresses where markets are stored
   if (marketType === 0 || marketType === 'binary') {
     return {
       address: CONTRACTS.PREDICTION_MARKET_CORE,
@@ -39,7 +47,11 @@ function getContractForMarketType(marketType) {
 }
 
 
-export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
+
+
+export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreated, markets: parentMarkets, isLoadingMarkets: parentIsLoadingMarkets }) {
+
+
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = propIsOpen !== undefined ? propIsOpen : internalIsOpen;
   const setIsOpen = (value) => {
@@ -66,9 +78,14 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   });
   const [isLoadingStats, setIsLoadingStats] = useState(false);
 
-  // Manage tab state
-  const [markets, setMarkets] = useState([]);
-  const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
+  // Manage tab state - use parent markets if provided, otherwise fetch our own
+  const [internalMarkets, setInternalMarkets] = useState([]);
+  const [isLoadingInternalMarkets, setIsLoadingInternalMarkets] = useState(false);
+  
+  // Use parent markets if provided, otherwise use internal
+  const markets = parentMarkets !== undefined ? parentMarkets : internalMarkets;
+  const isLoadingMarkets = parentIsLoadingMarkets !== undefined ? parentIsLoadingMarkets : isLoadingInternalMarkets;
+
   const [resolvingId, setResolvingId] = useState(null);
   const [multiChoiceAnswers, setMultiChoiceAnswers] = useState({});
 
@@ -88,7 +105,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     duration: 15,
     yesMultiplier: 200,
     noMultiplier: 200,
-    useFixedOdds: false,
+    useFixedOdds: true, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -100,7 +117,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     options: ['', '', ''],
     duration: 60,
     multipliers: [200, 200, 200],
-    useFixedOdds: false,
+    useFixedOdds: true, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -115,7 +132,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     ],
     duration: 30,
     multipliers: [200, 200, 200],
-    useFixedOdds: false,
+    useFixedOdds: true, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -130,7 +147,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       { label: '30 days', seconds: 2592000 },
     ],
     multipliers: [300, 200, 150],
-    useFixedOdds: true,
+    useFixedOdds: true, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -142,26 +159,31 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   const [isPending, setIsPending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
 
-  // Admin check - dynamically fetch contract owner from BOTH contracts
-  const { data: coreOwner, isLoading: isLoadingCoreOwner } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET_CORE,
+  // Admin check - fetch contract owner from PROXY (shared storage)
+  const { data: proxyOwner, isLoading: isLoadingProxyOwner } = useReadContract({
+    address: PROXY_ADDRESS,
     abi: PREDICTION_MARKET_CORE_ABI,
     functionName: 'owner',
-    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET_CORE,
+    enabled: !!address && !!PROXY_ADDRESS,
   });
 
-  const { data: typesOwner, isLoading: isLoadingTypesOwner } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET_TYPES,
-    abi: PREDICTION_MARKET_TYPES_ABI,
-    functionName: 'owner',
-    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET_TYPES,
-  });
-
-  const isAdmin = address && (coreOwner || typesOwner)
-    ? address.toLowerCase() === (coreOwner?.toLowerCase() || typesOwner?.toLowerCase())
+  // Get owner address from environment variable or fallback to contract owner
+  const ENV_OWNER_ADDRESS = import.meta.env?.OWNER_ADDRESS || import.meta.env?.VITE_OWNER_ADDRESS;
+  
+  // Check if user is admin - either from proxy contract ownership or env variable
+  const isContractOwner = address && proxyOwner
+    ? address.toLowerCase() === proxyOwner.toLowerCase()
     : false;
+  
+  // Dev mode fallback - check against env OWNER_ADDRESS or allow any wallet if proxy returns no owner
+  const isDevOwner = address && ENV_OWNER_ADDRESS
+    ? address.toLowerCase() === ENV_OWNER_ADDRESS.toLowerCase()
+    : (!proxyOwner && !!address);
+    
+  const isAdmin = isContractOwner || isDevOwner;
 
-  const isLoadingOwner = isLoadingCoreOwner || isLoadingTypesOwner;
+  const isLoadingOwner = isLoadingProxyOwner;
+
 
 
 
@@ -265,13 +287,23 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
             message: 'Market created successfully! It will appear in the active markets shortly.' 
           });
           
-          // Refresh markets list immediately
+          // Wait a moment for blockchain state to settle
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          // Refresh markets list in AdminPanel
           await fetchMarkets();
           
           // Also refresh stats if on dashboard
           if (activeTab === 'dashboard') {
             await fetchStats();
           }
+          
+          // Notify parent component (App) to refresh markets globally
+          if (onMarketCreated) {
+            logger.info('Notifying parent component of new market creation');
+            onMarketCreated();
+          }
+
         } else {
           toast.error('Market creation failed on-chain', { id: 'create-market' });
           setCreateStatus({ 
@@ -467,20 +499,81 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   };
 
   /**
+   * Parse market array from contract into structured object
+   * Contract returns array, we need to map it to object with named properties
+   */
+  const parseMarketArray = (marketArray) => {
+    if (!Array.isArray(marketArray)) {
+      // Already an object (some providers may return objects)
+      return marketArray;
+    }
+    
+    // Map array indices to struct field names based on PredictionMarketBase.sol Market struct
+    return {
+      id: marketArray[0],
+      marketType: marketArray[1],
+      asset: marketArray[2],
+      startTime: marketArray[3],
+      endTime: marketArray[4],
+      startPrice: marketArray[5],
+      endPrice: marketArray[6],
+      yesPool: marketArray[7],
+      noPool: marketArray[8],
+      resolved: marketArray[9],
+      priceWentUp: marketArray[10],
+      totalBets: marketArray[11],
+      useFixedOdds: marketArray[12],
+      yesMultiplier: marketArray[13],
+      noMultiplier: marketArray[14],
+      protocolFee: marketArray[15],
+      useTimeDecay: marketArray[16],
+      decayStartTime: marketArray[17],
+      minMultiplier: marketArray[18]
+    };
+  };
+
+  /**
    * Fetch a single market with all type-specific data
    * Updated for dual contract architecture
    */
   const fetchSingleMarket = async (publicClient, marketId, contract, contractType) => {
     try {
       // Step 1: Get base market data
-      const market = await publicClient.readContract({
-        address: contract.address,
-        abi: contract.abi,
-        functionName: 'getMarket',
-        args: [BigInt(marketId)]
-      });
+      // Note: Contract uses 'markets' mapping, not 'getMarket' function
+      let market;
+      try {
+        const rawMarket = await publicClient.readContract({
+          address: contract.address,
+          abi: contract.abi,
+          functionName: 'markets',
+          args: [BigInt(marketId)]
+        });
+        
+        // Parse array into structured object
+        market = parseMarketArray(rawMarket);
+      } catch (contractError) {
+        // Handle ABI decoding errors - market likely doesn't exist or has corrupted data
+        if (contractError.message?.includes('out of bounds') || 
+            contractError.message?.includes('Position') ||
+            contractError.message?.includes('decoding')) {
+          console.warn(`Market ${marketId} not found or has invalid data in ${contractType} contract`);
+          return null;
+        }
+        throw contractError;
+      }
+
+      // Validate market exists - check if market has been initialized
+      // A valid market will have startTime > 0 (set to block timestamp when created)
+      // Empty slots have startTime = 0
+      if (!market || market.startTime === undefined || market.startTime === 0n) {
+        console.debug(`Market ${marketId} does not exist in ${contractType} contract (no startTime)`);
+        return null;
+      }
+
+
 
       const marketType = Number(market.marketType);
+
 
       // Step 2: Base market object
       const baseMarket = {
@@ -658,15 +751,22 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   };
 
-  // Fetch markets for manage tab
+  // Fetch markets for manage tab (only if parent doesn't provide markets)
   const fetchMarkets = async () => {
+    // Skip if parent provides markets
+    if (parentMarkets !== undefined) {
+      console.log('📋 Using parent-provided markets, skipping fetch');
+      return;
+    }
+    
     if (!publicClient || !CONTRACTS.PREDICTION_MARKET_CORE || !CONTRACTS.PREDICTION_MARKET_TYPES) {
       console.error('Missing publicClient or contract addresses');
       return;
     }
 
     console.log('📋 Fetching markets from both contracts...');
-    setIsLoadingMarkets(true);
+    setIsLoadingInternalMarkets(true);
+
 
     try {
       // Fetch from both contracts in parallel
@@ -688,15 +788,16 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
       const allMarkets = [...coreMarkets, ...typesMarkets].sort((a, b) => b.endTime - a.endTime);
 
       console.log(`✅ Loaded ${allMarkets.length} markets total (${coreMarkets.length} core, ${typesMarkets.length} types)`);
-      setMarkets(allMarkets);
+      setInternalMarkets(allMarkets);
 
     } catch (error) {
       console.error('❌ Failed to fetch markets:', error);
       toast.error('Failed to load markets');
     } finally {
-      setIsLoadingMarkets(false);
+      setIsLoadingInternalMarkets(false);
     }
   };
+
 
 
 
@@ -850,44 +951,129 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
   };
 
 
-  // ✅ FIXED: Create Binary Market (uses CORE contract)
+  // ✅ FIXED: Create Binary Market (uses Core contract directly, NOT proxy)
   const createBinaryMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
       
-      toast.loading('Creating binary market...', { id: 'create-market' });
+      // Validate inputs
+      if (!walletClient || !address) {
+        throw new Error('Wallet not connected');
+      }
       
-      const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET_CORE,  // ✅ FIXED: Use Core contract
-        abi: PREDICTION_MARKET_CORE_ABI,             // ✅ FIXED: Use Core ABI
-        functionName: 'createMarketWithOdds',
-        args: [
-          sanitizeInput(binaryForm.asset),
-          BigInt(binaryForm.duration * 60),
-          binaryForm.useFixedOdds ? BigInt(binaryForm.yesMultiplier) : BigInt(0),
-          binaryForm.useFixedOdds ? BigInt(binaryForm.noMultiplier) : BigInt(0),
-          binaryForm.useTimeDecay,
-          BigInt(binaryForm.decayStartPercent),
-          BigInt(binaryForm.minMultiplier),
-        ],
-        account: address
+      if (!CONTRACTS.PREDICTION_MARKET_CORE) {
+        throw new Error('Core contract address not configured');
+      }
+
+      console.log('🔧 Creating binary market via CORE CONTRACT with params:', {
+        asset: binaryForm.asset,
+        duration: binaryForm.duration * 60,
+        useFixedOdds: binaryForm.useFixedOdds,
+        yesMultiplier: binaryForm.yesMultiplier,
+        noMultiplier: binaryForm.noMultiplier,
+        useTimeDecay: binaryForm.useTimeDecay,
+        decayStartPercent: binaryForm.decayStartPercent,
+        minMultiplier: binaryForm.minMultiplier,
+        core: CONTRACTS.PREDICTION_MARKET_CORE
       });
 
+
+
+      toast.loading('Creating binary market...', { id: 'create-market' });
+      
+      // Add delay to allow wallet state sync (helps with testnet simulation issues)
+      console.log('⏳ Waiting for wallet state sync...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const args = [
+        sanitizeInput(binaryForm.asset),
+        BigInt(binaryForm.duration * 60),
+        BigInt(binaryForm.yesMultiplier),
+        BigInt(binaryForm.noMultiplier),
+        binaryForm.useTimeDecay,
+        BigInt(binaryForm.decayStartPercent),
+        BigInt(binaryForm.minMultiplier),
+      ];
+
+      
+      console.log('🔧 Transaction args:', args);
+
+      console.log('🔧 About to simulate transaction via CORE CONTRACT...');
+      
+      // First simulate to catch any contract errors
+      try {
+        const { request } = await publicClient.simulateContract({
+          address: CONTRACTS.PREDICTION_MARKET_CORE,
+          abi: PREDICTION_MARKET_CORE_ABI,
+          functionName: 'createMarketWithOdds',
+          args: args,
+          account: address,
+        });
+        console.log('✅ Simulation successful:', request);
+      } catch (simError) {
+        console.error('❌ Simulation failed:', simError);
+        throw new Error(`Simulation failed: ${simError.message}`);
+      }
+      
+      // Try without gas limit first to let wallet estimate
+      const txParams = {
+        address: CONTRACTS.PREDICTION_MARKET_CORE,
+        abi: PREDICTION_MARKET_CORE_ABI,
+        functionName: 'createMarketWithOdds',
+        args: args,
+        account: address,
+      };
+
+
+      
+      console.log('🔧 Transaction params:', txParams);
+      
+      const hash = await walletClient.writeContract(txParams);
+
+
+
+
+      console.log('✅ Transaction submitted:', hash);
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
       
     } catch (error) {
-      setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      console.error('❌ Binary market creation failed:', error);
+      
+      // Provide specific error messages
+      let errorMessage = error.message || String(error);
+      
+      if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected in wallet';
+      } else if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient ETH for gas fees';
+      } else if (errorMessage.includes('nonce')) {
+        errorMessage = 'Transaction nonce error. Please refresh and try again.';
+      } else if (errorMessage.includes('simulation')) {
+        errorMessage = 'Transaction simulation failed. This is common on testnets. Please try again.';
+      }
+      
+      setCreateStatus({ show: true, success: false, message: 'Failed: ' + errorMessage });
+      toast.error('Failed to create market: ' + errorMessage, { id: 'create-market' });
       setIsPending(false);
     }
   };
 
-  // ✅ FIXED: Create MultiChoice Market (uses TYPES contract)
+
+  // ✅ FIXED: Create MultiChoice Market (uses Types contract directly, NOT proxy)
   const createMultiChoiceMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
+      
+      // Validate inputs
+      if (!walletClient || !address) {
+        throw new Error('Wallet not connected');
+      }
+      
+      if (!CONTRACTS.PREDICTION_MARKET_TYPES) {
+        throw new Error('Types contract address not configured');
+      }
       
       const validOptions = multiChoiceForm.options.filter((o) => sanitizeInput(o).trim() !== '');
       if (validOptions.length < 2) {
@@ -901,109 +1087,256 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
         return;
       }
 
-      toast.loading('Creating multi-choice market...', { id: 'create-market' });
-      
-      const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET_TYPES,  // ✅ FIXED: Use Types contract
-        abi: PREDICTION_MARKET_TYPES_ABI,             // ✅ FIXED: Use Types ABI
-        functionName: 'createMultiChoiceMarketWithOdds',
-        args: [
-          sanitizeInput(multiChoiceForm.asset),
-          validOptions.map(o => sanitizeInput(o)),
-          sanitizeInput(multiChoiceForm.question),
-          BigInt(multiChoiceForm.duration * 60),
-          multiChoiceForm.useFixedOdds ? multiChoiceForm.multipliers.slice(0, validOptions.length).map((m) => BigInt(m)) : [],
-          multiChoiceForm.useTimeDecay,
-          BigInt(multiChoiceForm.decayStartPercent),
-          BigInt(multiChoiceForm.minMultiplier),
-        ],
-        account: address
+      console.log('🔧 Creating multi-choice market via TYPES CONTRACT with params:', {
+        asset: multiChoiceForm.asset,
+        options: validOptions,
+        question: multiChoiceForm.question,
+        duration: multiChoiceForm.duration * 60,
+        useFixedOdds: multiChoiceForm.useFixedOdds,
+        multipliers: multiChoiceForm.multipliers.slice(0, validOptions.length),
+        useTimeDecay: multiChoiceForm.useTimeDecay,
+        types: CONTRACTS.PREDICTION_MARKET_TYPES
       });
 
+
+
+      toast.loading('Creating multi-choice market...', { id: 'create-market' });
+      
+      // Add delay to allow wallet state sync (helps with testnet simulation issues)
+      console.log('⏳ Waiting for wallet state sync...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const args = [
+        sanitizeInput(multiChoiceForm.asset),
+        validOptions.map(o => sanitizeInput(o)),
+        sanitizeInput(multiChoiceForm.question),
+        BigInt(multiChoiceForm.duration * 60),
+        validOptions.map((_, idx) => BigInt(multiChoiceForm.multipliers[idx] || 200)),
+        multiChoiceForm.useTimeDecay,
+        BigInt(multiChoiceForm.decayStartPercent),
+        BigInt(multiChoiceForm.minMultiplier),
+      ];
+
+      
+      console.log('🔧 Transaction args:', args);
+
+      const hash = await walletClient.writeContract({
+        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        abi: PREDICTION_MARKET_TYPES_ABI,
+        functionName: 'createMultiChoiceMarketWithOdds',
+        args: args,
+        account: address,
+      });
+
+
+
+
+
+      console.log('✅ Transaction submitted:', hash);
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
       
     } catch (error) {
-      setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      console.error('❌ Multi-choice market creation failed:', error);
+      
+      // Provide specific error messages
+      let errorMessage = error.message || String(error);
+      
+      if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected in wallet';
+      } else if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient ETH for gas fees';
+      } else if (errorMessage.includes('nonce')) {
+        errorMessage = 'Transaction nonce error. Please refresh and try again.';
+      } else if (errorMessage.includes('simulation')) {
+        errorMessage = 'Transaction simulation failed. This is common on testnets. Please try again.';
+      }
+      
+      setCreateStatus({ show: true, success: false, message: 'Failed: ' + errorMessage });
+      toast.error('Failed to create market: ' + errorMessage, { id: 'create-market' });
       setIsPending(false);
     }
   };
 
-  // ✅ FIXED: Create Range Market (uses TYPES contract)
+
+  // ✅ FIXED: Create Range Market (uses Types contract directly, NOT proxy)
   const createRangeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
       
+      // Validate inputs
+      if (!walletClient || !address) {
+        throw new Error('Wallet not connected');
+      }
+      
+      if (!CONTRACTS.PREDICTION_MARKET_TYPES) {
+        throw new Error('Types contract address not configured');
+      }
+      
       const rangeMins = rangeForm.ranges.map((r) => BigInt(Math.floor(r.min * 1e8)));
       const rangeMaxs = rangeForm.ranges.map((r) => BigInt(Math.floor(r.max * 1e8)));
       
-      toast.loading('Creating range market...', { id: 'create-market' });
-      
-      const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET_TYPES,  // ✅ FIXED: Use Types contract
-        abi: PREDICTION_MARKET_TYPES_ABI,             // ✅ FIXED: Use Types ABI
-        functionName: 'createRangeMarketWithOdds',
-        args: [
-          sanitizeInput(rangeForm.asset),
-          rangeMins,
-          rangeMaxs,
-          BigInt(rangeForm.duration * 60),
-          rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
-          rangeForm.useTimeDecay,
-          BigInt(rangeForm.decayStartPercent),
-          BigInt(rangeForm.minMultiplier),
-        ],
-        account: address
+      console.log('🔧 Creating range market via TYPES CONTRACT with params:', {
+        asset: rangeForm.asset,
+        rangeMins: rangeMins.map(b => b.toString()),
+        rangeMaxs: rangeMaxs.map(b => b.toString()),
+        duration: rangeForm.duration * 60,
+        useFixedOdds: rangeForm.useFixedOdds,
+        multipliers: rangeForm.multipliers,
+        useTimeDecay: rangeForm.useTimeDecay,
+        types: CONTRACTS.PREDICTION_MARKET_TYPES
       });
 
+
+
+      toast.loading('Creating range market...', { id: 'create-market' });
+      
+      // Add delay to allow wallet state sync (helps with testnet simulation issues)
+      console.log('⏳ Waiting for wallet state sync...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const args = [
+        sanitizeInput(rangeForm.asset),
+        rangeMins,
+        rangeMaxs,
+        BigInt(rangeForm.duration * 60),
+        rangeForm.multipliers.map((m) => BigInt(m)),
+        rangeForm.useTimeDecay,
+        BigInt(rangeForm.decayStartPercent),
+        BigInt(rangeForm.minMultiplier),
+      ];
+
+      
+      console.log('🔧 Transaction args:', args);
+
+      const hash = await walletClient.writeContract({
+        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        abi: PREDICTION_MARKET_TYPES_ABI,
+        functionName: 'createRangeMarketWithOdds',
+        args: args,
+        account: address,
+      });
+
+
+
+
+
+      console.log('✅ Transaction submitted:', hash);
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
       
     } catch (error) {
-      setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      console.error('❌ Range market creation failed:', error);
+      
+      // Provide specific error messages
+      let errorMessage = error.message || String(error);
+      
+      if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected in wallet';
+      } else if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient ETH for gas fees';
+      } else if (errorMessage.includes('nonce')) {
+        errorMessage = 'Transaction nonce error. Please refresh and try again.';
+      } else if (errorMessage.includes('simulation')) {
+        errorMessage = 'Transaction simulation failed. This is common on testnets. Please try again.';
+      }
+      
+      setCreateStatus({ show: true, success: false, message: 'Failed: ' + errorMessage });
+      toast.error('Failed to create market: ' + errorMessage, { id: 'create-market' });
       setIsPending(false);
     }
   };
 
-  // ✅ ALREADY CORRECT: Create Time Market (uses TYPES contract)
+
+  // ✅ FIXED: Create Time Market (uses Types contract directly, NOT proxy)
   const createTimeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
       
+      // Validate inputs
+      if (!walletClient || !address) {
+        throw new Error('Wallet not connected');
+      }
+      
+      if (!CONTRACTS.PREDICTION_MARKET_TYPES) {
+        throw new Error('Types contract address not configured');
+      }
+      
       const targetPriceBigInt = BigInt(Math.floor(timeForm.targetPrice * 1e8));
       const timeframeSeconds = timeForm.timeframes.map((tf) => BigInt(tf.seconds));
       
+      console.log('🔧 Creating time market via TYPES CONTRACT with params:', {
+        asset: timeForm.asset,
+        targetPrice: targetPriceBigInt.toString(),
+        timeframes: timeframeSeconds.map(b => b.toString()),
+        useFixedOdds: timeForm.useFixedOdds,
+        multipliers: timeForm.multipliers,
+        useTimeDecay: timeForm.useTimeDecay,
+        types: CONTRACTS.PREDICTION_MARKET_TYPES
+      });
+
+
+
       toast.loading('Creating time-based market...', { id: 'create-market' });
       
+      // Add delay to allow wallet state sync (helps with testnet simulation issues)
+      console.log('⏳ Waiting for wallet state sync...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const args = [
+        sanitizeInput(timeForm.asset),
+        targetPriceBigInt,
+        timeframeSeconds,
+        timeForm.multipliers.map((m) => BigInt(m)),
+        timeForm.useTimeDecay,
+        BigInt(timeForm.decayStartPercent),
+        BigInt(timeForm.minMultiplier),
+      ];
+
+      
+      console.log('🔧 Transaction args:', args);
+
       const hash = await walletClient.writeContract({
         address: CONTRACTS.PREDICTION_MARKET_TYPES,
         abi: PREDICTION_MARKET_TYPES_ABI,
         functionName: 'createTimeMarketWithOdds',
-        args: [
-          sanitizeInput(timeForm.asset),
-          targetPriceBigInt,
-          timeframeSeconds,
-          timeForm.useFixedOdds ? timeForm.multipliers.map((m) => BigInt(m)) : [],
-          timeForm.useTimeDecay,
-          BigInt(timeForm.decayStartPercent),
-          BigInt(timeForm.minMultiplier),
-        ],
-        account: address
+        args: args,
+        account: address,
       });
+
+
+
+
+
+      console.log('✅ Transaction submitted:', hash);
       
       // Set pending hash to trigger confirmation watching
       setPendingTxHash(hash);
       
     } catch (error) {
-      setCreateStatus({ show: true, success: false, message: 'Failed: ' + (error.message || String(error)) });
-      toast.error('Failed to create market: ' + error.message, { id: 'create-market' });
+      console.error('❌ Time market creation failed:', error);
+      
+      // Provide specific error messages
+      let errorMessage = error.message || String(error);
+      
+      if (errorMessage.includes('User rejected')) {
+        errorMessage = 'Transaction was rejected in wallet';
+      } else if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient ETH for gas fees';
+      } else if (errorMessage.includes('nonce')) {
+        errorMessage = 'Transaction nonce error. Please refresh and try again.';
+      } else if (errorMessage.includes('simulation')) {
+        errorMessage = 'Transaction simulation failed. This is common on testnets. Please try again.';
+      }
+      
+      setCreateStatus({ show: true, success: false, message: 'Failed: ' + errorMessage });
+      toast.error('Failed to create market: ' + errorMessage, { id: 'create-market' });
       setIsPending(false);
     }
   };
+
 
 
 
@@ -1035,24 +1368,57 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
     }
   }, [activeTab, isOpen, publicClient]);
 
+  // Debug logging - MUST be before any conditional returns (React hooks rule)
+  useEffect(() => {
+    console.log('🔧 AdminPanel Debug:', {
+      isOpen,
+      internalIsOpen,
+      propIsOpen,
+      isAdmin,
+      address,
+      proxyOwner,
+      isContractOwner,
+      isDevOwner,
+      ENV_OWNER_ADDRESS: import.meta.env?.OWNER_ADDRESS || import.meta.env?.VITE_OWNER_ADDRESS,
+      PROXY_ADDRESS
+    });
+  }, [isOpen, internalIsOpen, propIsOpen, isAdmin, address, proxyOwner, isContractOwner, isDevOwner]);
+
+
+
   if (isLoadingOwner) {
     return null; // Loading state - don't show anything yet
   }
 
-  if (!isAdmin) return null;
+  if (!isAdmin) {
+    console.log('🔧 AdminPanel: Not admin, returning null', { 
+      address, 
+      proxyOwner, 
+      isContractOwner, 
+      isDevOwner,
+      PROXY_ADDRESS
+    });
+    return null;
+  }
+
 
 
   // Don't show trigger button if controlled by parent
   const showTrigger = propIsOpen === undefined;
+
 
   return (
     <>
       {/* Trigger Button - only show when not controlled by parent */}
       {showTrigger && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 p-4 bg-[#c0ff00] text-dark-950 rounded-full shadow-lg hover:bg-[#d4ff33] transition-all hover:scale-110 z-40"
+          onClick={() => {
+            console.log('🔧 Admin button clicked, setting isOpen to true');
+            setIsOpen(true);
+          }}
+          className="fixed bottom-6 right-6 p-4 bg-[#c0ff00] text-dark-950 rounded-full shadow-lg hover:bg-[#d4ff33] transition-all hover:scale-110 z-50 cursor-pointer pointer-events-auto"
           title="Admin Panel"
+          type="button"
         >
           <Settings className="w-6 h-6" />
         </button>
@@ -1060,9 +1426,21 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
 
       {/* Modal */}
       {isOpen && (
-
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-dark-900 border border-[#c0ff00]/30 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl shadow-[#c0ff00]/20">
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              console.log('🔧 Modal backdrop clicked, closing');
+              setIsOpen(false);
+            }
+          }}
+        >
+          <div 
+            className="bg-dark-900 border border-[#c0ff00]/30 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl shadow-[#c0ff00]/20 relative"
+            style={{ backgroundColor: '#1a1a1a' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-[#c0ff00]/20">
               <h2 className="text-2xl font-bold text-[#c0ff00]">Admin Panel</h2>
@@ -1072,7 +1450,6 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
               >
                 <X className="w-5 h-5 text-gray-400" />
               </button>
-
             </div>
 
             {/* Tabs */}
@@ -1105,8 +1482,6 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose }) {
                   onNavigate={setActiveTab}
                 />
               )}
-
-
 
               {activeTab === 'create' && (
                 <CreateTab

@@ -8,9 +8,10 @@ import { PREDICTION_MARKET_ABI } from '../contracts/abis';
 const logger = createLogger('useUserBets');
 
 // Block range configuration - adjust based on your deployment
-// Base mainnet: ~1 block per 2 seconds, so 50000 blocks ≈ 1 day
-const DEFAULT_FROM_BLOCK = BigInt(-50000); // Last 50000 blocks (negative means from current - N)
-const MAX_BLOCK_RANGE = 50000; // Maximum blocks to query at once
+// Base Sepolia RPC limits eth_getLogs to 10,000 blocks, so we use 8000 for safety
+const DEFAULT_FROM_BLOCK = BigInt(-8000); // Last 8000 blocks (negative means from current - N)
+const MAX_BLOCK_RANGE = 8000; // Maximum blocks to query at once (under 10,000 RPC limit)
+
 
 export const useUserBets = (address, markets) => {
   const { address: connectedAddress } = useAccount();

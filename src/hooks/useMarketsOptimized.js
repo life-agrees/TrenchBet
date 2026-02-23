@@ -63,11 +63,11 @@ export function useMarketsOptimized() {
       const startIndex = Math.max(0, count - 50);
       const marketIds = Array.from({ length: count - startIndex }, (_, i) => startIndex + i);
 
-      // Prepare multicall contracts
+      // Prepare multicall contracts - use 'markets' mapping instead of 'getMarket'
       const contracts = marketIds.map(id => ({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'getMarket',
+        functionName: 'markets', // Changed from 'getMarket' to 'markets'
         args: [BigInt(id)],
       }));
 
@@ -375,10 +375,11 @@ function getCoinName(asset) {
   const names = {
     'BTC': 'Bitcoin',
     'ETH': 'Ethereum',
-    'SOL': 'Solana',
+    'LINK': 'Chainlink',
   };
   return names[asset] || asset;
 }
+
 
 /**
  * Get coin color gradient
@@ -387,9 +388,10 @@ function getCoinColor(asset) {
   const colors = {
     'BTC': 'from-orange-500 to-yellow-500',
     'ETH': 'from-blue-500 to-purple-500',
-    'SOL': 'from-purple-500 to-pink-500',
+    'LINK': 'from-blue-400 to-green-400',
   };
   return colors[asset] || 'from-gray-500 to-gray-700';
 }
+
 
 export default useMarketsOptimized;

@@ -79,8 +79,17 @@ export const CONTRACTS = {
   // USDC on Base Sepolia Testnet
   // This is the official Circle testnet USDC contract
   USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  // PredictionMarket contract
+  // PredictionMarket contract (deprecated - use PROXY)
   PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x0000000000000000000000000000000000000000',
+  // PROXY CONTRACT (NEW - Use this for all interactions!)
+  // This proxy delegates to Core and Types implementations with shared storage
+  PROXY: import.meta.env.VITE_PROXY_ADDRESS || '0x9F710F341dD6b2d9ec20843B28180F5C6C2B0a97',
+  // Modular Prediction Market Contracts (Phase 2) - NOW BEHIND PROXY
+  // Core contract: Handles binary (UP/DOWN) markets (implementation only)
+  PREDICTION_MARKET_CORE: import.meta.env.VITE_PREDICTION_MARKET_CORE_ADDRESS || '0x7516355A46a3D5122Fb76252619dC5E62e98C0f0',
+  // Types contract: Handles multi-choice, range, and time-based markets (implementation only)
+  PREDICTION_MARKET_TYPES: import.meta.env.VITE_PREDICTION_MARKET_TYPES_ADDRESS || '0xdd73a5D6e22260446A0e6DC4e3BE918498248020',
+
   // TrenchyReferrals contract - Referral tracking system
   REFERRALS: import.meta.env.VITE_REFERRALS_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
   // TrenchyAchievements contract - Achievements & badges system
@@ -90,6 +99,7 @@ export const CONTRACTS = {
   // FirstBetInsurance contract - Insurance for first bet
   INSURANCE: import.meta.env.VITE_INSURANCE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
 };
+
 
 
 // Price Feeds (Chainlink on Base Sepolia)

@@ -1,77 +1,92 @@
+# Fix: Markets Created Successfully But Not Showing in Active Markets
 
-## Phase 3: Contract Deprecation ✅ COMPLETED
-- [x] Move PredictionMarket.sol to deprecated/
-- [x] Add deprecation notices to ABIs
-- [x] Update constants.js
-- [x] Create migration guide
-- [x] Document new contract architecture
+## Problem Analysis
+When creating a market, the success message appears but the market doesn't show up in the active markets list. This is due to:
+1. **ROOT CAUSE FIXED**: Market validation was incorrectly rejecting Market 0 because it had `id: 0`
+2. Valid markets have `startTime > 0` (set to block timestamp when created)
+3. Empty slots have `startTime = 0`
+4. The contract reports `marketCounter: 9` but only Market 0 has valid data (markets 1-8 are empty/uninitialized)
 
-# TrenchyBet Implementation TODO
+## Root Cause & Solution
 
-## Week 1: Core Features (Days 1-7)
+### The Bug
+- **Original validation**: `if (market.id === 0n)` rejected Market 0
+- **Problem**: Market 0 is a valid market with `id: 0` but `startTime > 0`
+- **Impact**: Market 0 was being filtered out as "invalid"
 
-### Day 1-2: On-Chain Referral Tracking ✅
-- [x] Create `contracts/TrenchyReferrals.sol` - Smart contract
-- [x] Create `src/hooks/useReferrals.js` - Referral hook
-- [x] Create `src/components/ReferralDashboard.jsx` - Dashboard component
-- [x] Update `src/utils/constants.js` - Add contract address
-- [x] Update `src/contracts/abis.js` - Add ABI
+### The Fix
+- **New validation**: `if (!market || market.startTime === undefined || market.startTime === 0n)`
+- **Logic**: Valid markets have `startTime > 0` (set when created), empty slots have `startTime = 0`
+- **Files updated**:
+  - `src/hooks/useMarkets.js` - Fixed `fetchSingleMarket()` validation
+  - `src/components/AdminPanel.jsx` - Fixed `fetchSingleMarket()` validation
 
+## Implementation Steps
 
-### Day 3-4: Enhanced Notifications ✅
-- [x] Create `src/utils/notificationTypes.js` - Notification config
-- [x] Create `src/hooks/useEnhancedNotifications.js` - Enhanced notifications
-- [x] Create `src/components/NotificationCenter.jsx` - Notification center
-- [x] Update `src/app.jsx` - Integrate enhanced notifications
-
-
-
-### Day 5-7: Achievements & Badges System ✅
-- [x] Create `contracts/TrenchyAchievements.sol` - Achievements contract
-- [x] Create `src/utils/achievementConfig.js` - Achievement config
-- [x] Create `src/hooks/useAchievements.js` - Achievements hook
-- [x] Create `src/components/AchievementsPage.jsx` - Achievements page
-- [x] Create `src/components/AchievementBadge.jsx` - Badge component
-- [x] Update `src/contracts/abis.js` - Add ABI
+### Step 1: Fix useMarkets.js hook ✅ COMPLETE
+- [x] Add retry logic for fetching individual markets
+- [x] Improve error handling and logging
+- [x] Ensure proper endTime filtering
+- [x] Add force refresh capability
+- [x] **FIXED**: Changed validation from `id !== 0n` to `startTime > 0`
 
 
-## Week 2: Launch Incentives (Days 8-10)
-
-### Day 8: Airdrop System ✅
-- [x] Create `contracts/LaunchAirdrop.sol` - Airdrop contract
-- [x] Create `src/components/AirdropClaimModal.jsx` - Airdrop modal
-- [x] Update `src/utils/constants.js` - Add contract address
-- [x] Update `src/contracts/abis.js` - Add ABI
-
+### Step 2: Update AdminPanel.jsx ✅ COMPLETE
+- [x] Add onMarketCreated callback prop
+- [x] Add delay before refreshing to allow blockchain state to settle
+- [x] Trigger global market refresh after successful creation
+- [x] Improve success message to be more informative
+- [x] **FIXED**: Changed validation from `id !== 0n` to `startTime > 0`
 
 
-### Day 9: First Bet Insurance ✅
-- [x] Create `contracts/FirstBetInsurance.sol` - Insurance contract
-- [x] Create `src/hooks/useFirstBetInsurance.js` - Insurance hook
-- [x] Update `src/utils/constants.js` - Add contract address
-- [x] Update `src/contracts/abis.js` - Add ABI
+### Step 3: Update app.jsx ✅ COMPLETE
+- [x] Pass refreshMarkets callback to AdminPanel
+- [x] Ensure AdminPanel can trigger immediate refresh in main app
+- [x] Add loading state feedback during refresh
 
 
+## Current Status
 
-### Day 10: Bet Credits System ✅
-- [x] Update `contracts/PredictionMarket.sol` - Add bet credits
-- [x] Create `src/hooks/useBetCredits.js` - Bet credits hook
-- [x] Update `src/contracts/abis.js` - Update ABI
+### ✅ What's Working
+- Market 0 now successfully appears in AdminPanel Manage tab
+- Logs confirm: `Successfully fetched 1 markets (1 core, 0 types, 0 legacy)`
+- Market validation correctly identifies valid markets by `startTime > 0`
 
+### ⚠️ Known Issues
+- Market 0 shows as "pending" in AdminPanel (expired - endTime was March 2025)
+- Main page doesn't show Market 0 (correct behavior - only shows active markets)
+- Contract counter shows 9 markets but only Market 0 has valid data (markets 1-8 are empty)
 
-## Day 11-12: Integration & Testing ✅
-- [x] End-to-end testing
-- [x] Bug fixes
-- [x] UI polish
-- [x] Documentation
+## Documentation Created
 
+### ✅ Test Script
+- [x] Created `scripts/test-market-creation.cjs` for automated market testing
+- [x] Script validates market creation and visibility
+- [x] Can scan all markets and identify valid vs empty slots
 
-## Completed: ✅
-- [x] Project analysis and planning
-- [x] All smart contracts implemented
-- [x] All frontend components created
-- [x] All React hooks implemented
-- [x] All API endpoints created
-- [x] All services implemented
-- [x] Store updated with new state
-- [x] Constants and configuration updated
+### ✅ Troubleshooting Guide
+- [x] Created `MARKET_VISIBILITY_TROUBLESHOOTING.md`
+- [x] Includes quick diagnosis steps
+- [x] Documents common issues and solutions
+- [x] Provides debugging commands
+
+## Testing Checklist
+
+### Phase 1: Create NEW Active Markets (Priority)
+
+- [ ] Create a binary market with future endTime and verify it appears immediately in:
+  - [ ] AdminPanel Manage tab
+  - [ ] Main page Active Markets list
+- [ ] Create a multi-choice market and verify it appears immediately
+- [ ] Create a range market and verify it appears immediately
+- [ ] Create a time-based market and verify it appears immediately
+
+### Phase 2: Verify Market Persistence
+- [ ] Verify markets persist after page refresh
+- [ ] Verify markets appear correctly after app restart
+- [ ] Test market resolution flow
+
+### Phase 3: Edge Cases
+- [ ] Test creating market with same parameters as Market 0
+- [ ] Verify expired markets don't appear in main page (only AdminPanel)
+- [ ] Test rapid market creation (multiple markets in sequence)

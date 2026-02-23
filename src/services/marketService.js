@@ -44,7 +44,7 @@ export const marketService = {
       const result = await readContract(config, {
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'getMarket',
+        functionName: 'markets', // Changed from 'getMarket' to 'markets' - uses public mapping
         args: [BigInt(marketId)],
       });
       return result;
@@ -64,7 +64,7 @@ export const marketService = {
       const contracts = marketIds.map(id => ({
         address: CONTRACTS.PREDICTION_MARKET,
         abi: PREDICTION_MARKET_ABI,
-        functionName: 'getMarket',
+        functionName: 'markets', // Changed from 'getMarket' to 'markets' - uses public mapping
         args: [BigInt(id)],
       }));
 
@@ -269,3 +269,4 @@ export const marketService = {
       throw error;
     }
   },
+};

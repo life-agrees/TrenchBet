@@ -96,7 +96,14 @@ const App = () => {
   const { writeContractAsync } = useWriteContract();
 
   // Custom hooks - ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
-  const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets } = useMarkets();
+  const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets, forceRefresh } = useMarkets();
+
+  // Handle market creation callback to refresh markets
+  const handleMarketCreated = useCallback(() => {
+    console.log('🔄 Market created - refreshing markets...');
+    forceRefresh();
+  }, [forceRefresh]);
+
   const { userBets, ongoingBets, pendingBets, wonBets, lostBets, isLoading: isLoadingUserBets, error: userBetsError, refresh: refreshUserBets } = useUserBets(address, markets);
   const { enabled: notificationsEnabled, showNotification, isSupported: notificationsSupported, notificationCenter, unreadCount, markAsRead, markAllAsRead } = useEnhancedNotifications();
   const userStats = useUserStats(userBets, wonBets, lostBets, pendingBets);
@@ -108,8 +115,13 @@ const App = () => {
 
 
   const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
-  const { isOwner } = useAdminOwner(CONTRACTS.PREDICTION_MARKET);
+  const { isOwner } = useAdminOwner(CONTRACTS.PREDICTION_MARKET_CORE, CONTRACTS.PREDICTION_MARKET_TYPES);
+  
+  // Debug admin status
+  console.log('[App] Admin status:', { isOwner, core: CONTRACTS.PREDICTION_MARKET_CORE, types: CONTRACTS.PREDICTION_MARKET_TYPES });
+
   const { formattedUsdcBalance, usdcBalanceNum, isLoading: isLoadingBalance } = useBalance();
+
   const { handleMouseEnter, handleMouseLeave } = usePrefetchMarket();
   const { toggleFavorite, isFavorite } = useFavorites();
 
@@ -463,7 +475,10 @@ const App = () => {
           )}
           {isOwner && (
             <button
-              onClick={() => setShowAdminPanel(true)}
+              onClick={() => {
+                console.log('[App] Admin button clicked, opening panel');
+                setShowAdminPanel(true);
+              }}
               className="p-3 rounded-full bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 hover:border-secondary transition-all hover:scale-110 active:scale-95 cursor-pointer relative group"
               title="Open Admin Panel"
             >
@@ -473,6 +488,8 @@ const App = () => {
               </span>
             </button>
           )}
+          {!isOwner && console.log('[App] Not showing admin button, isOwner is false')}
+
           <ConnectButton />
         </div>
       </header>
@@ -782,7 +799,15 @@ const App = () => {
         />
       )}
 
-      {showAdminPanel && <AdminPanel isOpen={showAdminPanel} onClose={handleCloseAdminPanel} />}
+      {showAdminPanel && (
+        <AdminPanel 
+          isOpen={showAdminPanel} 
+          onClose={handleCloseAdminPanel}
+          onMarketCreated={forceRefresh}
+        />
+      )}
+
+
       
       <NotificationCenter 
         isOpen={showNotificationCenter} 

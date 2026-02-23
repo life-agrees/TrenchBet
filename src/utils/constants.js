@@ -7,9 +7,22 @@
 // MODULAR PREDICTION MARKET CONTRACTS (Phase 2)
 // Deployed to Base Sepolia: 2024
 // ==========================================
-export const PREDICTION_MARKET_CORE_ADDRESS = "0xb8f08E9CF766389A534dcE49C72E33F92fC4bc30";
-export const PREDICTION_MARKET_TYPES_ADDRESS = "0x5BdD5381a283Fb04167019BE35b2102429c8d621";
+
+// PROXY PATTERN (NEW - Use this for all interactions!)
+// This proxy delegates to Core and Types implementations with shared storage
+// Deployed: 2026-02-23
+export const PROXY_ADDRESS = "0x9F710F341dD6b2d9ec20843B28180F5C6C2B0a97";
+
+// Implementation contracts (behind proxy - do not use directly)
+export const PREDICTION_MARKET_CORE_ADDRESS = "0x7516355A46a3D5122Fb76252619dC5E62e98C0f0";
+export const PREDICTION_MARKET_TYPES_ADDRESS = "0xdd73a5D6e22260446A0e6DC4e3BE918498248020";
+
+// Legacy addresses (old isolated contracts - deprecated)
+export const LEGACY_PREDICTION_MARKET_CORE_ADDRESS = "0xb8f08E9CF766389A534dcE49C72E33F92fC4bc30";
+export const LEGACY_PREDICTION_MARKET_TYPES_ADDRESS = "0x5BdD5381a283Fb04167019BE35b2102429c8d621";
+
 export const CHAINLINK_RESOLVER_ADDRESS = "0x2Faee1c49d6E4ec7908800e971448B675782ab84";
+
 
 export const TRENCHY_STAKING_ADDRESS = "0x2513f27B994523B2DB87dE2F3c6C79d6E1557228";
 // Note: PredictionMarketPayoutLib is embedded at compile time, no separate address needed
@@ -138,11 +151,16 @@ export const CONTRACTS = {
   USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
   // PredictionMarket contract - DEPRECATED: Use PREDICTION_MARKET_CORE or PREDICTION_MARKET_TYPES
   PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x5c07E771b5BC9e574b551A3f032AE3A8A3BeeE9E',
-  // Modular Prediction Market Contracts (Phase 2)
-  // Core contract: Handles binary (UP/DOWN) markets
+  // PROXY CONTRACT (NEW - Use this for all interactions!)
+  // This proxy delegates to Core and Types implementations with shared storage
+  PROXY: import.meta.env.VITE_PROXY_ADDRESS || PROXY_ADDRESS,
+  
+  // Modular Prediction Market Contracts (Phase 2) - NOW BEHIND PROXY
+  // Core contract: Handles binary (UP/DOWN) markets (implementation only)
   PREDICTION_MARKET_CORE: import.meta.env.VITE_PREDICTION_MARKET_CORE_ADDRESS || PREDICTION_MARKET_CORE_ADDRESS,
-  // Types contract: Handles multi-choice, range, and time-based markets
+  // Types contract: Handles multi-choice, range, and time-based markets (implementation only)
   PREDICTION_MARKET_TYPES: import.meta.env.VITE_PREDICTION_MARKET_TYPES_ADDRESS || PREDICTION_MARKET_TYPES_ADDRESS,
+
 
   // TrenchyReferrals contract - Referral tracking system
   REFERRALS: import.meta.env.VITE_REFERRALS_CONTRACT_ADDRESS || '0xF5f960a38d6cCF8EabD06fF6fcB15Ee1bBA4021f',
@@ -240,21 +258,25 @@ export const SUPPORTED_ASSETS = {
   WITH_PRICE_FEEDS: ['BTC', 'ETH', 'LINK'],
   
   // Assets without price feeds (cannot be used for markets that require price data)
-  WITHOUT_PRICE_FEEDS: ['SOL', 'UNI', 'AAVE', 'CRV', 'MKR', 'COMP', 'YFI'],
+  WITHOUT_PRICE_FEEDS: ['UNI', 'AAVE', 'CRV', 'MKR', 'COMP', 'YFI'],
   
-  // All assets (for display purposes)
-  ALL: ['BTC', 'ETH', 'LINK', 'SOL', 'UNI', 'AAVE', 'CRV', 'MKR', 'COMP', 'YFI'],
+  // All assets (for display purposes) - Only include assets with price feeds on Base Sepolia
+  ALL: ['BTC', 'ETH', 'LINK'],
+
 };
 
 /**
  * Chainlink Price Feed addresses on Base Sepolia
  * Source: https://docs.chain.link/data-feeds/price-feeds/addresses?network=base&page=1#base-sepolia-testnet
+ * Official addresses verified from chain.link documentation
  */
 export const CHAINLINK_PRICE_FEEDS = {
-  BTC: '0x0C466540F2f993d3DDA3b951c7Cb4a035E3c1C35',   // BTC/USD
-  ETH: '0x4aDC67696bA383F43DD60A9e78F306971eE0d43c',   // ETH/USD  
-  LINK: '0x59D46b0Cb5659Da2E79a0Bde27C0cdFBbA9d2C8E',  // LINK/USD
+  BTC: '0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298',   // BTC/USD (Base Sepolia Official)
+  ETH: '0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1',   // ETH/USD (Base Sepolia Official)
+  LINK: '0xb113F5A928BCfF189C998ab20d753a47F9dE5A61',  // LINK/USD (Base Sepolia Official)
 };
+
+
 
 /**
  * Check if an asset has a price feed on Base Sepolia
