@@ -1,36 +1,28 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAccount, usePublicClient, useWalletClient, useReadContract } from 'wagmi';
 import { createLogger } from '../utils/logger';
-import { 
-  PREDICTION_MARKET_CORE_ABI, 
-  PREDICTION_MARKET_TYPES_ABI, 
-  ERC20_ABI 
-} from '../contracts/abis';
-import { CONTRACTS } from '../utils/constants';
+import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
+import { ERC20_ABI } from '../contracts/abis';
+import { CONTRACTS, PROXY_ADDRESS } from '../utils/constants';
 import { parseUnits, formatUnits } from 'viem';
 
 const logger = createLogger('useBetPlacement');
 
+// PROXY PATTERN: All interactions go through the proxy contract
+const PROXY_CONTRACT_ADDRESS = PROXY_ADDRESS;
+
 /**
- * Helper to get contract info based on market type
- * Binary markets (type 0) -> Core contract
- * Multi/Range/Time markets (types 1-3) -> Types contract
+ * PROXY PATTERN: All market types use the proxy contract
+ * The proxy delegates to Core/Types implementations via delegatecall
  */
 function getContractForMarketType(marketType) {
-  if (marketType === 0) {
-    return {
-      address: CONTRACTS.PREDICTION_MARKET_CORE,
-      abi: PREDICTION_MARKET_CORE_ABI,
-      source: 'core'
-    };
-  }
+  // All market types use the same proxy contract
   return {
-    address: CONTRACTS.PREDICTION_MARKET_TYPES,
-    abi: PREDICTION_MARKET_TYPES_ABI,
-    source: 'types'
+    address: PROXY_CONTRACT_ADDRESS,
+    abi: PREDICTION_MARKET_PROXY_ABI,
+    source: 'proxy'
   };
 }
-
 
 export const useBetPlacement = () => {
   const { address } = useAccount();
@@ -45,24 +37,14 @@ export const useBetPlacement = () => {
   const [needsApproval, setNeedsApproval] = useState(false);
   const lastBetRef = useRef(null);
 
-  // Read USDC allowance for Core contract
-  const { data: coreAllowance, refetch: refetchCoreAllowance } = useReadContract({
+  // PROXY PATTERN: Read USDC allowance for proxy contract only
+  const { data: proxyAllowance, refetch: refetchProxyAllowance } = useReadContract({
     address: CONTRACTS.USDC,
     abi: ERC20_ABI,
     functionName: 'allowance',
-    args: address && CONTRACTS.PREDICTION_MARKET_CORE ? [address, CONTRACTS.PREDICTION_MARKET_CORE] : undefined,
-    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET_CORE,
+    args: address && PROXY_CONTRACT_ADDRESS ? [address, PROXY_CONTRACT_ADDRESS] : undefined,
+    enabled: !!address && !!PROXY_CONTRACT_ADDRESS,
   });
-
-  // Read USDC allowance for Types contract
-  const { data: typesAllowance, refetch: refetchTypesAllowance } = useReadContract({
-    address: CONTRACTS.USDC,
-    abi: ERC20_ABI,
-    functionName: 'allowance',
-    args: address && CONTRACTS.PREDICTION_MARKET_TYPES ? [address, CONTRACTS.PREDICTION_MARKET_TYPES] : undefined,
-    enabled: !!address && !!CONTRACTS.PREDICTION_MARKET_TYPES,
-  });
-
 
   // Reset state
   const reset = useCallback(() => {
@@ -114,31 +96,23 @@ export const useBetPlacement = () => {
   }, [publicClient]);
 
   /**
-   * Check if user has sufficient USDC allowance for a specific contract
+   * PROXY PATTERN: Check if user has sufficient USDC allowance for proxy
    */
-  const checkAllowance = useCallback(async (amount, marketType) => {
+  const checkAllowance = useCallback(async (amount) => {
     if (!address) {
       throw new Error('Wallet not connected');
     }
-    
-    const contract = getContractForMarketType(marketType);
     
     try {
       // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      // Refresh allowance from chain based on contract type
-      let allowance;
-      if (contract.source === 'core') {
-        const { data } = await refetchCoreAllowance();
-        allowance = data;
-      } else {
-        const { data } = await refetchTypesAllowance();
-        allowance = data;
-      }
+      // Refresh allowance from chain
+      const { data } = await refetchProxyAllowance();
+      const allowance = data;
       
       logger.info('Checking allowance:', {
-        contract: contract.source,
+        contract: 'proxy',
         currentAllowance: allowance ? formatUnits(allowance, 6) : '0',
         requiredAmount: amount.toString(),
         hasEnough: allowance && allowance >= amountInUnits
@@ -149,39 +123,35 @@ export const useBetPlacement = () => {
       logger.error('Error checking allowance:', err);
       throw new Error('Failed to check USDC allowance: ' + err.message);
     }
-  }, [address, refetchCoreAllowance, refetchTypesAllowance]);
-
+  }, [address, refetchProxyAllowance]);
 
   /**
-   * Approve USDC spending for a specific market contract
+   * PROXY PATTERN: Approve USDC spending for proxy contract
    */
-  const approveUSDC = useCallback(async (amount, marketType) => {
+  const approveUSDC = useCallback(async (amount) => {
     if (!walletClient || !address) {
       throw new Error('Wallet not connected');
     }
-
-    const contract = getContractForMarketType(marketType);
 
     try {
       // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      logger.info('Approving USDC:', {
+      logger.info('Approving USDC for proxy:', {
         amount: amount.toString(),
         amountInUnits: amountInUnits.toString(),
-        spender: contract.address,
-        contractType: contract.source
+        spender: PROXY_CONTRACT_ADDRESS
       });
 
       setNeedsApproval(true);
       setIsPending(true);
 
-      // Send approval transaction directly (skip simulation for testnet compatibility)
+      // Send approval transaction
       const txHash = await walletClient.writeContract({
         address: CONTRACTS.USDC,
         abi: ERC20_ABI,
         functionName: 'approve',
-        args: [contract.address, amountInUnits],
+        args: [PROXY_CONTRACT_ADDRESS, amountInUnits],
         account: address,
       });
 
@@ -204,7 +174,7 @@ export const useBetPlacement = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Re-check allowance to confirm it worked
-      const hasAllowance = await checkAllowance(amount, marketType);
+      const hasAllowance = await checkAllowance(amount);
       if (!hasAllowance) {
         throw new Error('Allowance check failed after approval. Please try again.');
       }
@@ -232,9 +202,8 @@ export const useBetPlacement = () => {
     }
   }, [walletClient, address, waitForConfirmation, checkAllowance]);
 
-
   /**
-   * Execute the place bet transaction
+   * PROXY PATTERN: Execute the place bet transaction through proxy
    */
   const executePlaceBet = useCallback(async (marketId, choice, amount, marketType) => {
     if (!walletClient || !address) {
@@ -263,20 +232,17 @@ export const useBetPlacement = () => {
       throw new Error(`Invalid choice: "${choice}" is not a valid number`);
     }
 
-    // Get the correct contract based on market type
-    const contract = getContractForMarketType(marketType);
-
     try {
       // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      logger.info('Placing bet:', {
+      logger.info('Placing bet via proxy:', {
         marketId: numericMarketId,
         choice: numericChoice,
         amount: amount.toString(),
         amountInUnits: amountInUnits.toString(),
-        contractType: contract.source,
-        contractAddress: contract.address
+        marketType,
+        proxyAddress: PROXY_CONTRACT_ADDRESS
       });
 
       setIsPending(true);
@@ -284,10 +250,11 @@ export const useBetPlacement = () => {
       // Wait a moment for wallet state sync (1 second)
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Send bet transaction directly (skip simulation for testnet compatibility)
+      // PROXY PATTERN: Send bet transaction through proxy
+      // The proxy will route to appropriate implementation based on marketType
       const txHash = await walletClient.writeContract({
-        address: contract.address,
-        abi: contract.abi,
+        address: PROXY_CONTRACT_ADDRESS,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'placeBet',
         args: [BigInt(numericMarketId), numericChoice, amountInUnits],
         account: address,
@@ -337,7 +304,6 @@ export const useBetPlacement = () => {
     }
   }, [walletClient, address, waitForConfirmation]);
 
-
   /**
    * Main place bet function - handles approval and betting flow
    */
@@ -359,9 +325,6 @@ export const useBetPlacement = () => {
       return { success: false, error: 'Invalid market ID' };
     }
 
-    // Get market type (default to 0 for binary)
-    const marketType = market.marketType !== undefined ? market.marketType : 0;
-
     setIsPlacingBet(true);
     setIsPending(false);
     setIsConfirming(false);
@@ -371,23 +334,23 @@ export const useBetPlacement = () => {
     setHash(null);
 
     try {
-      // Step 1: Check if approval is needed for the correct contract
-      logger.info('Checking if approval is needed...', { marketType });
-      const hasAllowance = await checkAllowance(amount, marketType);
+      // Step 1: Check if approval is needed
+      logger.info('Checking if approval is needed...');
+      const hasAllowance = await checkAllowance(amount);
       
       let approvalHash = null;
       
       if (!hasAllowance) {
-        // Step 2: Approve USDC for the correct contract
-        logger.info('Approval needed, requesting USDC approval...', { marketType });
-        approvalHash = await approveUSDC(amount, marketType);
+        // Step 2: Approve USDC for proxy
+        logger.info('Approval needed, requesting USDC approval...');
+        approvalHash = await approveUSDC(amount);
       } else {
         logger.info('Sufficient allowance already exists');
       }
       
-      // Step 3: Place the bet on the correct contract
-      logger.info('Placing bet...', { marketType });
-      const betHash = await executePlaceBet(market.id, choice, amount, marketType);
+      // Step 3: Place the bet through proxy
+      logger.info('Placing bet via proxy...');
+      const betHash = await executePlaceBet(market.id, choice, amount, market.marketType);
       
       return { 
         success: true, 
@@ -410,7 +373,6 @@ export const useBetPlacement = () => {
     }
   }, [address, checkAllowance, approveUSDC, executePlaceBet]);
 
-
   return {
     placeBet,
     isPending,
@@ -422,11 +384,12 @@ export const useBetPlacement = () => {
     lastBetRef,
     error,
     reset,
-    // Return both allowances for UI display
-    coreAllowance: coreAllowance ? formatUnits(coreAllowance, 6) : '0',
-    typesAllowance: typesAllowance ? formatUnits(typesAllowance, 6) : '0'
+    // Return proxy allowance for UI display
+    proxyAllowance: proxyAllowance ? formatUnits(proxyAllowance, 6) : '0',
+    // Keep old names for backward compatibility
+    coreAllowance: proxyAllowance ? formatUnits(proxyAllowance, 6) : '0',
+    typesAllowance: proxyAllowance ? formatUnits(proxyAllowance, 6) : '0'
   };
-
 };
 
 export default useBetPlacement;

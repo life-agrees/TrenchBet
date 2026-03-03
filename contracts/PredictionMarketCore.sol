@@ -6,14 +6,13 @@ import "./PredictionMarketPayoutLib.sol";
 
 /**
  * @title PredictionMarketCore
- * @notice Core contract for binary markets, betting, and claiming
- * @dev Handles 80% of use cases - binary up/down markets
+ * @notice Core contract for binary markets - UPDATED for split storage
  */
-contract PredictionMarketCore is PredictionMarketBase {
+contract PredictionMarketCore is PredictionMarketStorage, PredictionMarketBase {
     
     using PredictionMarketPayoutLib for *;
 
-    constructor(address _usdc, address _owner) PredictionMarketBase(_usdc, _owner) {}
+    constructor(address _usdc, address _proxy) PredictionMarketBase(_usdc, _proxy) {}
 
     // ==================== BINARY MARKET CREATION ====================
     
@@ -25,7 +24,7 @@ contract PredictionMarketCore is PredictionMarketBase {
         bool useTimeDecay,
         uint256 decayStartPercent,
         uint256 minMultiplier
-    ) public onlyOwner returns (uint256) {
+    ) public onlyProxyOwner returns (uint256) {
         require(address(priceFeeds[asset]) != address(0), "Price feed not set");
         require(duration >= 60 && duration <= 7 days, "Invalid duration");
         require(decayStartPercent <= 100, "Invalid decay start percent");
@@ -37,7 +36,7 @@ contract PredictionMarketCore is PredictionMarketBase {
         int256 currentPrice = getCurrentPrice(asset);
         require(currentPrice > 0, "Invalid price");
         
-        uint256 marketId = marketCounter++;
+        uint256 marketId = marketCounter;
         uint256 startTime = block.timestamp;
         uint256 endTime = startTime + duration;
         
@@ -46,27 +45,23 @@ contract PredictionMarketCore is PredictionMarketBase {
             startTime + (duration * (decayStartPercent > 0 ? decayStartPercent : DEFAULT_DECAY_START_PERCENT) / 100) : 0;
         uint256 finalMinMultiplier = minMultiplier > 0 ? minMultiplier : DEFAULT_MIN_MULTIPLIER;
         
-        markets[marketId] = Market({
-            id: marketId,
-            marketType: MarketType.BINARY,
-            asset: asset,
-            startTime: startTime,
-            endTime: endTime,
-            startPrice: currentPrice,
-            endPrice: 0,
-            yesPool: 0,
-            noPool: 0,
-            resolved: false,
-            priceWentUp: false,
-            totalBets: 0,
-            useFixedOdds: useFixedOdds,
-            yesMultiplier: yesMultiplier,
-            noMultiplier: noMultiplier,
-            protocolFee: 0,
-            useTimeDecay: useTimeDecay,
-            decayStartTime: decayStartTime,
-            minMultiplier: finalMinMultiplier
-        });
+        // Use helper to set split storage
+        _setMarket(
+            marketId,
+            asset,
+            MarketType.BINARY,
+            startTime,
+            endTime,
+            currentPrice,
+            yesMultiplier,
+            noMultiplier,
+            useFixedOdds,
+            useTimeDecay,
+            decayStartTime,
+            finalMinMultiplier
+        );
+        
+        marketCounter++;
         
         emit MarketCreated(marketId, MarketType.BINARY, asset, useFixedOdds, useTimeDecay);
         return marketId;
@@ -75,33 +70,35 @@ contract PredictionMarketCore is PredictionMarketBase {
     // ==================== PLACE BETS ====================
     
     function placeBet(uint256 marketId, uint8 choice, uint256 amount) external nonReentrant whenNotPaused {
-        Market storage market = markets[marketId];
-        require(market.startTime > 0, "Market does not exist");
-        require(block.timestamp < market.endTime, "Market has ended");
-        require(!market.resolved, "Market already resolved");
+        MarketCore memory core = marketCore[marketId];
+        require(core.startTime > 0, "Market does not exist");
+        require(block.timestamp < core.endTime, "Market has ended");
+        require(!core.resolved, "Market already resolved");
         require(amount > 0 && amount <= MAX_BET_AMOUNT, "Invalid amount");
-        require(market.marketType == MarketType.BINARY, "Not a binary market");
+        require(core.marketType == MarketType.BINARY, "Not a binary market");
         require(choice <= 1, "Invalid binary choice");
         
         require(usdc.transferFrom(msg.sender, address(this), amount), "USDC transfer failed");
         
+        MarketPools storage pools = marketPools[marketId];
         if (choice == 1) {
-            market.yesPool += amount;
+            pools.yesPool += amount;
         } else {
-            market.noPool += amount;
+            pools.noPool += amount;
         }
-        
-        market.totalBets++;
+        pools.totalBets++;
         
         uint256 effectiveMultiplier = 0;
-        if (market.useFixedOdds) {
-            uint256 baseMultiplier = choice == 1 ? market.yesMultiplier : market.noMultiplier;
+        MarketOdds memory odds = marketOdds[marketId];
+        if (odds.useFixedOdds) {
+            MarketDecay memory decay = marketDecay[marketId];
+            uint256 baseMultiplier = choice == 1 ? odds.yesMultiplier : odds.noMultiplier;
             effectiveMultiplier = PredictionMarketPayoutLib.calculateDecayedMultiplier(
                 baseMultiplier,
-                market.decayStartTime,
-                market.endTime,
-                market.minMultiplier,
-                market.useTimeDecay
+                decay.decayStartTime,
+                core.endTime,
+                decay.minMultiplier,
+                decay.useTimeDecay
             );
         }
         
@@ -119,7 +116,7 @@ contract PredictionMarketCore is PredictionMarketBase {
         marketPositions[marketId].push(position);
         
         if (userMarketPositions[marketId][msg.sender].length == 0) {
-            userPositions[msg.sender].push(marketId);
+            userPositionsList[msg.sender].push(marketId);
         }
         userMarketPositions[marketId][msg.sender].push(positionIndex);
         
@@ -131,36 +128,44 @@ contract PredictionMarketCore is PredictionMarketBase {
     // ==================== RESOLVE MARKETS ====================
     
     function resolveMarket(uint256 marketId) external {
-        Market storage market = markets[marketId];
-        require(market.marketType == MarketType.BINARY, "Not a binary market");
-        require(market.startTime > 0, "Market does not exist");
-        require(block.timestamp >= market.endTime, "Market has not ended yet");
-        require(!market.resolved, "Market already resolved");
+        MarketCore storage core = marketCore[marketId];
+        require(core.marketType == MarketType.BINARY, "Not a binary market");
+        require(core.startTime > 0, "Market does not exist");
+        require(block.timestamp >= core.endTime, "Market has not ended yet");
+        require(!core.resolved, "Market already resolved");
         
-        int256 endPrice = getCurrentPrice(market.asset);
+        int256 endPrice = getCurrentPrice(core.asset);
         require(endPrice > 0, "Invalid end price");
         
-        market.endPrice = endPrice;
-        market.priceWentUp = endPrice > market.startPrice;
+        core.endPrice = endPrice;
+        bool priceWentUp = endPrice > core.startPrice;
         
-        uint256 losingPool = market.priceWentUp ? market.noPool : market.yesPool;
+        MarketOdds storage odds = marketOdds[marketId];
+        odds.priceWentUp = priceWentUp;
+        
+        MarketPools storage pools = marketPools[marketId];
+        uint256 losingPool = priceWentUp ? pools.noPool : pools.yesPool;
         uint256 fee = (losingPool * FEE_PERCENTAGE) / 100;
-        market.protocolFee = fee;
+        pools.protocolFee = fee;
         accumulatedFees += fee;
         
-        market.resolved = true;
+        core.resolved = true;
         
-        emit MarketResolved(marketId, market.priceWentUp ? 1 : 0, fee);
+        emit MarketResolved(marketId, priceWentUp ? 1 : 0, fee);
     }
 
     // ==================== CLAIM WINNINGS ====================
     
     function claimWinnings(uint256 marketId) external nonReentrant whenNotPaused {
-        Market storage market = markets[marketId];
-        require(market.resolved, "Market not resolved yet");
+        MarketCore memory core = marketCore[marketId];
+        require(core.resolved, "Market not resolved yet");
         
         uint256[] memory positionIndices = userMarketPositions[marketId][msg.sender];
         require(positionIndices.length > 0, "No positions in this market");
+        
+        MarketPools memory pools = marketPools[marketId];
+        MarketOdds memory odds = marketOdds[marketId];
+        MarketDecay memory decay = marketDecay[marketId];
         
         uint256 totalWinnings = 0;
         bool hadWin = false;
@@ -171,27 +176,27 @@ contract PredictionMarketCore is PredictionMarketBase {
             
             if (position.claimed) continue;
             
-            bool userWon = position.predictedUp == market.priceWentUp;
+            bool userWon = position.predictedUp == odds.priceWentUp;
             uint256 payout = 0;
             
             if (userWon) {
-                if (market.useFixedOdds) {
-                    uint256 multiplier = position.predictedUp ? market.yesMultiplier : market.noMultiplier;
+                if (odds.useFixedOdds) {
+                    uint256 multiplier = position.predictedUp ? odds.yesMultiplier : odds.noMultiplier;
                     uint256 effectiveMultiplier = PredictionMarketPayoutLib.calculateDecayedMultiplier(
                         multiplier,
-                        market.decayStartTime,
-                        market.endTime,
-                        market.minMultiplier,
-                        market.useTimeDecay
+                        decay.decayStartTime,
+                        core.endTime,
+                        decay.minMultiplier,
+                        decay.useTimeDecay
                     );
                     payout = PredictionMarketPayoutLib.calculateFixedOddsPayout(position.amount, effectiveMultiplier);
                 } else {
                     payout = PredictionMarketPayoutLib.calculateBinaryPoolPayout(
                         position.amount,
                         position.predictedUp,
-                        market.yesPool,
-                        market.noPool,
-                        market.protocolFee,
+                        pools.yesPool,
+                        pools.noPool,
+                        pools.protocolFee,
                         FEE_PERCENTAGE
                     );
                 }
@@ -228,9 +233,9 @@ contract PredictionMarketCore is PredictionMarketBase {
         emit WinningsClaimed(marketId, msg.sender, totalWinnings);
     }
 
-    // ==================== BET CREDITS SYSTEM ====================
+    // ==================== BET CREDITS ====================
     
-    function awardBetCredit(address user, uint256 amount) external onlyOwner {
+    function awardBetCredit(address user, uint256 amount) external onlyProxyOwner {
         require(amount > 0, "Amount must be > 0");
         require(user != address(0), "Invalid user address");
         require(usdc.transferFrom(msg.sender, address(this), amount), "USDC transfer failed");
@@ -266,31 +271,33 @@ contract PredictionMarketCore is PredictionMarketBase {
     }
     
     function _placeBetInternal(uint256 marketId, uint8 choice, uint256 amount) internal {
-        Market storage market = markets[marketId];
-        require(market.startTime > 0, "Market does not exist");
-        require(block.timestamp < market.endTime, "Market has ended");
-        require(!market.resolved, "Market already resolved");
+        MarketCore memory core = marketCore[marketId];
+        require(core.startTime > 0, "Market does not exist");
+        require(block.timestamp < core.endTime, "Market has ended");
+        require(!core.resolved, "Market already resolved");
         require(amount > 0 && amount <= MAX_BET_AMOUNT, "Invalid amount");
-        require(market.marketType == MarketType.BINARY, "Not a binary market");
+        require(core.marketType == MarketType.BINARY, "Not a binary market");
         require(choice <= 1, "Invalid binary choice");
         
+        MarketPools storage pools = marketPools[marketId];
         if (choice == 1) {
-            market.yesPool += amount;
+            pools.yesPool += amount;
         } else {
-            market.noPool += amount;
+            pools.noPool += amount;
         }
-        
-        market.totalBets++;
+        pools.totalBets++;
         
         uint256 effectiveMultiplier = 0;
-        if (market.useFixedOdds) {
-            uint256 baseMultiplier = choice == 1 ? market.yesMultiplier : market.noMultiplier;
+        MarketOdds memory odds = marketOdds[marketId];
+        if (odds.useFixedOdds) {
+            MarketDecay memory decay = marketDecay[marketId];
+            uint256 baseMultiplier = choice == 1 ? odds.yesMultiplier : odds.noMultiplier;
             effectiveMultiplier = PredictionMarketPayoutLib.calculateDecayedMultiplier(
                 baseMultiplier,
-                market.decayStartTime,
-                market.endTime,
-                market.minMultiplier,
-                market.useTimeDecay
+                decay.decayStartTime,
+                core.endTime,
+                decay.minMultiplier,
+                decay.useTimeDecay
             );
         }
         
@@ -308,7 +315,7 @@ contract PredictionMarketCore is PredictionMarketBase {
         marketPositions[marketId].push(position);
         
         if (userMarketPositions[marketId][msg.sender].length == 0) {
-            userPositions[msg.sender].push(marketId);
+            userPositionsList[msg.sender].push(marketId);
         }
         userMarketPositions[marketId][msg.sender].push(positionIndex);
         
@@ -320,22 +327,25 @@ contract PredictionMarketCore is PredictionMarketBase {
     // ==================== VIEW FUNCTIONS ====================
     
     function calculatePotentialPayout(uint256 marketId, uint8 choice, uint256 amount) external view returns (uint256) {
-        Market memory market = markets[marketId];
-        require(market.marketType == MarketType.BINARY, "Not a binary market");
+        MarketCore memory core = marketCore[marketId];
+        require(core.marketType == MarketType.BINARY, "Not a binary market");
         
-        if (market.useFixedOdds) {
-            uint256 baseMultiplier = choice == 1 ? market.yesMultiplier : market.noMultiplier;
+        MarketOdds memory odds = marketOdds[marketId];
+        if (odds.useFixedOdds) {
+            MarketDecay memory decay = marketDecay[marketId];
+            uint256 baseMultiplier = choice == 1 ? odds.yesMultiplier : odds.noMultiplier;
             uint256 effectiveMultiplier = PredictionMarketPayoutLib.calculateDecayedMultiplier(
                 baseMultiplier,
-                market.decayStartTime,
-                market.endTime,
-                market.minMultiplier,
-                market.useTimeDecay
+                decay.decayStartTime,
+                core.endTime,
+                decay.minMultiplier,
+                decay.useTimeDecay
             );
             return PredictionMarketPayoutLib.calculateFixedOddsPayout(amount, effectiveMultiplier);
         } else {
-            uint256 winningPool = choice == 1 ? market.yesPool + amount : market.noPool + amount;
-            uint256 losingPool = choice == 1 ? market.noPool : market.yesPool;
+            MarketPools memory pools = marketPools[marketId];
+            uint256 winningPool = choice == 1 ? pools.yesPool + amount : pools.noPool + amount;
+            uint256 losingPool = choice == 1 ? pools.noPool : pools.yesPool;
             
             if (winningPool == 0) return amount;
             
@@ -347,34 +357,37 @@ contract PredictionMarketCore is PredictionMarketBase {
     }
     
     function getCurrentOdds(uint256 marketId) external view returns (uint256[] memory multipliers) {
-        Market memory market = markets[marketId];
-        require(market.marketType == MarketType.BINARY, "Not a binary market");
+        MarketCore memory core = marketCore[marketId];
+        require(core.marketType == MarketType.BINARY, "Not a binary market");
         
         multipliers = new uint256[](2);
         
-        if (market.useFixedOdds) {
+        MarketOdds memory odds = marketOdds[marketId];
+        if (odds.useFixedOdds) {
+            MarketDecay memory decay = marketDecay[marketId];
             multipliers[0] = PredictionMarketPayoutLib.calculateDecayedMultiplier(
-                market.noMultiplier,
-                market.decayStartTime,
-                market.endTime,
-                market.minMultiplier,
-                market.useTimeDecay
+                odds.noMultiplier,
+                decay.decayStartTime,
+                core.endTime,
+                decay.minMultiplier,
+                decay.useTimeDecay
             );
             multipliers[1] = PredictionMarketPayoutLib.calculateDecayedMultiplier(
-                market.yesMultiplier,
-                market.decayStartTime,
-                market.endTime,
-                market.minMultiplier,
-                market.useTimeDecay
+                odds.yesMultiplier,
+                decay.decayStartTime,
+                core.endTime,
+                decay.minMultiplier,
+                decay.useTimeDecay
             );
         } else {
-            uint256 total = market.yesPool + market.noPool;
+            MarketPools memory pools = marketPools[marketId];
+            uint256 total = pools.yesPool + pools.noPool;
             if (total == 0) {
                 multipliers[0] = 200;
                 multipliers[1] = 200;
             } else {
-                multipliers[0] = total > 0 ? (total * 200) / (market.noPool + 1) : 200;
-                multipliers[1] = total > 0 ? (total * 200) / (market.yesPool + 1) : 200;
+                multipliers[0] = total > 0 ? (total * 200) / (pools.noPool + 1) : 200;
+                multipliers[1] = total > 0 ? (total * 200) / (pools.yesPool + 1) : 200;
             }
         }
         
@@ -382,18 +395,19 @@ contract PredictionMarketCore is PredictionMarketBase {
     }
     
     function getDecayStatus(uint256 marketId) external view returns (bool isDecaying, uint256 decayProgress, uint256 currentMultiplier) {
-        Market memory market = markets[marketId];
+        MarketCore memory core = marketCore[marketId];
+        MarketDecay memory decay = marketDecay[marketId];
         return PredictionMarketPayoutLib.getDecayStatus(
-            market.decayStartTime,
-            market.endTime,
-            market.minMultiplier,
-            market.useTimeDecay
+            decay.decayStartTime,
+            core.endTime,
+            decay.minMultiplier,
+            decay.useTimeDecay
         );
     }
 
     // ==================== ADMIN FUNCTIONS ====================
     
-    function withdrawFees() external onlyOwner whenNotPaused {
+    function withdrawFees() external onlyProxyOwner whenNotPaused {
         require(block.timestamp >= lastFeeWithdrawal + WITHDRAWAL_DELAY, "Withdrawal delay not met");
         
         uint256 amount = accumulatedFees;
@@ -404,15 +418,15 @@ contract PredictionMarketCore is PredictionMarketBase {
         emit FeesWithdrawn(msg.sender, amount);
     }
     
-    function pause() external onlyOwner {
+    function pause() external onlyProxyOwner {
         _pause();
     }
     
-    function unpause() external onlyOwner {
+    function unpause() external onlyProxyOwner {
         _unpause();
     }
     
-    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+    function emergencyWithdraw(address token, uint256 amount) external onlyProxyOwner {
         IERC20(token).transfer(msg.sender, amount);
     }
 }

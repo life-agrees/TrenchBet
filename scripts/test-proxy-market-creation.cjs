@@ -1,182 +1,179 @@
+/**
+ * Test Proxy Market Creation
+ * 
+ * This script tests if market creation works through the proxy after
+ * configuring the function selectors.
+ * 
+ * Usage: npx hardhat run scripts/test-proxy-market-creation.cjs --network baseSepolia
+ */
+
 const { ethers } = require("hardhat");
-const fs = require("fs");
-const path = require("path");
+require("dotenv").config();
+
+// Contract addresses
+const PROXY_ADDRESS = "0x804F5711BA094BF5faf9aBc8bE02983662C2C034";
+const CORE_IMPLEMENTATION = "0xb2cdFD0D8ceFda3EbC291E2C98a8324e4b3BA6c8";
+
+// Admin private key
+const ADMIN_PRIVATE_KEY = process.env.ADMIN_PRIVATE_KEY || "9cd97938f0d142a2fd0febbe83d6924be882dd58f86fd443e57f423d6a440f8d";
+
+// ABI for testing
+const PROXY_ABI = [
+  "function owner() external view returns (address)",
+  "function implementations(bytes4) external view returns (address)",
+  "function defaultImplementation() external view returns (address)",
+  "function createMarketWithOdds(string asset, uint256 duration, uint256 yesMultiplier, uint256 noMultiplier, bool useTimeDecay, uint256 decayStartPercent, uint256 minMultiplier) external returns (uint256)",
+  "function marketCounter() external view returns (uint256)",
+  "function markets(uint256) external view returns (tuple(uint256 id, uint8 marketType, string asset, uint256 startTime, uint256 endTime, int256 startPrice, int256 endPrice, uint256 yesPool, uint256 noPool, bool resolved, bool priceWentUp, uint256 totalBets, bool useFixedOdds, uint256 yesMultiplier, uint256 noMultiplier, uint256 protocolFee, bool useTimeDecay, uint256 decayStartTime, uint256 minMultiplier))",
+];
 
 async function main() {
-  console.log("🧪 Testing Market Creation Through Proxy...");
+  console.log("🧪 Testing Proxy Market Creation");
+  console.log("==================================\n");
+
+  // Connect to the network
+  const provider = new ethers.JsonRpcProvider(process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org");
   
-  // Get deployer
-  const [deployer] = await ethers.getSigners();
+  // Create admin wallet
+  const adminWallet = new ethers.Wallet(ADMIN_PRIVATE_KEY, provider);
+  const adminAddress = await adminWallet.getAddress();
   
-  // Load deployment info
-  const deploymentsDir = path.join(__dirname, "..", "deployments");
-  const files = fs.readdirSync(deploymentsDir).filter(f => f.startsWith("proxy-deployment-"));
+  console.log("Admin wallet:", adminAddress);
+  console.log("Proxy address:", PROXY_ADDRESS);
+  console.log("");
+
+  // Connect to proxy contract
+  const proxy = new ethers.Contract(PROXY_ADDRESS, PROXY_ABI, adminWallet);
+
+  // Verify admin is owner
+  const owner = await proxy.owner();
+  console.log("Proxy owner:", owner);
   
-  if (files.length === 0) {
-    console.error("❌ No proxy deployment found. Run deploy-proxy-pattern.cjs first.");
+  if (owner.toLowerCase() !== adminAddress.toLowerCase()) {
+    console.error("❌ ERROR: Admin wallet is not the proxy owner!");
     process.exit(1);
   }
+  console.log("✅ Admin is proxy owner\n");
+
+  // Check function selector configuration
+  const createMarketSelector = "0xb8653a7f"; // createMarketWithOdds(string,uint256,uint256,uint256,bool,uint256,uint256)
+  const implementation = await proxy.implementations(createMarketSelector);
+  console.log("createMarketWithOdds selector:", createMarketSelector);
+  console.log("Implementation for selector:", implementation);
   
-  // Get latest deployment
-  const latestFile = files.sort().reverse()[0];
-  const deploymentInfo = JSON.parse(fs.readFileSync(path.join(deploymentsDir, latestFile), "utf8"));
-  const { proxy } = deploymentInfo.contracts;
-  
-  console.log(`\n📋 Using proxy at: ${proxy}`);
-  
-  // Connect to proxy as Core
-  const coreContract = await ethers.getContractAt("PredictionMarketCore", proxy);
-  
-  // Check initial state
-  console.log("\n📊 Initial State:");
-  const initialCounter = await coreContract.marketCounter();
-  console.log(`   Market counter: ${initialCounter.toString()}`);
-  
-  // Test 1: Create a binary market
-  console.log("\n🎯 Test 1: Creating Binary Market...");
+  if (implementation.toLowerCase() !== CORE_IMPLEMENTATION.toLowerCase()) {
+    console.warn("⚠️ WARNING: Selector not configured correctly!");
+    console.warn("  Expected:", CORE_IMPLEMENTATION);
+    console.warn("  Actual:  ", implementation);
+    console.log("\nThe selector may need to be configured.");
+  } else {
+    console.log("✅ Selector configured correctly\n");
+  }
+
+  // Get current market counter
+  const marketCounterBefore = await proxy.marketCounter();
+  console.log("Market counter before:", marketCounterBefore.toString());
+
+  // Test market creation parameters
+  const testParams = {
+    asset: "BTC",
+    duration: 900, // 15 minutes
+    yesMultiplier: 200,
+    noMultiplier: 200,
+    useTimeDecay: false,
+    decayStartPercent: 50,
+    minMultiplier: 120,
+  };
+
+  console.log("\n📋 Test market parameters:");
+  console.log("  Asset:", testParams.asset);
+  console.log("  Duration:", testParams.duration, "seconds");
+  console.log("  Yes Multiplier:", testParams.yesMultiplier);
+  console.log("  No Multiplier:", testParams.noMultiplier);
+  console.log("  Use Time Decay:", testParams.useTimeDecay);
+
+  // Try to simulate the transaction first
+  console.log("\n🔍 Simulating transaction...");
   try {
-    const tx = await coreContract.createMarketWithOdds(
-      "BTC",           // asset
-      900,             // duration (15 minutes)
-      200,             // yesMultiplier (2.00x)
-      200,             // noMultiplier (2.00x)
-      false,           // useTimeDecay
-      50,              // decayStartPercent
-      120              // minMultiplier
+    // Use staticCall to simulate without sending
+    const result = await proxy.createMarketWithOdds.staticCall(
+      testParams.asset,
+      testParams.duration,
+      testParams.yesMultiplier,
+      testParams.noMultiplier,
+      testParams.useTimeDecay,
+      testParams.decayStartPercent,
+      testParams.minMultiplier
     );
+    console.log("✅ Simulation successful! Would create market ID:", result.toString());
+  } catch (error) {
+    console.error("❌ Simulation failed:", error.message);
+    if (error.message.includes("caller is not the owner")) {
+      console.error("\n🔴 CRITICAL: The 'caller is not the owner' error persists!");
+      console.error("This means the proxy is not correctly routing the call.");
+      console.error("\nPossible causes:");
+      console.error("1. The function selector is not configured in the proxy");
+      console.error("2. The proxy is using the wrong implementation");
+      console.error("3. The ownership chain is broken");
+    }
+    process.exit(1);
+  }
+
+  // If simulation passed, try actual transaction
+  console.log("\n🚀 Sending actual transaction...");
+  try {
+    const tx = await proxy.createMarketWithOdds(
+      testParams.asset,
+      testParams.duration,
+      testParams.yesMultiplier,
+      testParams.noMultiplier,
+      testParams.useTimeDecay,
+      testParams.decayStartPercent,
+      testParams.minMultiplier
+    );
+    
+    console.log("Transaction sent:", tx.hash);
+    console.log("Waiting for confirmation...");
     
     const receipt = await tx.wait();
-    console.log(`   ✅ Market created! Tx: ${receipt.hash}`);
-    console.log(`   Gas used: ${receipt.gasUsed.toString()}`);
+    console.log("✅ Transaction confirmed in block:", receipt.blockNumber);
+
+    // Verify market was created
+    const marketCounterAfter = await proxy.marketCounter();
+    console.log("\nMarket counter after:", marketCounterAfter.toString());
     
-    // Parse event to get market ID
-    const event = receipt.logs.find(
-      log => {
-        try {
-          const parsed = coreContract.interface.parseLog(log);
-          return parsed && parsed.name === "MarketCreated";
-        } catch (e) {
-          return false;
-        }
-      }
-    );
-    
-    if (event) {
-      const parsedEvent = coreContract.interface.parseLog(event);
-      console.log(`   📈 Market ID: ${parsedEvent.args.marketId.toString()}`);
-      console.log(`   Asset: ${parsedEvent.args.asset}`);
-      console.log(`   End Time: ${parsedEvent.args.endTime.toString()}`);
-    }
-  } catch (error) {
-    console.error(`   ❌ Failed to create market: ${error.message}`);
-    if (error.reason) console.error(`   Reason: ${error.reason}`);
-  }
-  
-  // Check state after creation
-  console.log("\n📊 State After Creation:");
-  const afterCounter = await coreContract.marketCounter();
-  console.log(`   Market counter: ${afterCounter.toString()}`);
-  
-  // Test 2: Read the newly created market
-  console.log("\n📖 Test 2: Reading Created Market...");
-  try {
-    const marketId = Number(initialCounter); // First market ID
-    const market = await coreContract.markets(marketId);
-    
-    console.log(`   ✅ Market ${marketId} data:`);
-    console.log(`      - Asset: ${market.asset}`);
-    console.log(`      - Type: ${market.marketType}`);
-    console.log(`      - Start Time: ${market.startTime.toString()}`);
-    console.log(`      - End Time: ${market.endTime.toString()}`);
-    console.log(`      - Start Price: ${market.startPrice.toString()}`);
-    console.log(`      - Resolved: ${market.resolved}`);
-    console.log(`      - Use Fixed Odds: ${market.useFixedOdds}`);
-    console.log(`      - Yes Multiplier: ${market.yesMultiplier.toString()}`);
-    console.log(`      - No Multiplier: ${market.noMultiplier.toString()}`);
-    
-    // Verify market data is valid
-    const isValid = market.startTime > 0 && market.endTime > market.startTime;
-    console.log(`   ✅ Market data valid: ${isValid ? "YES" : "NO"}`);
-    
-  } catch (error) {
-    console.error(`   ❌ Failed to read market: ${error.message}`);
-  }
-  
-  // Test 3: Create multiple markets
-  console.log("\n🎯 Test 3: Creating Multiple Markets...");
-  const marketsToCreate = 3;
-  
-  for (let i = 0; i < marketsToCreate; i++) {
-    try {
-      const tx = await coreContract.createMarketWithOdds(
-        "ETH",           // asset
-        1800,            // duration (30 minutes)
-        250,             // yesMultiplier (2.50x)
-        150,             // noMultiplier (1.50x)
-        true,            // useTimeDecay
-        50,              // decayStartPercent
-        120              // minMultiplier
-      );
+    if (marketCounterAfter > marketCounterBefore) {
+      console.log("✅ Market counter incremented!");
       
-      const receipt = await tx.wait();
-      console.log(`   ✅ Market ${i + 2} created! Gas: ${receipt.gasUsed.toString()}`);
-    } catch (error) {
-      console.error(`   ❌ Failed to create market ${i + 2}: ${error.message}`);
-    }
-  }
-  
-  // Final state check
-  console.log("\n📊 Final State:");
-  const finalCounter = await coreContract.marketCounter();
-  console.log(`   Market counter: ${finalCounter.toString()}`);
-  console.log(`   Markets created: ${Number(finalCounter) - Number(initialCounter)}`);
-  
-  // Test 4: Read all markets
-  console.log("\n📖 Test 4: Reading All Markets...");
-  const count = Number(finalCounter);
-  
-  for (let i = 0; i < count; i++) {
-    try {
-      const market = await coreContract.markets(i);
-      const status = market.startTime > 0 ? "✅ VALID" : "❌ INVALID";
-      console.log(`   Market ${i}: ${market.asset} - ${status}`);
-    } catch (error) {
-      console.error(`   ❌ Market ${i}: ${error.message}`);
-    }
-  }
-  
-  // Summary
-  console.log("\n" + "=".repeat(60));
-  console.log("🧪 TEST SUMMARY");
-  console.log("=".repeat(60));
-  console.log(`Initial markets: ${initialCounter.toString()}`);
-  console.log(`Final markets: ${finalCounter.toString()}`);
-  console.log(`New markets created: ${Number(finalCounter) - Number(initialCounter)}`);
-  console.log("\n✅ Proxy market creation test complete!");
-  console.log("=".repeat(60));
-  
-  // Verify all markets are accessible
-  let allValid = true;
-  for (let i = 0; i < count; i++) {
-    try {
-      const market = await coreContract.markets(i);
-      if (market.startTime === 0n) {
-        allValid = false;
-        console.error(`❌ Market ${i} has invalid data!`);
+      // Try to read the new market
+      const newMarketId = marketCounterBefore;
+      try {
+        const market = await proxy.markets(newMarketId);
+        console.log("\n📊 New market details:");
+        console.log("  ID:", market.id.toString());
+        console.log("  Asset:", market.asset);
+        console.log("  Start Time:", new Date(Number(market.startTime) * 1000).toISOString());
+        console.log("  End Time:", new Date(Number(market.endTime) * 1000).toISOString());
+        console.log("  Start Price:", market.startPrice.toString());
+        console.log("  Yes Multiplier:", market.yesMultiplier.toString());
+        console.log("  No Multiplier:", market.noMultiplier.toString());
+        
+        console.log("\n🎉 SUCCESS! Market creation through proxy is working!");
+      } catch (readError) {
+        console.warn("⚠️ Could not read market details:", readError.message);
+        console.log("But transaction was successful!");
       }
-    } catch (error) {
-      allValid = false;
-      console.error(`❌ Market ${i} cannot be read: ${error.message}`);
+    } else {
+      console.error("❌ Market counter did not increment!");
     }
+  } catch (error) {
+    console.error("❌ Transaction failed:", error.message);
+    process.exit(1);
   }
-  
-  if (allValid) {
-    console.log("\n🎉 SUCCESS! All markets are accessible and valid!");
-    console.log("The proxy pattern is working correctly.");
-  } else {
-    console.log("\n⚠️  WARNING: Some markets have issues.");
-    console.log("Please check the contract implementation.");
-  }
+
+  console.log("\n==================================");
+  console.log("✅ Proxy Market Creation Test Complete!");
+  console.log("==================================");
 }
 
 main()

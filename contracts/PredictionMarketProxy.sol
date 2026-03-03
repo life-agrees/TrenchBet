@@ -2,114 +2,153 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/proxy/Proxy.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./PredictionMarketStorage.sol";
 
 /**
  * @title PredictionMarketProxy
- * @notice Proxy contract that delegates calls to implementation contracts
- * @dev Uses OpenZeppelin's Proxy pattern for shared storage
+ * @notice FIXED: Inherits PredictionMarketStorage for storage layout alignment
+ * @dev All storage variables are inherited from PredictionMarketStorage
+ * @dev EIP-1967 slots are used for proxy-specific data (admin, implementation)
  */
-contract PredictionMarketProxy is Proxy, Ownable {
+contract PredictionMarketProxy is PredictionMarketStorage, Proxy {
+
     
-    // Storage slot for the implementation address
+    // EIP-1967 Storage Slots (won't collide with implementation storage)
     bytes32 private constant _IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1);
-    
-    // Storage slot for the admin address
     bytes32 private constant _ADMIN_SLOT = bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1);
     
-    // Mapping to route calls to different implementations
-    mapping(bytes4 => address) public implementations;
+    // Store Core and Types implementations in EIP-1967 slots too
+    bytes32 private constant _CORE_IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.coreImplementation")) - 1);
+    bytes32 private constant _TYPES_IMPLEMENTATION_SLOT = bytes32(uint256(keccak256("eip1967.proxy.typesImplementation")) - 1);
     
-    // Default implementation (Core contract)
-    address public defaultImplementation;
+    event AdminChanged(address indexed previousAdmin, address indexed newAdmin);
+    event ImplementationUpgraded(address indexed implementation);
     
-    event ImplementationSet(bytes4 indexed selector, address indexed implementation);
-    event DefaultImplementationSet(address indexed implementation);
-    
-    constructor(address _coreImplementation, address _admin) {
-        require(_coreImplementation != address(0), "Invalid core implementation");
+    constructor(address _coreImplementation, address _typesImplementation, address _admin) {
+        require(_coreImplementation != address(0), "Invalid core");
+        require(_typesImplementation != address(0), "Invalid types");
         require(_admin != address(0), "Invalid admin");
         
-        defaultImplementation = _coreImplementation;
-        
-        // Set admin in EIP-1967 slot
-        bytes32 slot = _ADMIN_SLOT;
+        // Set admin
+        bytes32 adminSlot = _ADMIN_SLOT;
         assembly {
-            sstore(slot, _admin)
+            sstore(adminSlot, _admin)
         }
         
-        // Transfer ownership to admin
-        transferOwnership(_admin);
-        
-        emit DefaultImplementationSet(_coreImplementation);
-    }
-    
-    /**
-     * @notice Set implementation for a specific function selector
-     * @param selector Function selector
-     * @param implementation Implementation contract address
-     */
-    function setImplementation(bytes4 selector, address implementation) external onlyOwner {
-        require(implementation != address(0), "Invalid implementation");
-        implementations[selector] = implementation;
-        emit ImplementationSet(selector, implementation);
-    }
-    
-    /**
-     * @notice Set the default implementation (Core contract)
-     * @param implementation Core contract address
-     */
-    function setDefaultImplementation(address implementation) external onlyOwner {
-        require(implementation != address(0), "Invalid implementation");
-        defaultImplementation = implementation;
-        emit DefaultImplementationSet(implementation);
-    }
-    
-    /**
-     * @notice Get the implementation address for a given call
-     * @return impl Implementation contract address
-     */
-    function _implementation() internal view override returns (address impl) {
-        // Get the function selector from msg.data
-        bytes4 selector;
-        if (msg.data.length >= 4) {
-            selector = bytes4(msg.data[0:4]);
+        // Set Core as default implementation
+        bytes32 implSlot = _IMPLEMENTATION_SLOT;
+        assembly {
+            sstore(implSlot, _coreImplementation)
         }
         
-        // Check if there's a specific implementation for this selector
-        address specificImpl = implementations[selector];
-        if (specificImpl != address(0)) {
-            return specificImpl;
+        // Store both implementations
+        bytes32 coreSlot = _CORE_IMPLEMENTATION_SLOT;
+        assembly {
+            sstore(coreSlot, _coreImplementation)
         }
         
-        // Return default implementation
-        return defaultImplementation;
+        bytes32 typesSlot = _TYPES_IMPLEMENTATION_SLOT;
+        assembly {
+            sstore(typesSlot, _typesImplementation)
+        }
     }
     
-    /**
-     * @notice Get the admin address
-     * @return admin Admin address
-     */
-    function getAdmin() external view returns (address admin) {
+    modifier onlyAdmin() {
+        require(msg.sender == getAdmin(), "Only admin");
+        _;
+    }
+    
+    function getAdmin() public view returns (address admin) {
         bytes32 slot = _ADMIN_SLOT;
         assembly {
             admin := sload(slot)
         }
     }
     
-    /**
-     * @notice Upgrade the proxy to a new implementation
-     * @param newImplementation New implementation address
-     */
-    function upgradeTo(address newImplementation) external onlyOwner {
-        require(newImplementation != address(0), "Invalid implementation");
-        defaultImplementation = newImplementation;
-        emit DefaultImplementationSet(newImplementation);
+    function owner() public view returns (address) {
+        return getAdmin();
     }
     
-    /**
-     * @notice Receive function to accept ETH
-     */
+    function _implementation() internal view override returns (address impl) {
+        bytes4 selector = msg.sig;
+        
+        // Route to Types implementation for advanced market types
+        if (
+            selector == bytes4(keccak256("createMultiChoiceMarketWithOdds(string,string[],string,uint256,uint256[],bool,uint256,uint256)")) ||
+            selector == bytes4(keccak256("createRangeMarketWithOdds(string,uint256[],uint256[],uint256,uint256[],bool,uint256,uint256)")) ||
+            selector == bytes4(keccak256("createTimeMarketWithOdds(string,uint256,uint256[],uint256[],bool,uint256,uint256)")) ||
+            selector == bytes4(keccak256("placeBetAdvanced(uint256,uint8,uint256)")) ||
+            selector == bytes4(keccak256("claimWinningsAdvanced(uint256)")) ||
+            selector == bytes4(keccak256("resolveMultiChoiceMarket(uint256,uint8)")) ||
+            selector == bytes4(keccak256("resolveRangeMarket(uint256)")) ||
+            selector == bytes4(keccak256("resolveTimeMarket(uint256)"))
+        ) {
+            bytes32 typesSlot = _TYPES_IMPLEMENTATION_SLOT;
+            assembly {
+                impl := sload(typesSlot)
+            }
+        } else {
+            // Default to Core for all other functions
+            bytes32 coreSlot = _CORE_IMPLEMENTATION_SLOT;
+            assembly {
+                impl := sload(coreSlot)
+            }
+        }
+    }
+    
+    function getCoreImplementation() public view returns (address impl) {
+        bytes32 slot = _CORE_IMPLEMENTATION_SLOT;
+        assembly {
+            impl := sload(slot)
+        }
+    }
+    
+    function getTypesImplementation() public view returns (address impl) {
+        bytes32 slot = _TYPES_IMPLEMENTATION_SLOT;
+        assembly {
+            impl := sload(slot)
+        }
+    }
+    
+    function upgradeCore(address newImplementation) external onlyAdmin {
+        require(newImplementation != address(0), "Invalid implementation");
+        
+        bytes32 coreSlot = _CORE_IMPLEMENTATION_SLOT;
+        assembly {
+            sstore(coreSlot, newImplementation)
+        }
+        
+        // Also update default implementation
+        bytes32 implSlot = _IMPLEMENTATION_SLOT;
+        assembly {
+            sstore(implSlot, newImplementation)
+        }
+        
+        emit ImplementationUpgraded(newImplementation);
+    }
+    
+    function upgradeTypes(address newImplementation) external onlyAdmin {
+        require(newImplementation != address(0), "Invalid implementation");
+        
+        bytes32 typesSlot = _TYPES_IMPLEMENTATION_SLOT;
+        assembly {
+            sstore(typesSlot, newImplementation)
+        }
+        
+        emit ImplementationUpgraded(newImplementation);
+    }
+    
+    function transferAdmin(address newAdmin) external onlyAdmin {
+        require(newAdmin != address(0), "Invalid admin");
+        address previousAdmin = getAdmin();
+        
+        bytes32 slot = _ADMIN_SLOT;
+        assembly {
+            sstore(slot, newAdmin)
+        }
+        
+        emit AdminChanged(previousAdmin, newAdmin);
+    }
+    
     receive() external payable override {}
-
 }

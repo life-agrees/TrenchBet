@@ -25,26 +25,31 @@ const logger = createLogger('AdminPanel');
 
 /**
  * Helper to get contract info based on market type
- * CRITICAL FIX: Use actual contract addresses (not proxy) for market operations
- * Proxy has isolated storage - markets created via proxy are NOT visible when reading from Core directly
- * Binary markets (type 0) -> Uses Core contract directly
- * Multi/Range/Time markets (types 1-3) -> Uses Types contract directly
+ * PROXY PATTERN: Always use PROXY_ADDRESS for all market operations
+ * The proxy uses delegatecall to execute logic in Core/Types implementations
+ * while keeping all storage (markets, positions, counters) in the proxy itself
+ * Binary markets (type 0) -> Proxy delegates to Core implementation
+ * Multi/Range/Time markets (types 1-3) -> Proxy delegates to Types implementation
  */
 function getContractForMarketType(marketType) {
-  // Use actual contract addresses where markets are stored
+  // Always use PROXY_ADDRESS - the proxy will route to correct implementation
+  // based on function selector mapping configured in deploy-proxy-pattern.cjs
   if (marketType === 0 || marketType === 'binary') {
     return {
-      address: CONTRACTS.PREDICTION_MARKET_CORE,
+      address: PROXY_ADDRESS,
       abi: PREDICTION_MARKET_CORE_ABI,
-      source: 'core'
+      source: 'proxy'
     };
   }
   return {
-    address: CONTRACTS.PREDICTION_MARKET_TYPES,
+    address: PROXY_ADDRESS,
     abi: PREDICTION_MARKET_TYPES_ABI,
-    source: 'types'
+    source: 'proxy'
   };
 }
+
+
+
 
 
 
@@ -751,7 +756,159 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     }
   };
 
+  /**
+   * Fetch markets from PROXY contract (all markets visible here)
+   */
+  const fetchMarketsFromProxy = async (publicClient) => {
+    try {
+      // Read marketCounter from PROXY
+      const marketCounter = await publicClient.readContract({
+        address: PROXY_ADDRESS,
+        abi: PREDICTION_MARKET_CORE_ABI,
+        functionName: 'marketCounter'
+      });
+
+      const totalMarkets = Number(marketCounter);
+      console.log(`📋 Fetching ${totalMarkets} markets from PROXY...`);
+
+      if (totalMarkets === 0) return [];
+
+      // Fetch each market with full data from PROXY
+      const marketPromises = [];
+      for (let i = 0; i < totalMarkets; i++) {
+        marketPromises.push(fetchSingleMarketFromProxy(publicClient, i));
+      }
+
+      const validMarkets = (await Promise.all(marketPromises)).filter(m => m !== null);
+      console.log(`✅ Loaded ${validMarkets.length} markets from PROXY`);
+      
+      return validMarkets;
+    } catch (error) {
+      console.warn(`⚠️ Failed to fetch markets from PROXY:`, error.message);
+      return [];
+    }
+  };
+
+  /**
+   * Fetch a single market from PROXY contract
+   */
+  const fetchSingleMarketFromProxy = async (publicClient, marketId) => {
+    try {
+      // Get base market data from PROXY
+      const rawMarket = await publicClient.readContract({
+        address: PROXY_ADDRESS,
+        abi: PREDICTION_MARKET_CORE_ABI,
+        functionName: 'markets',
+        args: [BigInt(marketId)]
+      });
+      
+      const market = parseMarketArray(rawMarket);
+      
+      // Validate market exists
+      if (!market || market.startTime === undefined || market.startTime === 0n) {
+        console.debug(`Market ${marketId} does not exist in PROXY (no startTime)`);
+        return null;
+      }
+
+      const marketType = Number(market.marketType);
+
+      // Base market object
+      const baseMarket = {
+        id: marketId,
+        marketType,
+        asset: market.asset || 'Unknown',
+        question: market.question || '',
+        startTime: Number(market.startTime) * 1000,
+        endTime: Number(market.endTime) * 1000,
+        startPrice: market.startPrice ? Number(market.startPrice) / 1e8 : 0,
+        endPrice: market.endPrice ? Number(market.endPrice) / 1e8 : 0,
+        totalPool: Number(((market.yesPool || 0n) + (market.noPool || 0n)) / 1000000n),
+        resolved: market.resolved,
+        winningChoice: market.winningChoice ? Number(market.winningChoice) : 0,
+        totalBets: Number(market.totalBets) || 0,
+        useFixedOdds: market.useFixedOdds || false,
+        yesPool: market.yesPool ? Number(market.yesPool) / 1e6 : 0,
+        noPool: market.noPool ? Number(market.noPool) / 1e6 : 0,
+        contractSource: 'proxy',
+        contractAddress: PROXY_ADDRESS,
+      };
+
+      // Fetch type-specific data from PROXY using appropriate ABI
+      if (marketType === 1) {
+        // MULTI-CHOICE
+        try {
+          const options = await publicClient.readContract({
+            address: PROXY_ADDRESS,
+            abi: PREDICTION_MARKET_TYPES_ABI,
+            functionName: 'getMultiChoiceOptions',
+            args: [BigInt(marketId)]
+          });
+          baseMarket.options = options || [];
+        } catch (error) {
+          console.warn(`Failed to fetch options for market ${marketId}:`, error.message);
+          baseMarket.options = [];
+        }
+      } else if (marketType === 2) {
+        // RANGE
+        try {
+          const rangeData = await publicClient.readContract({
+            address: PROXY_ADDRESS,
+            abi: PREDICTION_MARKET_TYPES_ABI,
+            functionName: 'getRangeMarketData',
+            args: [BigInt(marketId)]
+          });
+          const mins = rangeData.mins || rangeData[0] || [];
+          const maxs = rangeData.maxs || rangeData[1] || [];
+          baseMarket.ranges = mins.map((min, idx) => ({
+            min: Number(min) / 1e8,
+            max: Number(maxs[idx]) / 1e8
+          }));
+        } catch (error) {
+          console.warn(`Failed to fetch range data for market ${marketId}:`, error.message);
+          baseMarket.ranges = [];
+        }
+      } else if (marketType === 3) {
+        // TIME
+        try {
+          const timeData = await publicClient.readContract({
+            address: PROXY_ADDRESS,
+            abi: PREDICTION_MARKET_TYPES_ABI,
+            functionName: 'getTimeMarketData',
+            args: [BigInt(marketId)]
+          });
+          const targetPrice = timeData.targetPrice || timeData[0];
+          const timeframeSeconds = timeData.timeframes || timeData[1] || [];
+          baseMarket.targetPrice = Number(targetPrice) / 1e8;
+          baseMarket.timeframes = timeframeSeconds.map((seconds) => {
+            const secondsNum = Number(seconds);
+            return {
+              label: formatTimeframeLabel(secondsNum),
+              seconds: secondsNum
+            };
+          });
+        } catch (error) {
+          console.warn(`Failed to fetch time data for market ${marketId}:`, error.message);
+          baseMarket.targetPrice = 0;
+          baseMarket.timeframes = [];
+        }
+      }
+
+      return baseMarket;
+
+    } catch (error) {
+      if (error.message?.includes('out of bounds') || 
+          error.message?.includes('Position') ||
+          error.message?.includes('decoding')) {
+        console.warn(`Market ${marketId} not found or has invalid data in PROXY`);
+        return null;
+      }
+      console.warn(`Failed to fetch market ${marketId} from PROXY:`, error.message);
+      return null;
+    }
+  };
+
   // Fetch markets for manage tab (only if parent doesn't provide markets)
+
   const fetchMarkets = async () => {
     // Skip if parent provides markets
     if (parentMarkets !== undefined) {
@@ -759,35 +916,22 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
       return;
     }
     
-    if (!publicClient || !CONTRACTS.PREDICTION_MARKET_CORE || !CONTRACTS.PREDICTION_MARKET_TYPES) {
-      console.error('Missing publicClient or contract addresses');
+    if (!publicClient || !PROXY_ADDRESS) {
+      console.error('Missing publicClient or PROXY_ADDRESS');
       return;
     }
 
-    console.log('📋 Fetching markets from both contracts...');
+    console.log('📋 Fetching markets from PROXY...');
     setIsLoadingInternalMarkets(true);
 
-
     try {
-      // Fetch from both contracts in parallel
-      const coreContract = {
-        address: CONTRACTS.PREDICTION_MARKET_CORE,
-        abi: PREDICTION_MARKET_CORE_ABI
-      };
-      const typesContract = {
-        address: CONTRACTS.PREDICTION_MARKET_TYPES,
-        abi: PREDICTION_MARKET_TYPES_ABI
-      };
+      // ✅ FIXED: Fetch from PROXY only (all markets are stored here)
+      const proxyMarkets = await fetchMarketsFromProxy(publicClient);
 
-      const [coreMarkets, typesMarkets] = await Promise.all([
-        fetchMarketsFromContract(publicClient, coreContract, 'core'),
-        fetchMarketsFromContract(publicClient, typesContract, 'types')
-      ]);
+      // Sort by end time
+      const allMarkets = proxyMarkets.sort((a, b) => b.endTime - a.endTime);
 
-      // Combine and sort by end time
-      const allMarkets = [...coreMarkets, ...typesMarkets].sort((a, b) => b.endTime - a.endTime);
-
-      console.log(`✅ Loaded ${allMarkets.length} markets total (${coreMarkets.length} core, ${typesMarkets.length} types)`);
+      console.log(`✅ Loaded ${allMarkets.length} markets from PROXY`);
       setInternalMarkets(allMarkets);
 
     } catch (error) {
@@ -797,6 +941,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
       setIsLoadingInternalMarkets(false);
     }
   };
+
 
 
 
@@ -951,7 +1096,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
   };
 
 
-  // ✅ FIXED: Create Binary Market (uses Core contract directly, NOT proxy)
+  // ✅ FIXED: Create Binary Market (uses PROXY - markets visible to all users)
   const createBinaryMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -961,11 +1106,11 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         throw new Error('Wallet not connected');
       }
       
-      if (!CONTRACTS.PREDICTION_MARKET_CORE) {
-        throw new Error('Core contract address not configured');
+      if (!PROXY_ADDRESS) {
+        throw new Error('Proxy contract address not configured');
       }
 
-      console.log('🔧 Creating binary market via CORE CONTRACT with params:', {
+      console.log('🔧 Creating binary market via PROXY with params:', {
         asset: binaryForm.asset,
         duration: binaryForm.duration * 60,
         useFixedOdds: binaryForm.useFixedOdds,
@@ -974,10 +1119,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         useTimeDecay: binaryForm.useTimeDecay,
         decayStartPercent: binaryForm.decayStartPercent,
         minMultiplier: binaryForm.minMultiplier,
-        core: CONTRACTS.PREDICTION_MARKET_CORE
+        proxy: PROXY_ADDRESS
       });
-
-
 
       toast.loading('Creating binary market...', { id: 'create-market' });
       
@@ -995,15 +1138,14 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         BigInt(binaryForm.minMultiplier),
       ];
 
-      
       console.log('🔧 Transaction args:', args);
 
-      console.log('🔧 About to simulate transaction via CORE CONTRACT...');
+      console.log('🔧 About to simulate transaction via PROXY...');
       
       // First simulate to catch any contract errors
       try {
         const { request } = await publicClient.simulateContract({
-          address: CONTRACTS.PREDICTION_MARKET_CORE,
+          address: PROXY_ADDRESS,
           abi: PREDICTION_MARKET_CORE_ABI,
           functionName: 'createMarketWithOdds',
           args: args,
@@ -1017,18 +1159,17 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
       
       // Try without gas limit first to let wallet estimate
       const txParams = {
-        address: CONTRACTS.PREDICTION_MARKET_CORE,
+        address: PROXY_ADDRESS,
         abi: PREDICTION_MARKET_CORE_ABI,
         functionName: 'createMarketWithOdds',
         args: args,
         account: address,
       };
 
-
-      
       console.log('🔧 Transaction params:', txParams);
       
       const hash = await walletClient.writeContract(txParams);
+
 
 
 
@@ -1061,7 +1202,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
   };
 
 
-  // ✅ FIXED: Create MultiChoice Market (uses Types contract directly, NOT proxy)
+  // ✅ FIXED: Create MultiChoice Market (uses PROXY - markets visible to all users)
   const createMultiChoiceMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -1071,8 +1212,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         throw new Error('Wallet not connected');
       }
       
-      if (!CONTRACTS.PREDICTION_MARKET_TYPES) {
-        throw new Error('Types contract address not configured');
+      if (!PROXY_ADDRESS) {
+        throw new Error('Proxy contract address not configured');
       }
       
       const validOptions = multiChoiceForm.options.filter((o) => sanitizeInput(o).trim() !== '');
@@ -1087,7 +1228,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         return;
       }
 
-      console.log('🔧 Creating multi-choice market via TYPES CONTRACT with params:', {
+      console.log('🔧 Creating multi-choice market via PROXY with params:', {
         asset: multiChoiceForm.asset,
         options: validOptions,
         question: multiChoiceForm.question,
@@ -1095,10 +1236,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         useFixedOdds: multiChoiceForm.useFixedOdds,
         multipliers: multiChoiceForm.multipliers.slice(0, validOptions.length),
         useTimeDecay: multiChoiceForm.useTimeDecay,
-        types: CONTRACTS.PREDICTION_MARKET_TYPES
+        proxy: PROXY_ADDRESS
       });
-
-
 
       toast.loading('Creating multi-choice market...', { id: 'create-market' });
       
@@ -1117,16 +1256,16 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         BigInt(multiChoiceForm.minMultiplier),
       ];
 
-      
       console.log('🔧 Transaction args:', args);
 
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        address: PROXY_ADDRESS,
         abi: PREDICTION_MARKET_TYPES_ABI,
         functionName: 'createMultiChoiceMarketWithOdds',
         args: args,
         account: address,
       });
+
 
 
 
@@ -1160,7 +1299,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
   };
 
 
-  // ✅ FIXED: Create Range Market (uses Types contract directly, NOT proxy)
+  // ✅ FIXED: Create Range Market (uses PROXY - markets visible to all users)
   const createRangeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -1170,14 +1309,14 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         throw new Error('Wallet not connected');
       }
       
-      if (!CONTRACTS.PREDICTION_MARKET_TYPES) {
-        throw new Error('Types contract address not configured');
+      if (!PROXY_ADDRESS) {
+        throw new Error('Proxy contract address not configured');
       }
       
       const rangeMins = rangeForm.ranges.map((r) => BigInt(Math.floor(r.min * 1e8)));
       const rangeMaxs = rangeForm.ranges.map((r) => BigInt(Math.floor(r.max * 1e8)));
       
-      console.log('🔧 Creating range market via TYPES CONTRACT with params:', {
+      console.log('🔧 Creating range market via PROXY with params:', {
         asset: rangeForm.asset,
         rangeMins: rangeMins.map(b => b.toString()),
         rangeMaxs: rangeMaxs.map(b => b.toString()),
@@ -1185,10 +1324,8 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         useFixedOdds: rangeForm.useFixedOdds,
         multipliers: rangeForm.multipliers,
         useTimeDecay: rangeForm.useTimeDecay,
-        types: CONTRACTS.PREDICTION_MARKET_TYPES
+        proxy: PROXY_ADDRESS
       });
-
-
 
       toast.loading('Creating range market...', { id: 'create-market' });
       
@@ -1207,16 +1344,16 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         BigInt(rangeForm.minMultiplier),
       ];
 
-      
       console.log('🔧 Transaction args:', args);
 
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        address: PROXY_ADDRESS,
         abi: PREDICTION_MARKET_TYPES_ABI,
         functionName: 'createRangeMarketWithOdds',
         args: args,
         account: address,
       });
+
 
 
 
@@ -1250,7 +1387,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
   };
 
 
-  // ✅ FIXED: Create Time Market (uses Types contract directly, NOT proxy)
+  // ✅ FIXED: Create Time Market (uses PROXY - markets visible to all users)
   const createTimeMarket = async () => {
     try {
       setCreateStatus({ show: false, success: false, message: '' });
@@ -1260,24 +1397,22 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         throw new Error('Wallet not connected');
       }
       
-      if (!CONTRACTS.PREDICTION_MARKET_TYPES) {
-        throw new Error('Types contract address not configured');
+      if (!PROXY_ADDRESS) {
+        throw new Error('Proxy contract address not configured');
       }
       
       const targetPriceBigInt = BigInt(Math.floor(timeForm.targetPrice * 1e8));
       const timeframeSeconds = timeForm.timeframes.map((tf) => BigInt(tf.seconds));
       
-      console.log('🔧 Creating time market via TYPES CONTRACT with params:', {
+      console.log('🔧 Creating time market via PROXY with params:', {
         asset: timeForm.asset,
         targetPrice: targetPriceBigInt.toString(),
         timeframes: timeframeSeconds.map(b => b.toString()),
         useFixedOdds: timeForm.useFixedOdds,
         multipliers: timeForm.multipliers,
         useTimeDecay: timeForm.useTimeDecay,
-        types: CONTRACTS.PREDICTION_MARKET_TYPES
+        proxy: PROXY_ADDRESS
       });
-
-
 
       toast.loading('Creating time-based market...', { id: 'create-market' });
       
@@ -1295,16 +1430,16 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         BigInt(timeForm.minMultiplier),
       ];
 
-      
       console.log('🔧 Transaction args:', args);
 
       const hash = await walletClient.writeContract({
-        address: CONTRACTS.PREDICTION_MARKET_TYPES,
+        address: PROXY_ADDRESS,
         abi: PREDICTION_MARKET_TYPES_ABI,
         functionName: 'createTimeMarketWithOdds',
         args: args,
         account: address,
       });
+
 
 
 

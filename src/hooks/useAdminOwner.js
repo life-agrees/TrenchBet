@@ -1,22 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { createLogger } from '../utils/logger';
+import { PROXY_ADDRESS } from '../utils/constants';
 
 const logger = createLogger('useAdminOwner');
 
-// Development mode owner address - set to your wallet address
+// Development mode owner address - your admin wallet
 const DEV_OWNER_ADDRESS = '0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d';
-
-// Simple owner ABI
-const OWNER_ABI = [
-  {
-    inputs: [],
-    name: 'owner',
-    outputs: [{ internalType: 'address', name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  }
-];
 
 /**
  * Check owner of a single contract
@@ -56,10 +46,14 @@ export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
   const [ownerAddress, setOwnerAddress] = useState(null);
 
   const checkOwnership = useCallback(async () => {
-    console.log('[useAdminOwner] checkOwnership called', { isConnected, address, coreContractAddress, typesContractAddress });
+    logger.info('checkOwnership called', { 
+      isConnected, 
+      address, 
+      PROXY_ADDRESS 
+    });
     
     if (!isConnected || !address) {
-      console.log('[useAdminOwner] Not connected or no address');
+      logger.info('Not connected or no address');
       setIsOwner(false);
       setIsLoading(false);
       return;
@@ -68,57 +62,44 @@ export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
     setIsLoading(true);
 
     try {
-      console.log('[useAdminOwner] Checking contract addresses...');
-      // If no contract addresses provided, use dev mode
-      if (!coreContractAddress && !typesContractAddress) {
-
+      // If no PROXY_ADDRESS, use dev mode
+      if (!PROXY_ADDRESS) {
         const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
         setIsOwner(isDevOwner);
         setOwnerAddress(DEV_OWNER_ADDRESS);
-        logger.info('Dev mode ownership (no contracts):', { isDevOwner, address });
+        logger.info('Dev mode ownership (no proxy):', { isDevOwner, address });
         setIsLoading(false);
         return;
       }
 
-      // Try to read from contracts using window.ethereum
+      // Check PROXY ownership (primary method)
       if (window.ethereum) {
-        console.log('[useAdminOwner] window.ethereum available, checking contracts...');
+        logger.info('Checking proxy ownership...');
         const provider = window.ethereum;
         
-        // Check both contracts in parallel
-        const [coreOwner, typesOwner] = await Promise.all([
-          checkContractOwner(provider, coreContractAddress),
-          checkContractOwner(provider, typesContractAddress)
-        ]);
-
-        console.log('[useAdminOwner] Contract owners result:', { coreOwner, typesOwner });
-
-        const userAddressLower = address.toLowerCase();
-        const isCoreOwner = coreOwner && coreOwner.toLowerCase() === userAddressLower;
-        const isTypesOwner = typesOwner && typesOwner.toLowerCase() === userAddressLower;
+        const proxyOwner = await checkContractOwner(provider, PROXY_ADDRESS);
+        logger.info('Proxy owner result:', proxyOwner);
         
-        // User is owner if they own EITHER contract
-        const isAdmin = isCoreOwner || isTypesOwner;
-        
-        console.log('[useAdminOwner] Ownership check:', { userAddressLower, isCoreOwner, isTypesOwner, isAdmin });
-        
-        // Set the owner address to the first valid one found
-        const validOwner = coreOwner || typesOwner || DEV_OWNER_ADDRESS;
-        
-        setOwnerAddress(validOwner);
-        setIsOwner(isAdmin);
-        
-        logger.info('Contract ownership check:', { 
-          coreOwner, 
-          typesOwner, 
-          address, 
-          isCoreOwner, 
-          isTypesOwner, 
-          isAdmin 
-        });
+        if (proxyOwner) {
+          const userAddressLower = address.toLowerCase();
+          const isAdmin = proxyOwner.toLowerCase() === userAddressLower;
+          
+          logger.info('Ownership check:', { 
+            userAddressLower, 
+            proxyOwner, 
+            isAdmin 
+          });
+          
+          setOwnerAddress(proxyOwner);
+          setIsOwner(isAdmin);
+        } else {
+          // No owner found, use dev mode
+          const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
+          setIsOwner(isDevOwner);
+          setOwnerAddress(DEV_OWNER_ADDRESS);
+          logger.info('Dev mode ownership (no proxy owner):', { isDevOwner, address });
+        }
       } else {
-        console.log('[useAdminOwner] window.ethereum NOT available');
-
         // No ethereum provider, use dev mode
         const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
         setIsOwner(isDevOwner);
@@ -126,27 +107,21 @@ export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
         logger.info('Dev mode ownership (no provider):', { isDevOwner, address });
       }
     } catch (error) {
-      console.error('[useAdminOwner] Error checking ownership:', error);
       logger.error('Error checking ownership:', error);
-      // Fallback to dev mode on any error
+      // Fallback to dev mode on error
       const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
       setIsOwner(isDevOwner);
       setOwnerAddress(DEV_OWNER_ADDRESS);
     } finally {
-      console.log('[useAdminOwner] Setting isLoading to false, isOwner:', isOwner);
+      logger.info('Setting isLoading to false, isOwner:', isOwner);
       setIsLoading(false);
     }
-  }, [address, isConnected, coreContractAddress, typesContractAddress]);
-
+  }, [address, isConnected]);
 
   useEffect(() => {
-    // Run immediately without delay for faster admin detection
-    console.log('[useAdminOwner] Running ownership check...');
+    logger.info('Running ownership check...');
     checkOwnership();
-
-    return () => {};
   }, [checkOwnership]);
-
 
   const refreshOwnership = useCallback(() => {
     checkOwnership();

@@ -1,7 +1,49 @@
 /**
  * Application-wide constants
  * All magic numbers should be defined here for maintainability
+ * 
+ * ==========================================
+ * PROXY PATTERN ARCHITECTURE (IMPORTANT!)
+ * ==========================================
+ * 
+ * This application uses a PROXY PATTERN for the Prediction Market contracts.
+ * 
+ * ARCHITECTURE:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │                    Frontend (React/Wagmi)                       │
+ * │  - ONLY interacts with PROXY_ADDRESS                            │
+ * │  - NEVER reads directly from Core/Types implementations         │
+ * └─────────────────────────────────────────────────────────────────┘
+ *                              │
+ *                              ▼
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │              PredictionMarketProxy (Storage)                    │
+ * │  - Holds ALL market data (markets mapping)                      │
+ * │  - Holds ALL user positions                                     │
+ * │  - Uses delegatecall to execute logic in implementations        │
+ * └─────────────────────────────────────────────────────────────────┘
+ *                              │
+ *            ┌─────────────────┴─────────────────┐
+ *            │                                   │
+ *            ▼                                   ▼
+ * ┌─────────────────────────┐     ┌─────────────────────────┐
+ * │  Core Implementation    │     │   Types Implementation  │
+ * │  (logic only)           │     │   (logic only)          │
+ * │  - Binary markets       │     │  - Multi/Range/Time     │
+ * └─────────────────────────┘     └─────────────────────────┘
+ * 
+ * KEY PRINCIPLE:
+ * - Proxy holds all state (markets, positions, counters)
+ * - Implementations are logic-only (executed via delegatecall)
+ * - Frontend uses ONLY proxy address for ALL interactions
+ * - Reading from implementations directly returns EMPTY data!
+ * 
+ * USAGE:
+ * - Use PROXY_ADDRESS for all reads and writes
+ * - Use PREDICTION_MARKET_PROXY_ABI (from proxyAbi.js)
+ * - Never use Core/Types addresses directly in frontend
  */
+
 
 // ==========================================
 // MODULAR PREDICTION MARKET CONTRACTS (Phase 2)
@@ -10,12 +52,17 @@
 
 // PROXY PATTERN (NEW - Use this for all interactions!)
 // This proxy delegates to Core and Types implementations with shared storage
-// Deployed: 2026-02-23
-export const PROXY_ADDRESS = "0x9F710F341dD6b2d9ec20843B28180F5C6C2B0a97";
+// Deployed: 2026-02-25 - NEW FIXED PROXY (no storage collision)
+// IMPORTANT: New proxy has correct storage layout without Ownable collision
+export const PROXY_ADDRESS = "0xa414EdfCbFBCDcA35D5B594f5Ca3923c673586aF";
 
 // Implementation contracts (behind proxy - do not use directly)
-export const PREDICTION_MARKET_CORE_ADDRESS = "0x7516355A46a3D5122Fb76252619dC5E62e98C0f0";
-export const PREDICTION_MARKET_TYPES_ADDRESS = "0xdd73a5D6e22260446A0e6DC4e3BE918498248020";
+// UPDATED: New fixed implementations deployed on 2025-01-25
+// Fixed storage collision issue - now reads owner from EIP-1967 admin slot
+export const PREDICTION_MARKET_CORE_ADDRESS = "0xeD7E731289980D206a62cB3dca145BdA003A4177";
+export const PREDICTION_MARKET_TYPES_ADDRESS = "0x91d9d263771E75a74793d22ceC52e29bFeE7d9C4";
+
+
 
 // Legacy addresses (old isolated contracts - deprecated)
 export const LEGACY_PREDICTION_MARKET_CORE_ADDRESS = "0xb8f08E9CF766389A534dcE49C72E33F92fC4bc30";

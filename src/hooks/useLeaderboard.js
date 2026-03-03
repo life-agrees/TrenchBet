@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePublicClient } from 'wagmi';
 import { formatUnits } from 'viem';
-import { CONTRACTS } from '../config/wagmi';
+import { CONTRACTS } from '../config/wagmi.jsx';
 import { PREDICTION_MARKET_ABI } from '../contracts/abis';
 import { createLogger } from '../utils/logger';
 
