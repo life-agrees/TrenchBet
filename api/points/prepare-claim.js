@@ -2,6 +2,7 @@
 // Generate signature for claiming points (ETHERS V6 FIXED)
 import { createClient } from '@supabase/supabase-js';
 import { ethers } from 'ethers';
+import { randomUUID } from 'crypto';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -12,6 +13,7 @@ const supabase = createClient(
 const BACKEND_PRIVATE_KEY = process.env.BACKEND_SIGNER_PRIVATE_KEY;
 const POINTS_PER_TRENCHY = 100;
 const MONTHLY_CLAIM_CAP = 10000; // 10k TRENCHY
+const NONCE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 export default async function handler(req, res) {
   // Enable CORS
@@ -100,25 +102,44 @@ export default async function handler(req, res) {
       });
     }
     
-    // 4. Generate unique nonce (ETHERS V6 SYNTAX)
-    const nonce = ethers.id(
-      `${address}-${pointsAmount}-${Date.now()}-${Math.random()}`
-    );
+    // 4. Generate secure nonce using crypto.randomUUID()
+    // This is cryptographically secure unlike Math.random()
+    const nonce = randomUUID();
     
-    // 5. Create signature (ETHERS V6 SYNTAX)
+    // Store nonce in database with expiry for security
+    // Prevents replay attacks and ensures one-time use
+    const expiresAt = new Date(Date.now() + NONCE_EXPIRY).toISOString();
+    
+    const { error: nonceError } = await supabase
+      .from('claim_nonces')
+      .insert({
+        nonce,
+        wallet_address: address,
+        points_amount: pointsAmount,
+        created_at: new Date().toISOString(),
+        expires_at: expiresAt,
+        used: false
+      });
+    
+    if (nonceError) {
+      console.error('Failed to store nonce:', nonceError);
+      return res.status(500).json({ error: 'Failed to prepare claim' });
+    }
+// 5. Create signature (ETHERS V6 SYNTAX)
     const signer = new ethers.Wallet(BACKEND_PRIVATE_KEY);
     
     // Message format: keccak256(user, pointsAmount, nonce)
     const messageHash = ethers.solidityPackedKeccak256(
       ['address', 'uint256', 'bytes32'],
-      [address, pointsAmount, nonce]
+      [address, pointsAmount, ethers.id(nonce)]
     );
     
     const signature = await signer.signMessage(
       ethers.getBytes(messageHash)
     );
     
-    // 6. Store pending claim (for tracking)
+    // 6. Store pending claim (for tracking and security)
+    const pendingExpiryTime = new Date(Date.now() + NONCE_EXPIRY).toISOString();
     const { error: pendingError } = await supabase
       .from('pending_claims')
       .insert({
@@ -127,15 +148,16 @@ export default async function handler(req, res) {
         trenchy_amount: trenchyAmount,
         nonce: nonce,
         created_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 min expiry
+        expires_at: pendingExpiryTime, // Same expiry as nonce (5 min)
+        signature: signature
       });
     
     if (pendingError) {
       console.warn('Failed to store pending claim:', pendingError);
-      // Continue anyway - not critical
+      // Continue anyway - nonce is already stored and valid
     }
     
-    // 7. Return signature and claim data
+    // 7. Return signature and claim data with nonce expiry
     return res.status(200).json({
       success: true,
       wallet: address,
@@ -143,7 +165,8 @@ export default async function handler(req, res) {
       trenchyAmount: trenchyAmount,
       nonce: nonce,
       signature: signature,
-      expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
+      expiresAt: Date.now() + NONCE_EXPIRY, // 5 minutes
+      expirationTime: NONCE_EXPIRY / 1000 + ' seconds',
       monthlyStatus: {
         claimedThisMonth: monthlyTotal,
         remainingCap: MONTHLY_CLAIM_CAP - monthlyTotal - trenchyAmount,

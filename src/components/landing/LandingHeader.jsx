@@ -33,7 +33,7 @@ const LandingHeader = ({ onLaunchApp }) => {
 
   // Navigation items configuration
   const navItems = [
-    { label: 'About', sectionId: 'testimonials' },
+    { label: 'About', sectionId: 'about' },
     { label: 'How It Works', sectionId: 'how-it-works' },
     { label: 'Features', sectionId: 'features' },
     { label: 'Stats', sectionId: 'live-stats' },

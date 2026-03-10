@@ -40,7 +40,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
   const [amount, setAmount] = useState('');
   const [inputError, setInputError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
-  const { placeBet, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess } = useBetPlacement();
+  const [isApproved, setIsApproved] = useState(false); // Track if user has approved USDC
+  const { placeBet, placeBetAfterApproval, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess, checkAllowance } = useBetPlacement();
   
   // Time decay tracking
   const { 
@@ -71,9 +72,25 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
       setRetryCount(0);
       setSelectedChoice(0);
       setPosition('yes');
+      setIsApproved(false); // Reset approval state when modal opens
       reset();
     }
   }, [isOpen, reset]);
+
+  // Track when approval is successful and update local state
+  // Use a ref to track if we're in the "after approval" state
+  const wasWaitingForApproval = React.useRef(false);
+  
+  // Update ref when needsApproval changes
+  useEffect(() => {
+    if (needsApproval) {
+      wasWaitingForApproval.current = true;
+    } else if (wasWaitingForApproval.current && !needsApproval && isPlacingBet) {
+      // Approval just completed, bet is being placed
+      setIsApproved(true);
+      wasWaitingForApproval.current = false;
+    }
+  }, [needsApproval, isPlacingBet]);
 
   // Helper to get option color based on index
   const getOptionColor = (index, isSelected) => {
@@ -216,16 +233,42 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     // Determine choice based on market type
     let choice;
     if (market.marketType === 0) {
-      // Binary: 0 = No/Down, 1 = Yes/Up
       choice = position === 'yes' ? 1 : 0;
     } else {
-      // Multi-Choice, Range, Time-Based: choice is the selected index
       choice = selectedChoice;
     }
     
-    logger.info('Placing bet with:', { marketId: market.id, choice, amount: betAmount, marketType: market.marketType });
+    logger.info('Starting bet approval:', { marketId: market.id, choice, amount: betAmount, marketType: market.marketType });
     
     const result = await placeBet(market, choice, betAmount);
+
+    if (result.success && result.needsBet) {
+      // Approval successful! Now user needs to click "Place Bet" button
+      logger.info('Approval successful, showing place bet button');
+      setIsApproved(true);
+    } else if (result.success) {
+      // Already approved, ready to bet
+      setIsApproved(true);
+    } else {
+      // Error occurred
+      logger.error('Approval failed:', result.error);
+    }
+  };
+
+  // NEW FUNCTION: Handle the actual bet placement (second button)
+  const handleConfirmBet = async () => {
+    const betAmount = parseFloat(amount);
+    
+    let choice;
+    if (market.marketType === 0) {
+      choice = position === 'yes' ? 1 : 0;
+    } else {
+      choice = selectedChoice;
+    }
+    
+    logger.info('Placing bet after approval:', { marketId: market.id, choice, amount: betAmount });
+    
+    const result = await placeBetAfterApproval(market, choice, betAmount);
 
     if (result.success) {
       // Notify parent component that bet was placed successfully
@@ -235,6 +278,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
       onClose();
       setAmount('');
       setRetryCount(0);
+      setIsApproved(false);
     }
   };
 
@@ -699,24 +743,55 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
             </div>
           )}
 
-          <button
-            onClick={handlePlaceBet}
-            disabled={!amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
-            className="w-full py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            {isPlacingBet ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                {needsApproval ? 'Approve USDC...' : isPending ? 'Submitting...' : isConfirming ? 'Confirming...' : 'Processing...'}
-              </span>
-            ) : !amount || parseFloat(amount) <= 0 ? (
-              'Enter Amount to Bet'
-            ) : parseFloat(amount) > usdcBalanceNum ? (
-              'Insufficient Balance'
-            ) : (
-              `Place Bet for ${safeToFixed(parseFloat(amount), 2)} USDC`
-            )}
-          </button>
+          {/* TWO-BUTTON APPROACH: Industry Standard - Separate Approval and Bet Placement */}
+          
+          {/* Button 1: Approve USDC - Shows when approval is needed */}
+          {!isApproved && !isSuccess && (
+            <button
+              onClick={handlePlaceBet}
+              disabled={!amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+              className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {isPlacingBet && needsApproval ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  Approving USDC...
+                </span>
+              ) : !amount || parseFloat(amount) <= 0 ? (
+                'Enter Amount to Approve'
+              ) : parseFloat(amount) > usdcBalanceNum ? (
+                'Insufficient Balance'
+              ) : (
+                `Approve ${safeToFixed(parseFloat(amount), 2)} USDC`
+              )}
+            </button>
+          )}
+
+          {/* Button 2: Place Bet - Only shows after approval is successful */}
+          {isApproved && !isSuccess && (
+            <button
+              onClick={handleConfirmBet}
+              disabled={!amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+              className="w-full py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {isPlacingBet ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {isPending ? 'Submitting...' : isConfirming ? 'Confirming...' : 'Processing...'}
+                </span>
+              ) : (
+                `Place Bet for ${safeToFixed(parseFloat(amount), 2)} USDC`
+              )}
+            </button>
+          )}
+
+          {/* Approval Success Indicator */}
+          {isApproved && !isSuccess && (
+            <div className="flex items-center justify-center gap-2 py-2 bg-green-500/20 border border-green-500/30 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-green-400" />
+              <span className="text-green-400 text-sm font-medium">USDC Approved - Ready to Place Bet</span>
+            </div>
+          )}
 
           {/* Help Text */}
           <div className="text-xs text-gray-500 text-center">

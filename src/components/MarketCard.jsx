@@ -63,7 +63,9 @@ const getMarketTypeLabel = (type) => {
   return labels[type] || 'Unknown';
 };
 
-export const MarketCard = ({ 
+// Memoized MarketCard component for performance optimization
+// Only re-renders when market id, read status, or key props change
+const MarketCardComponent = ({ 
   market, 
   onClick, 
   onBetClick, 
@@ -576,4 +578,19 @@ export const MarketCard = ({
   );
 };
 
-export default MarketCard;
+// Memoized MarketCard - only re-renders when market id or key props change
+const MemoizedMarketCard = React.memo(MarketCardComponent, (prevProps, nextProps) => {
+  // Custom comparison: only re-render if these key props change
+  return (
+    prevProps.market?.id === nextProps.market?.id &&
+    prevProps.market?.read === nextProps.market?.read &&
+    prevProps.isFavorite === nextProps.isFavorite &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.isPlacingBet === nextProps.isPlacingBet &&
+    prevProps.usdcBalance === nextProps.usdcBalance
+  );
+});
+
+// Export both named and default exports for backward compatibility
+export { MemoizedMarketCard };
+export default MemoizedMarketCard;

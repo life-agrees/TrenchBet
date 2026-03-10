@@ -119,7 +119,18 @@ contract PredictionMarketStorage {
 
     // ============ State Variables ============
     
+
     IERC20 public usdc;
+    
+    /**
+     * @dev Set USDC address (only needed once during deployment)
+     */
+    function setUSDC(address _usdc) external {
+        require(_usdc != address(0), "Invalid USDC address");
+        require(address(usdc) == address(0), "USDC already set");
+        usdc = IERC20(_usdc);
+    }
+    
     mapping(string => AggregatorV3Interface) public priceFeeds;
     uint256 public marketCounter;
     

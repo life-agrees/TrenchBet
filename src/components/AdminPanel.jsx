@@ -4,7 +4,7 @@ import { parseAbiItem, formatUnits } from 'viem';
 
 import { Settings, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import DashboardTab from './DashboardTab';
+import DashboardTabV2 from './DashboardTabV2';
 import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
 import { CONTRACTS, PROXY_ADDRESS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
@@ -1607,7 +1607,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
             {/* Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               {activeTab === 'dashboard' && (
-                <DashboardTab
+                <DashboardTabV2
                   stats={stats}
                   isLoadingStats={isLoadingStats}
                   handleWithdraw={handleWithdraw}
@@ -1615,6 +1615,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
                   isPending={isPending}
                   isConfirming={isConfirming}
                   onNavigate={setActiveTab}
+                  markets={markets}
                 />
               )}
 

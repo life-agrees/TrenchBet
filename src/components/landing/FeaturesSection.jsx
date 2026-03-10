@@ -20,8 +20,8 @@ export const FeaturesSection = ({ onLaunchApp }) => {
     },
     {
       icon: TrendingUp,
-      title: 'Dynamic Odds',
-      description: 'Real-time multipliers based on pool ratios. Early bettors get the best odds.'
+      title: 'PVP Betting',
+      description: 'Player vs Player - you compete against other users, not the house. Fair peer-to-peer wagering.'
     },
     {
       icon: Lock,

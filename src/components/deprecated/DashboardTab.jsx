@@ -26,7 +26,7 @@ import {
 import { formatUnits } from 'viem';
 import { usePublicClient } from 'wagmi';
 import { parseAbiItem } from 'viem';
-import { CONTRACTS } from '../config/wagmi';
+import { CONTRACTS } from '../../config/wagmi';
 
 const DashboardTab = ({
   stats,
@@ -751,3 +751,4 @@ const DashboardTab = ({
 };
 
 export default DashboardTab;
+

@@ -4,6 +4,7 @@ import HeroSection from './components/landing/HeroSection';
 import LiveStatsSection from './components/landing/LiveStatsSection';
 import HowItWorksSection from './components/landing/HowItWorksSection';
 import FeaturesSection from './components/landing/FeaturesSection';
+import AboutSection from './components/landing/AboutSection';
 import TestimonialsSection from './components/landing/TestimonialsSection';
 import Footer from './components/Footer';
 
@@ -23,6 +24,9 @@ const LandingPage = ({ onLaunchApp, liveStats, isLoadingStats }) => {
       </div>
       <div id="features">
         <FeaturesSection onLaunchApp={onLaunchApp} />
+      </div>
+      <div id="about">
+        <AboutSection onLaunchApp={onLaunchApp} />
       </div>
       <div id="testimonials">
         <TestimonialsSection />

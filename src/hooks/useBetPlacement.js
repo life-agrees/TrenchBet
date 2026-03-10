@@ -215,7 +215,6 @@ export const useBetPlacement = () => {
       throw new Error('Invalid market ID: marketId is null or undefined');
     }
     
-    // Convert marketId to number if it's a string
     const numericMarketId = typeof marketId === 'string' ? parseInt(marketId, 10) : marketId;
     
     if (isNaN(numericMarketId)) {
@@ -233,29 +232,30 @@ export const useBetPlacement = () => {
     }
 
     try {
-      // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      logger.info('Placing bet via proxy:', {
+      // CRITICAL FIX: Use different functions based on market type
+      const isBinary = marketType === 0;
+      const functionName = isBinary ? 'placeBet' : 'placeBetAdvanced';
+      
+      logger.info(`Placing bet via proxy (${functionName}):`, {
         marketId: numericMarketId,
         choice: numericChoice,
         amount: amount.toString(),
         amountInUnits: amountInUnits.toString(),
         marketType,
+        isBinary,
         proxyAddress: PROXY_CONTRACT_ADDRESS
       });
 
       setIsPending(true);
-
-      // Wait a moment for wallet state sync (1 second)
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // PROXY PATTERN: Send bet transaction through proxy
-      // The proxy will route to appropriate implementation based on marketType
+      // Route to correct function based on market type
       const txHash = await walletClient.writeContract({
         address: PROXY_CONTRACT_ADDRESS,
         abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: 'placeBet',
+        functionName: functionName,  // ✅ Dynamic: 'placeBet' OR 'placeBetAdvanced'
         args: [BigInt(numericMarketId), numericChoice, amountInUnits],
         account: address,
       });
@@ -265,7 +265,6 @@ export const useBetPlacement = () => {
       setIsPending(false);
       setIsConfirming(true);
 
-      // Wait for confirmation
       const receipt = await waitForConfirmation(txHash);
       
       if (receipt.status !== 'success') {
@@ -285,7 +284,6 @@ export const useBetPlacement = () => {
       setIsConfirming(false);
       setIsPlacingBet(false);
       
-      // Provide specific error messages
       if (err.message?.includes('User rejected')) {
         throw new Error('Transaction was rejected in wallet');
       } else if (err.message?.includes('insufficient funds')) {
@@ -304,77 +302,116 @@ export const useBetPlacement = () => {
     }
   }, [walletClient, address, waitForConfirmation]);
 
-  /**
-   * Main place bet function - handles approval and betting flow
-   */
-  const placeBet = useCallback(async (market, choice, amount) => {
-    if (!address) {
-      setError('Wallet not connected');
-      return { success: false, error: 'Wallet not connected' };
-    }
+/**
+ * Main placeBet function - handles approval ONLY (not betting)
+ * Betting happens in separate placeBetAfterApproval function
+ */
+const placeBet = useCallback(async (market, choice, amount) => {
+  if (!address) {
+    setError('Wallet not connected');
+    return { success: false, error: 'Wallet not connected' };
+  }
 
-    // Validate market object
-    if (!market) {
-      setError('Invalid market data');
-      return { success: false, error: 'Invalid market data' };
-    }
+  if (!market || market.id === undefined || market.id === null) {
+    setError('Invalid market data');
+    return { success: false, error: 'Invalid market data' };
+  }
+
+  setIsPlacingBet(true);
+  setIsPending(false);
+  setIsConfirming(false);
+  setIsSuccess(false);
+  setError(null);
+  setNeedsApproval(false);
+  setHash(null);
+
+  try {
+    // ONLY check and approve - DO NOT place bet yet!
+    logger.info('Checking if approval is needed...');
+    const hasAllowance = await checkAllowance(amount);
     
-    if (market.id === undefined || market.id === null) {
-      logger.error('Invalid market object:', market);
-      setError('Invalid market ID');
-      return { success: false, error: 'Invalid market ID' };
-    }
-
-    setIsPlacingBet(true);
-    setIsPending(false);
-    setIsConfirming(false);
-    setIsSuccess(false);
-    setError(null);
-    setNeedsApproval(false);
-    setHash(null);
-
-    try {
-      // Step 1: Check if approval is needed
-      logger.info('Checking if approval is needed...');
-      const hasAllowance = await checkAllowance(amount);
+    if (!hasAllowance) {
+      logger.info('Approval needed, requesting USDC approval...');
+      const approvalHash = await approveUSDC(amount);
       
-      let approvalHash = null;
-      
-      if (!hasAllowance) {
-        // Step 2: Approve USDC for proxy
-        logger.info('Approval needed, requesting USDC approval...');
-        approvalHash = await approveUSDC(amount);
-      } else {
-        logger.info('Sufficient allowance already exists');
-      }
-      
-      // Step 3: Place the bet through proxy
-      logger.info('Placing bet via proxy...');
-      const betHash = await executePlaceBet(market.id, choice, amount, market.marketType);
-      
+      // STOP HERE! Don't place bet automatically
+      setIsPlacingBet(false);
       return { 
         success: true, 
-        txHash: betHash,
-        approvalHash: approvalHash 
+        approved: true,
+        needsBet: true, // Signal that bet still needs to be placed
+        approvalHash 
       };
-      
-    } catch (err) {
-      logger.error('Error in placeBet flow:', err);
-      setError(err.message || 'Transaction failed');
+    } else {
+      logger.info('Sufficient allowance already exists');
+      // Allowance exists, signal ready to bet
       setIsPlacingBet(false);
-      setIsPending(false);
-      setIsConfirming(false);
-      setNeedsApproval(false);
-      
-      return { 
-        success: false, 
-        error: err.message || 'Transaction failed' 
+      return {
+        success: true,
+        approved: true,
+        needsBet: true
       };
     }
-  }, [address, checkAllowance, approveUSDC, executePlaceBet]);
+    
+  } catch (err) {
+    logger.error('Error in placeBet flow:', err);
+    setError(err.message || 'Transaction failed');
+    setIsPlacingBet(false);
+    setIsPending(false);
+    setIsConfirming(false);
+    setNeedsApproval(false);
+    
+    return { 
+      success: false, 
+      error: err.message || 'Transaction failed' 
+    };
+  }
+}, [address, checkAllowance, approveUSDC]);
+
+/**
+ * Place bet AFTER approval is confirmed
+ * This is called by the SECOND button
+ */
+const placeBetAfterApproval = useCallback(async (market, choice, amount) => {
+  if (!address) {
+    setError('Wallet not connected');
+    return { success: false, error: 'Wallet not connected' };
+  }
+
+  setIsPlacingBet(true);
+  setIsPending(false);
+  setIsConfirming(false);
+  setIsSuccess(false);
+  setError(null);
+  setHash(null);
+
+  try {
+    // Place the bet!
+    logger.info('Placing bet via proxy...');
+    const betHash = await executePlaceBet(market.id, choice, amount, market.marketType);
+    
+    return { 
+      success: true, 
+      txHash: betHash
+    };
+    
+  } catch (err) {
+    logger.error('Error placing bet:', err);
+    setError(err.message || 'Transaction failed');
+    setIsPlacingBet(false);
+    setIsPending(false);
+    setIsConfirming(false);
+    
+    return { 
+      success: false, 
+      error: err.message || 'Transaction failed' 
+    };
+  }
+}, [address, executePlaceBet]);
 
   return {
     placeBet,
+    placeBetAfterApproval, // NEW!
     isPending,
     isConfirming,
     isPlacingBet,
@@ -384,9 +421,7 @@ export const useBetPlacement = () => {
     lastBetRef,
     error,
     reset,
-    // Return proxy allowance for UI display
     proxyAllowance: proxyAllowance ? formatUnits(proxyAllowance, 6) : '0',
-    // Keep old names for backward compatibility
     coreAllowance: proxyAllowance ? formatUnits(proxyAllowance, 6) : '0',
     typesAllowance: proxyAllowance ? formatUnits(proxyAllowance, 6) : '0'
   };

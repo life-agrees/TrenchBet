@@ -1,6 +1,19 @@
 import React from 'react';
 
 /**
+ * Header Skeleton Loader
+ * Used for page headers with logo and navigation
+ */
+export const HeaderSkeleton = () => {
+  return (
+    <div className="animate-pulse flex items-center gap-4">
+      <div className="h-8 w-32 bg-gray-700 rounded" />
+      <div className="h-6 w-16 bg-gray-700 rounded" />
+    </div>
+  );
+};
+
+/**
  * Enhanced MarketCard Skeleton Loader
  * Matches the new enhanced MarketCard design
  */

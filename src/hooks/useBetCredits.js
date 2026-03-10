@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract } from 'wagmi';
 import { createLogger } from '../utils/logger';
 import { CONTRACTS } from '../utils/constants';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 
 const logger = createLogger('useBetCredits');
 
@@ -17,8 +17,8 @@ export const useBetCredits = () => {
 
   // Read bet credits balance
   const { data: creditsBalance, refetch: refetchCredits } = useReadContract({
-    address: CONTRACTS.PREDICTION_MARKET,
-    abi: PREDICTION_MARKET_ABI,
+    address: CONTRACTS.PROXY,
+    abi: PREDICTION_MARKET_PROXY_ABI,
     functionName: 'getBetCredits',
     args: address ? [address] : undefined,
     enabled: isConnected && !!address,
@@ -39,8 +39,8 @@ export const useBetCredits = () => {
 
     try {
       await writeContractAsync({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PROXY,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'placeBetWithCredits',
         args: [marketId, choice, creditAmount],
       });
@@ -69,8 +69,8 @@ export const useBetCredits = () => {
 
     try {
       await writeContractAsync({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PROXY,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'placeBetWithMixed',
         args: [marketId, choice, usdcAmount, creditAmount],
       });

@@ -60,7 +60,7 @@ export const AuditTrailModal = ({ isOpen, onClose, market }) => {
 
       // Fetch BetPlaced events
       const betLogs = await publicClient.getLogs({
-        address: CONTRACTS.PREDICTION_MARKET,
+        address: CONTRACTS.PROXY,
         event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
         args: { marketId: BigInt(market.id) },
         fromBlock: 'earliest'
@@ -68,7 +68,7 @@ export const AuditTrailModal = ({ isOpen, onClose, market }) => {
 
       // Fetch WinningsClaimed events
       const claimLogs = await publicClient.getLogs({
-        address: CONTRACTS.PREDICTION_MARKET,
+        address: CONTRACTS.PROXY,
         event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
         args: { marketId: BigInt(market.id) },
         fromBlock: 'earliest'
@@ -76,7 +76,7 @@ export const AuditTrailModal = ({ isOpen, onClose, market }) => {
 
       // Fetch MarketResolved events
       const resolveLogs = await publicClient.getLogs({
-        address: CONTRACTS.PREDICTION_MARKET,
+        address: CONTRACTS.PROXY,
         event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice)'),
         args: { marketId: BigInt(market.id) },
         fromBlock: 'earliest'

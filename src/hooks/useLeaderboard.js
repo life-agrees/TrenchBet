@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePublicClient } from 'wagmi';
 import { formatUnits } from 'viem';
 import { CONTRACTS } from '../config/wagmi.jsx';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('useLeaderboard');
@@ -14,7 +14,7 @@ export const useLeaderboard = (count = 10) => {
   const [error, setError] = useState(null);
 
   const fetchLeaderboard = useCallback(async () => {
-    if (!publicClient || !CONTRACTS.PREDICTION_MARKET) {
+    if (!publicClient || !CONTRACTS.PROXY) {
       setError('Public client or contract not available');
       return;
     }
@@ -25,8 +25,8 @@ export const useLeaderboard = (count = 10) => {
     try {
       // Fetch leaderboard from contract
       const result = await publicClient.readContract({
-        address: CONTRACTS.PREDICTION_MARKET,
-        abi: PREDICTION_MARKET_ABI,
+        address: CONTRACTS.PROXY,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getLeaderboard',
         args: [BigInt(count)],
       });

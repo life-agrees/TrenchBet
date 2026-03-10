@@ -4,13 +4,14 @@ import { parseAbiItem, formatUnits } from 'viem';
 import { createLogger } from '../utils/logger';
 import { CONTRACTS } from '../config/wagmi';
 import { PREDICTION_MARKET_ABI } from '../contracts/abis';
+import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 
 const logger = createLogger('useUserBets');
 
 // Block range configuration - adjust based on your deployment
 // Base Sepolia RPC limits eth_getLogs to 10,000 blocks, so we use 8000 for safety
 const DEFAULT_FROM_BLOCK = BigInt(-8000); // Last 8000 blocks (negative means from current - N)
-const MAX_BLOCK_RANGE = 8000; // Maximum blocks to query at once (under 10,000 RPC limit)
+const MAX_BLOCK_RANGE = 100000; // Look back further! // Maximum blocks to query at once (under 10,000 RPC limit)
 
 
 export const useUserBets = (address, markets) => {
@@ -34,7 +35,7 @@ export const useUserBets = (address, markets) => {
     }
   }, [publicClient]);
 
-  // Fetch raw bet events from blockchain
+// Fetch raw bet events from blockchain
   const fetchRawBets = useCallback(async (force = false) => {
     if (!effectiveAddress || !publicClient) {
       logger.debug('Skipping fetch - no address or publicClient');
@@ -48,7 +49,7 @@ export const useUserBets = (address, markets) => {
       return;
     }
     
-    // Only set loading on initial load or force refresh, not on background refreshes
+    // Only set loading on initial load or force refresh
     if (rawBets.length === 0 || force) {
       setIsLoading(true);
     }
@@ -57,59 +58,44 @@ export const useUserBets = (address, markets) => {
     setLastRefreshTime(now);
     
     try {
-      // Get current block for range calculation
-      const currentBlock = await getCurrentBlock();
-      let fromBlock = DEFAULT_FROM_BLOCK;
+      // Get current block
+      const currentBlock = await publicClient.getBlockNumber();
+      const CHUNK_SIZE = 9999; // Stay under 10k RPC limit
+      const totalBlocks = Math.min(MAX_BLOCK_RANGE, Number(currentBlock));
+      const numChunks = Math.ceil(totalBlocks / CHUNK_SIZE);
       
-      // If we have a current block, calculate fromBlock as current - range
-      if (currentBlock) {
-        fromBlock = currentBlock - BigInt(MAX_BLOCK_RANGE);
-        if (fromBlock < 0) fromBlock = BigInt(0);
-      }
+      logger.info(`[useUserBets] Fetching bets in ${numChunks} chunks (${totalBlocks} blocks total)...`);
       
-      logger.info(`Fetching bets for user ${effectiveAddress} from block ${fromBlock}...`);
+      let allLogs = [];
       
-      // Fetch BetPlaced events for the user with retry logic
-      let logs = [];
-      let retryCount = 0;
-      const maxRetries = 3;
-      
-      while (retryCount < maxRetries) {
+      // Fetch in chunks
+      for (let i = 0; i < numChunks; i++) {
+        const toBlock = i === 0 ? currentBlock : currentBlock - BigInt(i * CHUNK_SIZE);
+        const fromBlock = currentBlock - BigInt(Math.min((i + 1) * CHUNK_SIZE, totalBlocks));
+        
         try {
-          logs = await publicClient.getLogs({
-            address: CONTRACTS.PREDICTION_MARKET,
-            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
+          const logs = await publicClient.getLogs({
+            address: CONTRACTS.PROXY,
+            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
             args: { user: effectiveAddress },
-            fromBlock: fromBlock,
-            toBlock: 'latest'
+            fromBlock,
+            toBlock,
           });
           
-          logger.info(`Found ${logs.length} bet events`);
-          break; // Success, exit retry loop
+          if (logs.length > 0) {
+            logger.info(`[useUserBets] Chunk ${i + 1}/${numChunks}: Found ${logs.length} events`);
+            allLogs.push(...logs);
+          }
         } catch (err) {
-          retryCount++;
-          logger.warn(`getLogs attempt ${retryCount} failed:`, err.message);
-          
-          // If error is about block range, try with smaller range
-          if (err.message?.includes('block range') || err.message?.includes('range too large')) {
-            const reducedRange = BigInt(Math.floor(MAX_BLOCK_RANGE / (2 ** retryCount)));
-            fromBlock = currentBlock ? currentBlock - reducedRange : BigInt(0);
-            if (fromBlock < 0) fromBlock = BigInt(0);
-            logger.info(`Retrying with reduced block range: ${reducedRange} blocks`);
-          }
-          
-          if (retryCount >= maxRetries) {
-            logger.error('Max retries reached for getLogs');
-            throw err; // Re-throw after max retries
-          }
-          
-          // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount)));
+          logger.warn(`[useUserBets] Chunk ${i + 1}/${numChunks} failed:`, err.message);
+          // Continue with other chunks even if one fails
         }
       }
+
+      logger.info(`[useUserBets] Found ${allLogs.length} total bet events`);
       
       // Store raw bet data
-      const rawBetData = logs.map(log => ({
+      const rawBetData = allLogs.map(log => ({
         txHash: log.transactionHash,
         marketId: Number(log.args.marketId),
         choice: Number(log.args.choice),
@@ -127,15 +113,14 @@ export const useUserBets = (address, markets) => {
       });
       
       setRawBets(rawBetData);
-      logger.info(`Stored ${rawBetData.length} raw bet events`);
+      logger.info(`[useUserBets] Stored ${rawBetData.length} raw bet events`);
     } catch (err) {
-      logger.error('Error fetching user bets:', err);
+      logger.error('[useUserBets] Error fetching user bets:', err);
       setError(err.message || 'Failed to fetch user bets');
-      // Don't clear existing bets on error
     } finally {
       setIsLoading(false);
     }
-  }, [effectiveAddress, publicClient, rawBets.length, lastRefreshTime, getCurrentBlock]);
+  }, [effectiveAddress, publicClient, rawBets.length, lastRefreshTime]);
 
   // Enrich raw bets with market data and claim status
   const enrichBets = useCallback(async () => {
@@ -196,8 +181,8 @@ export const useUserBets = (address, markets) => {
         if (market && market.resolved && publicClient) {
           try {
             const userPositions = await publicClient.readContract({
-              address: CONTRACTS.PREDICTION_MARKET,
-              abi: PREDICTION_MARKET_ABI,
+              address: CONTRACTS.PROXY,
+              abi: PREDICTION_MARKET_PROXY_ABI,
               functionName: 'getUserPositionsInMarket',
               args: [BigInt(marketId), effectiveAddress]
             });

@@ -110,6 +110,29 @@ contract PredictionMarketProxy is PredictionMarketStorage, Proxy {
         }
     }
     
+    // ==================== VIEW FUNCTIONS - READ STORAGE DIRECTLY ====================
+    
+    /**
+     * @notice Get multi-choice options directly from proxy storage
+     */
+    function getMultiChoiceOptions(uint256 marketId) public view returns (string[] memory) {
+        return multiChoiceMarkets[marketId].options;
+    }
+    
+    /**
+     * @notice Get range market data directly from proxy storage
+     */
+    function getRangeMarketData(uint256 marketId) public view returns (uint256[] memory mins, uint256[] memory maxs) {
+        return (rangeMarkets[marketId].rangeMins, rangeMarkets[marketId].rangeMaxs);
+    }
+    
+    /**
+     * @notice Get time market data directly from proxy storage
+     */
+    function getTimeMarketData(uint256 marketId) public view returns (uint256 targetPrice, uint256[] memory timeframes) {
+        return (timeMarkets[marketId].targetPrice, timeMarkets[marketId].timeframes);
+    }
+    
     function upgradeCore(address newImplementation) external onlyAdmin {
         require(newImplementation != address(0), "Invalid implementation");
         

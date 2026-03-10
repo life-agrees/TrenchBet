@@ -9,7 +9,8 @@ import { CONTRACTS, config } from '../config/wagmi.jsx';
 // Use PROXY contract for all interactions
 const PREDICTION_MARKET_ADDRESS = CONTRACTS.PROXY;
 
-import { PREDICTION_MARKET_ABI, CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
+import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
+import { CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
 import { CHAINLINK_RESOLVER_ADDRESS } from '../utils/constants';
 import { createLogger } from '../utils/logger';
 
@@ -28,8 +29,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'marketCounter',
       });
       return Number(result);
@@ -48,9 +48,8 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'markets', // Changed from 'getMarket' to 'markets' - uses public mapping
+        abi: PREDICTION_MARKET_PROXY_ABI,
+        functionName: 'markets',
         args: [BigInt(marketId)],
       });
       return result;
@@ -69,9 +68,8 @@ export const marketService = {
     try {
       const contracts = marketIds.map(id => ({
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'markets', // Changed from 'getMarket' to 'markets' - uses public mapping
+        abi: PREDICTION_MARKET_PROXY_ABI,
+        functionName: 'markets',
         args: [BigInt(id)],
       }));
 
@@ -121,8 +119,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getOdds',
         args: [BigInt(marketId)],
       });
@@ -145,8 +142,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getCurrentOdds',
         args: [BigInt(marketId)],
       });
@@ -168,10 +164,9 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
-        functionName: 'calculatePotentialWinnings',
-        args: [BigInt(marketId), predictedUp, BigInt(amount)],
+        abi: PREDICTION_MARKET_PROXY_ABI,
+        functionName: 'calculatePotentialPayout',
+        args: [BigInt(marketId), predictedUp ? 0 : 1, BigInt(amount)],
       });
       return Number(result);
     } catch (error) {
@@ -190,8 +185,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getUserPositionsInMarket',
         args: [BigInt(marketId), userAddress],
       });
@@ -211,8 +205,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getUserMarkets',
         args: [userAddress],
       });
@@ -232,8 +225,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getLeaderboard',
         args: [BigInt(count)],
       });
@@ -255,8 +247,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'accumulatedFees',
       });
       return Number(result);
@@ -274,8 +265,7 @@ export const marketService = {
     try {
       const result = await readContract(config, {
         address: PREDICTION_MARKET_ADDRESS,
-
-        abi: PREDICTION_MARKET_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'owner',
       });
       return result;
@@ -285,3 +275,4 @@ export const marketService = {
     }
   },
 };
+

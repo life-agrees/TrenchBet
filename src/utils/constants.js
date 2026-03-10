@@ -54,7 +54,7 @@
 // This proxy delegates to Core and Types implementations with shared storage
 // Deployed: 2026-02-25 - NEW FIXED PROXY (no storage collision)
 // IMPORTANT: New proxy has correct storage layout without Ownable collision
-export const PROXY_ADDRESS = "0xa414EdfCbFBCDcA35D5B594f5Ca3923c673586aF";
+export const PROXY_ADDRESS = "0x0834C6560d6a0f9655C3d8BF2d429d083696B371";
 
 // Implementation contracts (behind proxy - do not use directly)
 // UPDATED: New fixed implementations deployed on 2025-01-25
