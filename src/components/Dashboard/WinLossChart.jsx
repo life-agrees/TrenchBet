@@ -1,19 +1,27 @@
 import React from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
-import { Trophy, XCircle } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 /**
  * Win/Loss Ratio Pie Chart Component
- * Visualizes betting performance distribution
+ *
+ * FIX: isLoading prop was accepted but never used — component showed empty
+ *      state instead of a loading skeleton while parent data was fetching.
  */
 const WinLossChart = ({ wins = 0, losses = 0, isLoading = false }) => {
-  const total = wins + losses;
-  const data = [
-    { name: 'Wins', value: wins, color: '#00FF88' },
-    { name: 'Losses', value: losses, color: '#FF4757' }
-  ];
+  // FIX: loading skeleton
+  if (isLoading) {
+    return (
+      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6 h-80 flex flex-col">
+        <div className="h-5 w-44 bg-dark-700 rounded animate-pulse mb-6" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-40 h-40 rounded-full bg-dark-700 animate-pulse" />
+        </div>
+      </div>
+    );
+  }
 
-  const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : 0;
+  const total = wins + losses;
 
   if (total === 0) {
     return (
@@ -24,6 +32,13 @@ const WinLossChart = ({ wins = 0, losses = 0, isLoading = false }) => {
       </div>
     );
   }
+
+  const data = [
+    { name: 'Wins',   value: wins,   color: '#10B981' },
+    { name: 'Losses', value: losses, color: '#EF4444' },
+  ];
+
+  const winRate = ((wins / total) * 100).toFixed(1);
 
   return (
     <div className="bg-dark-800 border border-secondary/30 rounded-xl p-6">
@@ -41,7 +56,6 @@ const WinLossChart = ({ wins = 0, losses = 0, isLoading = false }) => {
             labelLine={false}
             label={({ name, value }) => `${name}: ${value}`}
             outerRadius={100}
-            fill="#8884d8"
             dataKey="value"
           >
             {data.map((entry, index) => (
@@ -49,12 +63,11 @@ const WinLossChart = ({ wins = 0, losses = 0, isLoading = false }) => {
             ))}
           </Pie>
           <Tooltip
-            formatter={(value) => value}
             contentStyle={{
-              backgroundColor: '#1a1a1a',
-              border: '1px solid rgba(205, 255, 0, 0.3)',
+              backgroundColor: '#1a1f2e',
+              border: '1px solid rgba(192,255,0,0.3)',
               borderRadius: '8px',
-              color: '#fff'
+              color: '#fff',
             }}
           />
           <Legend

@@ -77,21 +77,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     }
   }, [isOpen, reset]);
 
-  // Track when approval is successful and update local state
-  // Use a ref to track if we're in the "after approval" state
-  const wasWaitingForApproval = React.useRef(false);
   
-  // Update ref when needsApproval changes
-  useEffect(() => {
-    if (needsApproval) {
-      wasWaitingForApproval.current = true;
-    } else if (wasWaitingForApproval.current && !needsApproval && isPlacingBet) {
-      // Approval just completed, bet is being placed
-      setIsApproved(true);
-      wasWaitingForApproval.current = false;
-    }
-  }, [needsApproval, isPlacingBet]);
-
   // Helper to get option color based on index
   const getOptionColor = (index, isSelected) => {
     const baseColors = [
@@ -242,16 +228,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     
     const result = await placeBet(market, choice, betAmount);
 
-    if (result.success && result.needsBet) {
-      // Approval successful! Now user needs to click "Place Bet" button
-      logger.info('Approval successful, showing place bet button');
+    if (result.success) {
       setIsApproved(true);
-    } else if (result.success) {
-      // Already approved, ready to bet
-      setIsApproved(true);
-    } else {
-      // Error occurred
-      logger.error('Approval failed:', result.error);
     }
   };
 
@@ -283,11 +261,12 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
   };
 
   const handleRetry = () => {
+    if (!isOpen) return; // ← guard
     setRetryCount(prev => prev + 1);
     reset();
-    // Small delay before allowing retry
     setTimeout(() => {
-      handlePlaceBet();
+        if (!isOpen) return; // ← guard again inside timeout
+        handlePlaceBet();
     }, 500);
   };
 

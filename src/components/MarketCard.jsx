@@ -1,221 +1,168 @@
 import React, { useMemo } from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Clock, 
-  Bitcoin, 
-  CircleDollarSign, 
-  Layers, 
-  Users, 
-  PlayCircle, 
-  Loader2, 
-  BarChart3, 
-  Target, 
-  Timer,
-  AlertCircle,
-  Zap,
-  Star,
-  TrendingDown as DecayIcon
+import {
+  TrendingUp, TrendingDown, Clock, Bitcoin, CircleDollarSign, Layers,
+  Users, PlayCircle, Loader2, BarChart3, Target, Timer,
+  AlertCircle, Zap, Star, TrendingDown as DecayIcon
 } from 'lucide-react';
 
 import { useCountdown, getUrgency } from '../hooks/useCountdown';
 import { useCurrentPrice } from '../hooks/useCurrentPrice';
 import { useTimeDecay } from '../hooks/useTimeDecay';
 
-import { 
-  generateMarketTitle, 
+import {
+  generateMarketTitle,
   generateMarketDescription,
   calculateTotalPool,
   calculateVolume,
   calculatePriceChange,
   getPriceTrend
 } from '../utils/marketDisplay';
-import { 
-  safeToFixed, 
-  formatOddsDisplay, 
+import {
+  safeToFixed,
+  formatOddsDisplay,
   calculateMarketPercentages,
   calculateRangePosition,
   getRangeStatus,
-  formatDecayDisplay,
   getDecayPhase
 } from '../marketUtils';
 
 import { MiniPriceChart, ActivityBadge, WinProbability } from './Marketcomponents';
 import { MarketCardSkeleton } from './SkeletonLoader';
 
-// Helper to get asset display info
+// ── Static helpers ────────────────────────────────────────────────────────────
+
 const getAssetInfo = (asset) => {
   const assetColors = {
-    'BTC': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    'ETH': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    'SOL': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    'CRYPTO': 'bg-[#c0ff00]/20 text-[#c0ff00] border-[#c0ff00]/30',
+    BTC:    'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    ETH:    'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    SOL:    'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    CRYPTO: 'bg-[#c0ff00]/20 text-[#c0ff00] border-[#c0ff00]/30',
   };
   return {
     color: assetColors[asset] || 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    icon: asset === 'BTC' ? Bitcoin : asset === 'ETH' ? CircleDollarSign : Layers
+    icon: asset === 'BTC' ? Bitcoin : asset === 'ETH' ? CircleDollarSign : Layers,
   };
 };
 
-// Helper to get market type label
-const getMarketTypeLabel = (type) => {
-  const labels = { 0: 'Binary', 1: 'Multi', 2: 'Range', 3: 'Time' };
-  return labels[type] || 'Unknown';
-};
+const getMarketTypeLabel = (type) =>
+  ({ 0: 'Binary', 1: 'Multi', 2: 'Range', 3: 'Time' }[type] || 'Unknown');
 
-// Memoized MarketCard component for performance optimization
-// Only re-renders when market id, read status, or key props change
-const MarketCardComponent = ({ 
-  market, 
-  onClick, 
-  onBetClick, 
-  usdcBalance, 
-  isLoading = false, 
-  isPlacingBet = false,
-  currentPrice: providedCurrentPrice, // Optional: pass from parent for performance
-  isFavorite = false,
-  onToggleFavorite
+const OPTION_COLORS = [
+  'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'bg-purple-500/20 text-purple-400 border-purple-500/30',
+  'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  'bg-pink-500/20 text-pink-400 border-pink-500/30',
+  'bg-teal-500/20 text-teal-400 border-teal-500/30',
+  'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+  'bg-lime-500/20 text-lime-400 border-lime-500/30',
+  'bg-rose-500/20 text-rose-400 border-rose-500/30',
+];
+const getOptionColor = (index) => OPTION_COLORS[index % OPTION_COLORS.length];
+
+// ── MarketCard component ──────────────────────────────────────────────────────
+
+const MarketCardComponent = ({
+  market,
+  onClick,
+  onBetClick,
+  usdcBalance,
+  isLoading     = false,
+  isPlacingBet  = false,
+  currentPrice: providedCurrentPrice,
+  isFavorite    = false,
+  onToggleFavorite,
 }) => {
-
-  
-  // Fetch current price if not provided
   const { currentPrice: fetchedPrice } = useCurrentPrice(
     providedCurrentPrice ? null : market?.asset
   );
   const currentPrice = providedCurrentPrice || fetchedPrice;
 
-  // Live countdown timer
   const countdown = useCountdown(market?.endTime);
-  const urgency = getUrgency(countdown);
-  
-  // Time decay tracking
+  const urgency   = getUrgency(countdown);
+
   const { decayDisplay, isLatePhase, isDecaying } = useTimeDecay(market);
-  const decayPhase = useMemo(() => {
-    if (!market || !market.useTimeDecay) return null;
-    return getDecayPhase(market);
-  }, [market]);
 
-  // Show skeleton loader while loading
-
-  if (isLoading || !market) {
-    return <MarketCardSkeleton />;
-  }
+  if (isLoading || !market) return <MarketCardSkeleton />;
 
   const assetInfo = getAssetInfo(market.asset);
   const AssetIcon = assetInfo.icon;
 
-  // Calculate totals
-  const totalPool = calculateTotalPool(market);
-  const volume = calculateVolume(market);
-
-  // Calculate price change
-  const priceChange = currentPrice && market.startPrice 
+  const totalPool    = calculateTotalPool(market);
+  const priceChange  = currentPrice && market.startPrice
     ? calculatePriceChange(currentPrice, market.startPrice)
     : null;
+  const priceTrend   = priceChange ? getPriceTrend(priceChange.value) : null;
 
-  const priceTrend = priceChange ? getPriceTrend(priceChange.value) : null;
-
-  // Auto-generate title and description
-  const title = generateMarketTitle(market);
+  const title       = generateMarketTitle(market);
   const description = generateMarketDescription(market, currentPrice);
 
-  // Calculate odds for binary markets
   const yesOdds = formatOddsDisplay({
     useFixedOdds: market.useFixedOdds,
     multiplier: market.yesMultiplier,
     poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).upPercentage,
-    choice: 1
+    choice: 1,
   });
-
   const noOdds = formatOddsDisplay({
     useFixedOdds: market.useFixedOdds,
     multiplier: market.noMultiplier,
     poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).downPercentage,
-    choice: 0
+    choice: 0,
   });
 
-  // Get range position for range markets
   const rangePosition = market.marketType === 2 && market.ranges && currentPrice
     ? calculateRangePosition(currentPrice, market.ranges)
     : null;
 
-  // Helper to get option color based on index
-  const getOptionColor = (index) => {
-    const colors = [
-      'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      'bg-pink-500/20 text-pink-400 border-pink-500/30',
-      'bg-teal-500/20 text-teal-400 border-teal-500/30',
-      'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      'bg-lime-500/20 text-lime-400 border-lime-500/30',
-      'bg-rose-500/20 text-rose-400 border-rose-500/30',
-    ];
-    return colors[index % colors.length];
-  };
+  // ── Bet click handlers ──────────────────────────────────────────────────
+  const defaultBet = usdcBalance >= 10 ? 10 : 1;
 
-  // Handle bet clicks
   const handleYesClick = (e) => {
     e.stopPropagation();
-    if (onBetClick) {
-      onBetClick(market, 1, 'Yes', yesOdds.multiplier, usdcBalance >= 10 ? 10 : 1);
-    }
+    onBetClick?.(market, 1, 'Yes', yesOdds.multiplier, defaultBet);
   };
-
   const handleNoClick = (e) => {
     e.stopPropagation();
-    if (onBetClick) {
-      onBetClick(market, 0, 'No', noOdds.multiplier, usdcBalance >= 10 ? 10 : 1);
-    }
+    onBetClick?.(market, 0, 'No', noOdds.multiplier, defaultBet);
   };
-
-  const handleOptionClick = (e, optionIndex, optionLabel) => {
+  const handleOptionClick = (e, idx, label) => {
     e.stopPropagation();
-    if (onBetClick) {
-      const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[optionIndex] : 200;
-      onBetClick(market, optionIndex, optionLabel, multiplier / 100, usdcBalance >= 10 ? 10 : 1);
-    }
+    const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
+    onBetClick?.(market, idx, label, multiplier / 100, defaultBet);
   };
-
-  const handleRangeClick = (e, rangeIndex, rangeLabel) => {
+  const handleRangeClick = (e, idx, label) => {
     e.stopPropagation();
-    if (onBetClick) {
-      const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[rangeIndex] : 200;
-      onBetClick(market, rangeIndex, rangeLabel, multiplier / 100, usdcBalance >= 10 ? 10 : 1);
-    }
+    const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
+    onBetClick?.(market, idx, label, multiplier / 100, defaultBet);
   };
-
-  const handleTimeframeClick = (e, timeframeIndex, timeframeLabel) => {
+  const handleTimeframeClick = (e, idx, label) => {
     e.stopPropagation();
-    if (onBetClick) {
-      const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[timeframeIndex] : 200;
-      onBetClick(market, timeframeIndex, timeframeLabel, multiplier / 100, usdcBalance >= 10 ? 10 : 1);
-    }
+    const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
+    onBetClick?.(market, idx, label, multiplier / 100, defaultBet);
   };
 
   return (
-    <div 
+    // FIX: Migrated from gray-*/blue-* to dark-*/primary design tokens
+    <div
       onClick={onClick}
-      className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 hover:border-blue-500/50 transition-all cursor-pointer group relative overflow-hidden"
+      className="bg-dark-800/80 border border-dark-700 rounded-xl p-4 hover:border-primary/40 transition-all cursor-pointer group relative overflow-hidden"
     >
-      {/* Urgency glow effect for closing markets */}
+      {/* Urgency glow */}
       {urgency.pulse && (
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent animate-pulse pointer-events-none" />
       )}
 
-      {/* Header Row - Asset, Type, Activity Badge, Favorite */}
+      {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold text-sm ${assetInfo.color}`}>
           <AssetIcon className="w-4 h-4" />
           <span>{market.asset || 'Unknown'}</span>
         </div>
-        <div className="px-2 py-1 rounded-md bg-dark-700/50 text-gray-400 text-xs font-medium border border-dark-600">
+        <div className="px-2 py-1 rounded-md bg-dark-700/50 text-neutral-400 text-xs font-medium border border-dark-600">
           {getMarketTypeLabel(market.marketType)}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {/* Time Decay Badge */}
           {decayDisplay.showBadge && (
             <div className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 ${decayDisplay.badgeColor}`}>
               <DecayIcon className="w-3 h-3" />
@@ -224,16 +171,12 @@ const MarketCardComponent = ({
           )}
           <ActivityBadge totalBets={market.totalBets || 0} resolved={market.resolved} />
           {onToggleFavorite && (
-
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite();
-              }}
+              onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
               className={`p-1.5 rounded-lg transition-all duration-200 hover:scale-110 ${
-                isFavorite 
-                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50' 
-                  : 'bg-dark-700/50 text-gray-400 border border-dark-600 hover:text-yellow-400 hover:border-yellow-500/30'
+                isFavorite
+                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
+                  : 'bg-dark-700/50 text-neutral-400 border border-dark-600 hover:text-yellow-400 hover:border-yellow-500/30'
               }`}
               title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
             >
@@ -243,24 +186,21 @@ const MarketCardComponent = ({
         </div>
       </div>
 
-
       {/* Title */}
-      <h3 className="font-bold text-white group-hover:text-blue-400 transition-colors text-lg mb-1">
+      <h3 className="font-bold text-white group-hover:text-primary transition-colors text-lg mb-1">
         {title}
       </h3>
 
       {/* Description */}
-      <p className="text-gray-400 text-sm mb-3">
-        {description}
-      </p>
+      <p className="text-neutral-400 text-sm mb-3">{description}</p>
 
-      {/* Current Price Display (for Binary, Range, Time markets) */}
+      {/* Current Price */}
       {currentPrice && (market.marketType === 0 || market.marketType === 2 || market.marketType === 3) && (
         <div className="mb-3 p-2.5 bg-dark-900/50 rounded-lg border border-dark-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-yellow-400" />
-              <span className="text-xs text-gray-500">Current Price</span>
+              <span className="text-xs text-neutral-500">Current Price</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-white font-bold">
@@ -268,11 +208,7 @@ const MarketCardComponent = ({
               </span>
               {priceChange && (
                 <>
-                  <MiniPriceChart
-                    startPrice={market.startPrice}
-                    currentPrice={currentPrice}
-                    isPositive={priceChange.isPositive}
-                  />
+                  <MiniPriceChart startPrice={market.startPrice} currentPrice={currentPrice} isPositive={priceChange.isPositive} />
                   <span className={`text-xs font-semibold ${priceChange.color} flex items-center gap-0.5`}>
                     <span>{priceChange.icon}</span>
                     <span>{priceChange.formatted}</span>
@@ -289,10 +225,10 @@ const MarketCardComponent = ({
         </div>
       )}
 
-      {/* Range Position Indicator (Range markets only) */}
+      {/* Range Position */}
       {market.marketType === 2 && rangePosition && market.ranges && (
         <div className="mb-3 p-2.5 bg-dark-900/50 rounded-lg border border-dark-700">
-          <div className="text-xs text-gray-500 mb-2">Price Position</div>
+          <div className="text-xs text-neutral-500 mb-2">Price Position</div>
           <div className="relative h-2 bg-dark-800 rounded-full overflow-hidden">
             {market.ranges.map((range, idx) => {
               const min = range.min || 0;
@@ -300,19 +236,17 @@ const MarketCardComponent = ({
               const allMin = Math.min(...market.ranges.map(r => r.min || min));
               const allMax = Math.max(...market.ranges.map(r => r.max || max));
               const totalRange = allMax - allMin || 1;
-              const left = ((min - allMin) / totalRange) * 100;
-              const width = ((max - min) / totalRange) * 100;
+              const left  = ((min - allMin) / totalRange) * 100;
+              const width = ((max - min)    / totalRange) * 100;
               const isActive = rangePosition.rangeIndex === idx;
-              
               return (
                 <div
                   key={idx}
-                  className={`absolute h-full ${isActive ? 'bg-[#c0ff00]/60' : 'bg-dark-600/50'} border-r border-dark-800 last:border-r-0`}
+                  className={`absolute h-full ${isActive ? 'bg-primary/60' : 'bg-dark-600/50'} border-r border-dark-800 last:border-r-0`}
                   style={{ left: `${Math.max(0, left)}%`, width: `${Math.max(0, width)}%` }}
                 />
               );
             })}
-            {/* Current price marker */}
             {currentPrice && (
               <div
                 className="absolute top-0 w-1 h-full bg-yellow-400 shadow-lg shadow-yellow-400/50"
@@ -321,67 +255,51 @@ const MarketCardComponent = ({
             )}
           </div>
           <div className="flex justify-between items-center mt-1.5">
-            <span className="text-[10px] text-gray-500">
+            <span className="text-[10px] text-neutral-500">
               ${safeToFixed(Math.min(...market.ranges.map(r => r.min || 0)), 0)}
             </span>
-            {rangePosition.inRange && (
-              <span className="text-[10px] text-[#c0ff00] font-bold">● IN RANGE</span>
-            )}
-            <span className="text-[10px] text-gray-500">
+            {rangePosition.inRange && <span className="text-[10px] text-primary font-bold">● IN RANGE</span>}
+            <span className="text-[10px] text-neutral-500">
               ${safeToFixed(Math.max(...market.ranges.map(r => r.max || 0)), 0)}
             </span>
           </div>
         </div>
       )}
 
-      {/* Market Stats Grid */}
+      {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-2 mb-4">
-        {/* Start Price */}
-        <div className="bg-gray-900/50 rounded-lg p-2.5 border border-gray-700/50">
-          <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1">
-            <PlayCircle className="w-3.5 h-3.5" />
-            <span>Start</span>
+        <div className="bg-dark-900/50 rounded-lg p-2.5 border border-dark-700/50">
+          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
+            <PlayCircle className="w-3.5 h-3.5" /><span>Start</span>
           </div>
           <div className="text-white font-semibold text-sm">
             ${market.startPrice ? safeToFixed(market.startPrice, 0) : '---'}
           </div>
         </div>
 
-        {/* Pool Size */}
-        <div className="bg-gray-900/50 rounded-lg p-2.5 border border-gray-700/50">
-          <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1">
-            <Users className="w-3.5 h-3.5" />
-            <span>Pool</span>
+        <div className="bg-dark-900/50 rounded-lg p-2.5 border border-dark-700/50">
+          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
+            <Users className="w-3.5 h-3.5" /><span>Pool</span>
           </div>
-          <div className="text-white font-semibold text-sm">
-            {safeToFixed(totalPool, 2)} USDC
-          </div>
+          <div className="text-white font-semibold text-sm">{safeToFixed(totalPool, 2)} USDC</div>
         </div>
 
-        {/* Total Bets */}
-        <div className="bg-gray-900/50 rounded-lg p-2.5 border border-gray-700/50">
-          <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>Bets</span>
+        <div className="bg-dark-900/50 rounded-lg p-2.5 border border-dark-700/50">
+          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
+            <TrendingUp className="w-3.5 h-3.5" /><span>Bets</span>
           </div>
-          <div className="text-white font-semibold text-sm">
-            {market.totalBets || 0}
-          </div>
+          <div className="text-white font-semibold text-sm">{market.totalBets || 0}</div>
         </div>
 
-        {/* Countdown Timer */}
-        <div className={`bg-gray-900/50 rounded-lg p-2.5 border ${urgency.pulse ? 'border-red-500/50 animate-pulse' : 'border-gray-700/50'}`}>
-          <div className="flex items-center gap-1.5 text-gray-500 text-xs mb-1">
-            <Clock className="w-3.5 h-3.5" />
-            <span>Ends</span>
+        <div className={`bg-dark-900/50 rounded-lg p-2.5 border ${urgency.pulse ? 'border-red-500/50 animate-pulse' : 'border-dark-700/50'}`}>
+          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
+            <Clock className="w-3.5 h-3.5" /><span>Ends</span>
           </div>
-          <div className={`font-semibold text-sm ${urgency.color}`}>
-            {countdown.formatted}
-          </div>
+          <div className={`font-semibold text-sm ${urgency.color}`}>{countdown.formatted}</div>
         </div>
       </div>
 
-      {/* Urgency Warning Banner */}
+      {/* Urgency Warning */}
       {urgency.label && (
         <div className={`mb-3 p-2 rounded-lg border flex items-center gap-2 ${urgency.bgColor} ${urgency.color.replace('text-', 'border-')}`}>
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -389,7 +307,7 @@ const MarketCardComponent = ({
         </div>
       )}
 
-      {/* Time Decay Warning */}
+      {/* Late Phase Warning */}
       {isLatePhase && (
         <div className="mb-3 p-2 rounded-lg border border-red-500/30 bg-red-500/10 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -397,68 +315,44 @@ const MarketCardComponent = ({
         </div>
       )}
 
-
-      {/* Market Type Specific Betting UI */}
+      {/* ── Binary Market ─────────────────────────────────────────────────── */}
       {market.marketType === 0 && (
-        /* Binary Market - Price Up/Down */
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <button
-            onClick={handleYesClick}
-            disabled={isPlacingBet || market.resolved || countdown.expired}
-            className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 hover:border-green-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative"
-          >
-            {isDecaying && (
-              <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
-                DECAY
-              </div>
-            )}
-            <div className="flex items-center justify-center gap-1 mb-1">
-              {isPlacingBet ? (
-                <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
-              ) : (
-                <TrendingUp className="w-4 h-4 text-green-400" />
+          {[
+            { label: 'UP',   color: 'green', odds: yesOdds, handler: handleYesClick, Icon: TrendingUp },
+            { label: 'DOWN', color: 'red',   odds: noOdds,  handler: handleNoClick,  Icon: TrendingDown },
+          ].map(({ label, color, odds, handler, Icon }) => (
+            <button
+              key={label}
+              onClick={handler}
+              disabled={isPlacingBet || market.resolved || countdown.expired}
+              className={`bg-${color}-500/20 hover:bg-${color}-500/30 border border-${color}-500/30 hover:border-${color}-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative`}
+            >
+              {isDecaying && (
+                <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
+                  DECAY
+                </div>
               )}
-              <span className="text-green-400 font-bold text-sm">UP</span>
-            </div>
-            <div className="text-green-400 font-semibold text-lg mb-1">
-              {yesOdds.text}
-            </div>
-            <WinProbability market={market} choice="yes" />
-          </button>
-
-          <button
-            onClick={handleNoClick}
-            disabled={isPlacingBet || market.resolved || countdown.expired}
-            className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative"
-          >
-            {isDecaying && (
-              <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
-                DECAY
+              <div className="flex items-center justify-center gap-1 mb-1">
+                {isPlacingBet
+                  ? <Loader2 className={`w-4 h-4 text-${color}-400 animate-spin`} />
+                  : <Icon className={`w-4 h-4 text-${color}-400`} />
+                }
+                <span className={`text-${color}-400 font-bold text-sm`}>{label}</span>
               </div>
-            )}
-            <div className="flex items-center justify-center gap-1 mb-1">
-              {isPlacingBet ? (
-                <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
-              ) : (
-                <TrendingDown className="w-4 h-4 text-red-400" />
-              )}
-              <span className="text-red-400 font-bold text-sm">DOWN</span>
-            </div>
-            <div className="text-red-400 font-semibold text-lg mb-1">
-              {noOdds.text}
-            </div>
-            <WinProbability market={market} choice="no" />
-          </button>
-
+              <div className={`text-${color}-400 font-semibold text-lg mb-1`}>{odds.text}</div>
+              <WinProbability market={market} choice={label === 'UP' ? 'yes' : 'no'} />
+            </button>
+          ))}
         </div>
       )}
 
+      {/* ── Multi-Choice ───────────────────────────────────────────────────── */}
       {market.marketType === 1 && market.options && (
-        /* Multi-Choice Market */
         <div className="mt-4">
           <div className="flex items-center gap-2 mb-2">
             <BarChart3 className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-gray-400">Select an option:</span>
+            <span className="text-sm text-neutral-400">Select an option:</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {market.options.map((option, idx) => {
@@ -481,30 +375,29 @@ const MarketCardComponent = ({
         </div>
       )}
 
+      {/* ── Range ──────────────────────────────────────────────────────────── */}
       {market.marketType === 2 && market.ranges && (
-        /* Range Market */
         <div className="mt-4">
           <div className="flex items-center gap-2 mb-2">
             <Target className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-gray-400">Select a range:</span>
+            <span className="text-sm text-neutral-400">Select a range:</span>
           </div>
           <div className="grid grid-cols-1 gap-2">
             {market.ranges.map((range, idx) => {
               const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-              const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+              const oddsText   = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
               const rangeLabel = `$${range.min?.toLocaleString?.() || range.min} - $${range.max?.toLocaleString?.() || range.max}`;
-              const isActive = rangePosition && rangePosition.rangeIndex === idx;
+              const isActive   = rangePosition?.rangeIndex === idx;
               const rangeStatus = currentPrice ? getRangeStatus(currentPrice, range) : null;
-              
               return (
                 <button
                   key={idx}
                   onClick={(e) => handleRangeClick(e, idx, rangeLabel)}
                   disabled={isPlacingBet || market.resolved || countdown.expired}
-                  className={`${isActive ? 'bg-[#c0ff00]/20 border-[#c0ff00]/50' : getOptionColor(idx)} border rounded-lg p-3 transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative`}
+                  className={`${isActive ? 'bg-primary/20 border-primary/50' : getOptionColor(idx)} border rounded-lg p-3 transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative`}
                 >
                   {isActive && (
-                    <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-[#c0ff00] text-dark-900 text-[10px] font-bold rounded-full">
+                    <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-primary text-dark-950 text-[10px] font-bold rounded-full">
                       HERE
                     </div>
                   )}
@@ -513,15 +406,11 @@ const MarketCardComponent = ({
                     <div className="text-xs opacity-80">{oddsText}</div>
                   </div>
                   {rangeStatus && (
-                    <div className="mt-1">
-                      <span className={`text-[10px] font-medium ${rangeStatus.textColor}`}>
-                        {rangeStatus.label}
-                      </span>
-                    </div>
+                    <span className={`text-[10px] font-medium mt-1 block ${rangeStatus.textColor}`}>
+                      {rangeStatus.label}
+                    </span>
                   )}
-                  <div className="mt-1">
-                    <WinProbability market={market} choice={idx} />
-                  </div>
+                  <div className="mt-1"><WinProbability market={market} choice={idx} /></div>
                 </button>
               );
             })}
@@ -529,26 +418,24 @@ const MarketCardComponent = ({
         </div>
       )}
 
+      {/* ── Time-Based ─────────────────────────────────────────────────────── */}
       {market.marketType === 3 && market.timeframes && (
-        /* Time-Based Market */
         <div className="mt-4">
           <div className="flex items-center gap-2 mb-2">
             <Timer className="w-4 h-4 text-orange-400" />
-            <span className="text-sm text-gray-400">Select timeframe:</span>
+            <span className="text-sm text-neutral-400">Select timeframe:</span>
           </div>
           {market.targetPrice && currentPrice && (
             <div className="mb-3 p-2 bg-dark-900/50 rounded-lg border border-dark-700">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400">Target:</span>
+                <span className="text-neutral-400">Target:</span>
                 <span className="text-white font-bold">
                   ${safeToFixed(market.targetPrice, market.targetPrice >= 1000 ? 0 : 2)}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs mt-1">
-                <span className="text-gray-400">To go:</span>
-                <span className={`font-semibold ${
-                  currentPrice < market.targetPrice ? 'text-green-400' : 'text-red-400'
-                }`}>
+                <span className="text-neutral-400">To go:</span>
+                <span className={`font-semibold ${currentPrice < market.targetPrice ? 'text-green-400' : 'text-red-400'}`}>
                   {Math.abs(((market.targetPrice - currentPrice) / currentPrice) * 100).toFixed(2)}%
                 </span>
               </div>
@@ -557,7 +444,7 @@ const MarketCardComponent = ({
           <div className="grid grid-cols-2 gap-2">
             {market.timeframes.map((tf, idx) => {
               const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-              const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
+              const oddsText   = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
               return (
                 <button
                   key={idx}
@@ -578,19 +465,31 @@ const MarketCardComponent = ({
   );
 };
 
-// Memoized MarketCard - only re-renders when market id or key props change
-const MemoizedMarketCard = React.memo(MarketCardComponent, (prevProps, nextProps) => {
-  // Custom comparison: only re-render if these key props change
+/**
+ * FIX: React.memo custom comparator corrected.
+ *
+ * Previous issues:
+ * 1. `market?.read` — 'read' is not a market field (always undefined === undefined = true,
+ *    so it never triggered re-renders). Should be `market?.resolved`.
+ * 2. Only checking `market.id` meant live data updates (yesPool, noPool, totalBets,
+ *    resolved, priceWentUp) never caused the card to re-render.
+ *
+ * Now checks all fields that affect the card's visual output.
+ */
+const MemoizedMarketCard = React.memo(MarketCardComponent, (prev, next) => {
   return (
-    prevProps.market?.id === nextProps.market?.id &&
-    prevProps.market?.read === nextProps.market?.read &&
-    prevProps.isFavorite === nextProps.isFavorite &&
-    prevProps.isLoading === nextProps.isLoading &&
-    prevProps.isPlacingBet === nextProps.isPlacingBet &&
-    prevProps.usdcBalance === nextProps.usdcBalance
+    prev.market?.id          === next.market?.id          &&
+    prev.market?.resolved    === next.market?.resolved    && // FIX: was market.read
+    prev.market?.yesPool     === next.market?.yesPool     &&
+    prev.market?.noPool      === next.market?.noPool      &&
+    prev.market?.totalBets   === next.market?.totalBets   &&
+    prev.market?.priceWentUp === next.market?.priceWentUp &&
+    prev.isFavorite          === next.isFavorite          &&
+    prev.isLoading           === next.isLoading           &&
+    prev.isPlacingBet        === next.isPlacingBet        &&
+    prev.usdcBalance         === next.usdcBalance
   );
 });
 
-// Export both named and default exports for backward compatibility
 export { MemoizedMarketCard };
 export default MemoizedMarketCard;

@@ -1,51 +1,54 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAccount, useBalance as useWagmiBalance } from 'wagmi';
 import { createLogger } from '../utils/logger';
 import { CONTRACTS } from '../config/wagmi';
 
 const logger = createLogger('useBalance');
 
+/**
+ * useBalance hook
+ *
+ * FIX 1: Removed useState + useEffect pattern for formattedUsdcBalance and
+ *         formattedEthBalance. These were always one render behind
+ *         usdcBalanceNum because setState is async — derived display values
+ *         were stale on the first render after a balance update.
+ *         Now all formatted values are derived directly from wagmi data
+ *         (computed inline on every render, always in sync).
+ *
+ * FIX 2: `watch: true` is deprecated in Wagmi v2 and silently does nothing.
+ *         Replaced with `refetchInterval: 15_000` which is the correct
+ *         Wagmi v2 API for polling. Also added `refetchOnWindowFocus: true`
+ *         so balance refreshes when user switches back to the tab.
+ */
 export const useBalance = () => {
   const { address } = useAccount();
-  const [formattedEthBalance, setFormattedEthBalance] = useState('0');
-  const [formattedUsdcBalance, setFormattedUsdcBalance] = useState('0');
-  
-  // Fetch native ETH balance (for gas fees)
-  const { 
-    data: ethBalanceData, 
-    isLoading: isLoadingEth, 
-    error: ethError, 
-    refetch: refetchEth 
+
+  // ETH balance (for gas)
+  const {
+    data: ethBalanceData,
+    isLoading: isLoadingEth,
+    error: ethError,
+    refetch: refetchEth,
   } = useWagmiBalance({
     address,
-    watch: true,
+    // FIX 2: watch is deprecated in Wagmi v2 — use refetchInterval instead
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
 
-  // Fetch USDC token balance (for betting)
-  const { 
-    data: usdcBalanceData, 
-    isLoading: isLoadingUsdc, 
-    error: usdcError, 
-    refetch: refetchUsdc 
+  // USDC balance (for betting)
+  const {
+    data: usdcBalanceData,
+    isLoading: isLoadingUsdc,
+    error: usdcError,
+    refetch: refetchUsdc,
   } = useWagmiBalance({
     address,
     token: CONTRACTS.USDC,
-    watch: true,
+    // FIX 2: same here
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
   });
-
-  useEffect(() => {
-    if (ethBalanceData) {
-      const formatted = (Number(ethBalanceData.value) / 1e18).toFixed(4);
-      setFormattedEthBalance(formatted);
-    }
-  }, [ethBalanceData]);
-
-  useEffect(() => {
-    if (usdcBalanceData) {
-      const formatted = (Number(usdcBalanceData.value) / 1e6).toFixed(2);
-      setFormattedUsdcBalance(formatted);
-    }
-  }, [usdcBalanceData]);
 
   const refreshBalance = useCallback(async () => {
     try {
@@ -56,28 +59,36 @@ export const useBalance = () => {
     }
   }, [refetchEth, refetchUsdc]);
 
-  // Calculate total USDC balance as number for easy comparison
-  const usdcBalanceNum = usdcBalanceData ? Number(usdcBalanceData.value) / 1e6 : 0;
+  // FIX 1: Derive all formatted values directly — never stale
+  const usdcBalanceNum = usdcBalanceData
+    ? Number(usdcBalanceData.value) / 1e6
+    : 0;
+
+  const formattedUsdcBalance = usdcBalanceNum.toFixed(2);
+
+  const formattedEthBalance = ethBalanceData
+    ? (Number(ethBalanceData.value) / 1e18).toFixed(4)
+    : '0.0000';
 
   return {
     // ETH balance (for gas)
-    ethBalance: ethBalanceData?.value || BigInt(0),
+    ethBalance:          ethBalanceData?.value || BigInt(0),
     formattedEthBalance,
-    ethSymbol: ethBalanceData?.symbol || 'ETH',
-    
+    ethSymbol:           ethBalanceData?.symbol || 'ETH',
+
     // USDC balance (for betting)
-    usdcBalance: usdcBalanceData?.value || BigInt(0),
+    usdcBalance:         usdcBalanceData?.value || BigInt(0),
     formattedUsdcBalance,
     usdcBalanceNum,
-    usdcSymbol: 'USDC',
-    
-    // Combined loading/error states
-    isLoading: isLoadingEth || isLoadingUsdc,
+    usdcSymbol:          'USDC',
+
+    // States
+    isLoading:     isLoadingEth || isLoadingUsdc,
     isLoadingEth,
     isLoadingUsdc,
-    error: ethError || usdcError,
-    
-    refreshBalance
+    error:         ethError || usdcError,
+
+    refreshBalance,
   };
 };
 

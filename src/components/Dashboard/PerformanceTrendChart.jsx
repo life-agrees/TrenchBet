@@ -1,14 +1,17 @@
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+// ─── PerformanceTrendChart.jsx ────────────────────────────────────────────────
+// FIX 1: generateTrendData wrapped in useMemo — was recalculating on every render
+// FIX 2: isLoading prop now actually used — shows skeleton while data loads
+
+import React, { useMemo } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, Legend
+} from 'recharts';
 import { TrendingUp } from 'lucide-react';
 
-/**
- * Betting Performance Trend Chart
- * Shows profit/loss over time
- */
 const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
-  // Generate trend data from user bets
-  const generateTrendData = () => {
+  // FIX 1: memoized — only recomputes when userBets changes
+  const data = useMemo(() => {
     if (!userBets || userBets.length === 0) return [];
 
     const trendMap = {};
@@ -18,27 +21,30 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
       .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
       .forEach((bet) => {
         const date = new Date(bet.timestamp).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric'
+          month: 'short', day: 'numeric'
         });
 
-        if (!trendMap[date]) {
-          trendMap[date] = { date, profit: 0, bets: 0 };
-        }
+        if (!trendMap[date]) trendMap[date] = { date, profit: 0, bets: 0 };
 
-        // Convert BigInt values to regular numbers to avoid type mixing errors
         const payout = Number(bet.payout) || 0;
         const amount = Number(bet.amount) || 0;
-        const profitLoss = bet.won ? payout - amount : -amount;
-        cumulativeProfit += profitLoss;
+        cumulativeProfit += bet.won ? payout - amount : -amount;
         trendMap[date].profit = cumulativeProfit;
-        trendMap[date].bets += 1;
+        trendMap[date].bets  += 1;
       });
 
-    return Object.values(trendMap).slice(-14); // Last 14 days
-  };
+    return Object.values(trendMap).slice(-14);
+  }, [userBets]);
 
-  const data = generateTrendData();
+  // FIX 2: loading skeleton
+  if (isLoading) {
+    return (
+      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6 h-80 flex flex-col">
+        <div className="h-5 w-40 bg-dark-700 rounded animate-pulse mb-6" />
+        <div className="flex-1 bg-dark-700/50 rounded-lg animate-pulse" />
+      </div>
+    );
+  }
 
   if (data.length === 0) {
     return (
@@ -61,21 +67,21 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
         <LineChart data={data}>
           <defs>
             <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#00FF88" stopOpacity={0.8} />
-              <stop offset="95%" stopColor="#00FF88" stopOpacity={0.1} />
+              <stop offset="5%"  stopColor="#c0ff00" stopOpacity={0.8} />
+              <stop offset="95%" stopColor="#c0ff00" stopOpacity={0.1} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(205, 255, 0, 0.1)" />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(205,255,0,0.08)" />
           <XAxis dataKey="date" stroke="#666" style={{ fontSize: '12px' }} />
           <YAxis stroke="#666" style={{ fontSize: '12px' }} />
           <Tooltip
             contentStyle={{
-              backgroundColor: '#1a1a1a',
-              border: '1px solid rgba(205, 255, 0, 0.3)',
+              backgroundColor: '#1a1f2e',
+              border: '1px solid rgba(192,255,0,0.3)',
               borderRadius: '8px',
-              color: '#fff'
+              color: '#fff',
             }}
-            formatter={(value) => [`$${value.toFixed(2)}`, 'Cumulative P&L']}
+            formatter={(value) => [`$${Number(value).toFixed(2)}`, 'Cumulative P&L']}
           />
           <Legend />
           <Line
@@ -86,7 +92,7 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
             dot={{ fill: '#c0ff00', r: 4 }}
             activeDot={{ r: 6 }}
             name="Cumulative P&L"
-            isAnimationActive={true}
+            isAnimationActive
           />
         </LineChart>
       </ResponsiveContainer>
@@ -95,3 +101,5 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
 };
 
 export default PerformanceTrendChart;
+
+

@@ -1,59 +1,42 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { createLogger } from '../utils/logger';
 import { PROXY_ADDRESS } from '../utils/constants';
 
 const logger = createLogger('useAdminOwner');
 
-// Development mode owner address - your admin wallet
 const DEV_OWNER_ADDRESS = '0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d';
 
 /**
- * Check owner of a single contract
+ * useAdminOwner
+ *
+ * FIX 1: Replaced `window.ethereum` with wagmi's `usePublicClient`.
+ *        `window.ethereum` is only the injected MetaMask provider — it's
+ *        undefined for WalletConnect, Coinbase Wallet, and other connectors.
+ *        usePublicClient() returns whichever transport the user connected with.
+ *
+ * FIX 2: `coreContractAddress` and `typesContractAddress` params were
+ *        accepted but completely unused (only PROXY_ADDRESS was ever read).
+ *        Removed from the function signature to avoid confusion.
+ *        All ownership lives in the proxy — reading core/types would always
+ *        return their local storage which is empty (they're logic-only).
+ *
+ * FIX 3: `logger.info('...isOwner:', isOwner)` in the finally block read
+ *        the stale state variable, not the newly computed value.
+ *        Moved the log to use the local `isAdmin` variable instead.
  */
-const checkContractOwner = async (provider, contractAddress) => {
-  if (!contractAddress || contractAddress === '0x0000000000000000000000000000000000000000') {
-    return null;
-  }
-
-  try {
-    // Encode the owner() function call
-    const data = '0x8da5cb5b'; // keccak256('owner()') first 4 bytes
-    
-    const result = await provider.request({
-      method: 'eth_call',
-      params: [{
-        to: contractAddress,
-        data: data
-      }, 'latest']
-    });
-
-    if (result && result !== '0x') {
-      // Decode the address (remove 0x prefix and pad)
-      return '0x' + result.slice(26);
-    }
-    return null;
-  } catch (error) {
-    logger.warn(`Failed to check owner for ${contractAddress}:`, error.message);
-    return null;
-  }
-};
-
-export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
+export const useAdminOwner = () => { // FIX 2: unused params removed
   const { address, isConnected } = useAccount();
-  const [isOwner, setIsOwner] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const publicClient = usePublicClient(); // FIX 1: wagmi instead of window.ethereum
+
+  const [isOwner, setIsOwner]         = useState(false);
+  const [isLoading, setIsLoading]     = useState(true);
   const [ownerAddress, setOwnerAddress] = useState(null);
 
   const checkOwnership = useCallback(async () => {
-    logger.info('checkOwnership called', { 
-      isConnected, 
-      address, 
-      PROXY_ADDRESS 
-    });
-    
+    logger.info('checkOwnership called', { isConnected, address, PROXY_ADDRESS });
+
     if (!isConnected || !address) {
-      logger.info('Not connected or no address');
       setIsOwner(false);
       setIsLoading(false);
       return;
@@ -62,68 +45,59 @@ export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
     setIsLoading(true);
 
     try {
-      // If no PROXY_ADDRESS, use dev mode
       if (!PROXY_ADDRESS) {
-        const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
-        setIsOwner(isDevOwner);
+        const isAdmin = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
+        setIsOwner(isAdmin);
         setOwnerAddress(DEV_OWNER_ADDRESS);
-        logger.info('Dev mode ownership (no proxy):', { isDevOwner, address });
-        setIsLoading(false);
+        logger.info('Dev mode (no proxy):', { isAdmin });
         return;
       }
 
-      // Check PROXY ownership (primary method)
-      if (window.ethereum) {
-        logger.info('Checking proxy ownership...');
-        const provider = window.ethereum;
-        
-        const proxyOwner = await checkContractOwner(provider, PROXY_ADDRESS);
-        logger.info('Proxy owner result:', proxyOwner);
-        
-        if (proxyOwner) {
-          const userAddressLower = address.toLowerCase();
-          const isAdmin = proxyOwner.toLowerCase() === userAddressLower;
-          
-          logger.info('Ownership check:', { 
-            userAddressLower, 
-            proxyOwner, 
-            isAdmin 
-          });
-          
-          setOwnerAddress(proxyOwner);
-          setIsOwner(isAdmin);
-        } else {
-          // No owner found, use dev mode
-          const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
-          setIsOwner(isDevOwner);
-          setOwnerAddress(DEV_OWNER_ADDRESS);
-          logger.info('Dev mode ownership (no proxy owner):', { isDevOwner, address });
-        }
-      } else {
-        // No ethereum provider, use dev mode
-        const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
-        setIsOwner(isDevOwner);
+      if (!publicClient) {
+        // No provider available — fall back to dev check
+        const isAdmin = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
+        setIsOwner(isAdmin);
         setOwnerAddress(DEV_OWNER_ADDRESS);
-        logger.info('Dev mode ownership (no provider):', { isDevOwner, address });
+        logger.info('Dev mode (no publicClient):', { isAdmin });
+        return;
       }
+
+      // FIX 1: use wagmi publicClient.readContract instead of window.ethereum eth_call
+      let proxyOwner = null;
+      try {
+        const result = await publicClient.readContract({
+          address: PROXY_ADDRESS,
+          abi: [{ name: 'owner', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] }],
+          functionName: 'owner',
+        });
+        proxyOwner = result || null;
+      } catch (e) {
+        logger.warn('Failed to read proxy owner:', e.message);
+      }
+
+      let isAdmin;
+      if (proxyOwner) {
+        isAdmin = proxyOwner.toLowerCase() === address.toLowerCase();
+        setOwnerAddress(proxyOwner);
+        logger.info('Proxy ownership check:', { address, proxyOwner, isAdmin }); // FIX 3: log local var
+      } else {
+        isAdmin = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
+        setOwnerAddress(DEV_OWNER_ADDRESS);
+        logger.info('Dev mode (no proxy owner found):', { isAdmin });
+      }
+
+      setIsOwner(isAdmin);
     } catch (error) {
       logger.error('Error checking ownership:', error);
-      // Fallback to dev mode on error
-      const isDevOwner = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
-      setIsOwner(isDevOwner);
+      const isAdmin = address.toLowerCase() === DEV_OWNER_ADDRESS.toLowerCase();
+      setIsOwner(isAdmin);
       setOwnerAddress(DEV_OWNER_ADDRESS);
     } finally {
-      logger.info('Setting isLoading to false, isOwner:', isOwner);
       setIsLoading(false);
     }
-  }, [address, isConnected]);
+  }, [address, isConnected, publicClient]);
 
   useEffect(() => {
-    logger.info('Running ownership check...');
-    checkOwnership();
-  }, [checkOwnership]);
-
-  const refreshOwnership = useCallback(() => {
     checkOwnership();
   }, [checkOwnership]);
 
@@ -131,7 +105,7 @@ export const useAdminOwner = (coreContractAddress, typesContractAddress) => {
     isOwner,
     isLoading,
     ownerAddress: ownerAddress || DEV_OWNER_ADDRESS,
-    refreshOwnership
+    refreshOwnership: checkOwnership,
   };
 };
 

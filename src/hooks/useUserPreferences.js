@@ -1,41 +1,55 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('useUserPreferences');
 
 const STORAGE_KEY = 'trenchybet_preferences';
 
+const DEFAULT_PREFERENCES = {
+  sidebarCollapsed: false,
+  sidebarWidth: 64,
+  activityFeedOpen: false,
+  theme: 'dark',
+  dashboardWidgets: ['performance', 'trends', 'achievements', 'quickstats'],
+  notifications: {
+    achievements: true,
+    bets: true,
+    markets: true,
+    referrals: true,
+    sound: false,
+  },
+  favoriteMarkets: [],
+  lastView: 'markets',
+  customDashboardOrder: [],
+};
+
 /**
  * User preference management hook
- * Handles sidebar state, theme, widget visibility, etc.
+ *
+ * FIX 1: toggleWidget no longer calls savePreferences inside a setPreferences
+ *         updater function. Previously this caused nested/double setState: the
+ *         updater (which should be pure) was firing savePreferences, which itself
+ *         called setPreferences again with stale preferences from the outer
+ *         closure — potentially overwriting the correct updated value.
+ *         Now toggleWidget reads current state cleanly, updates it, persists it,
+ *         then sets it — single setState, no side effects inside updater.
+ *
+ * FIX 2: savePreferences now uses a prefsRef (useRef) instead of the `preferences`
+ *         state variable in its closure. This means savePreferences always writes
+ *         the latest preferences to localStorage, not a stale snapshot from when
+ *         the callback was last created.
  */
 export const useUserPreferences = (address) => {
-  const [preferences, setPreferences] = useState({
-    sidebarCollapsed: false,
-    sidebarWidth: 64, // Collapsed width in rem
-    activityFeedOpen: false,
-    theme: 'dark',
-    dashboardWidgets: [
-      'performance',
-      'trends',
-      'achievements',
-      'quickstats'
-    ],
-    notifications: {
-      achievements: true,
-      bets: true,
-      markets: true,
-      referrals: true,
-      sound: false
-    },
-    favoriteMarkets: [],
-    lastView: 'markets',
-    customDashboardOrder: []
-  });
-
+  const [preferences, setPreferences] = useState(DEFAULT_PREFERENCES);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load preferences from localStorage
+  // FIX 2: ref always holds latest preferences so savePreferences never reads stale state
+  const prefsRef = useRef(preferences);
+  useEffect(() => {
+    prefsRef.current = preferences;
+  }, [preferences]);
+
+  // Load preferences from localStorage on mount / address change
   useEffect(() => {
     try {
       if (!address) {
@@ -48,40 +62,36 @@ export const useUserPreferences = (address) => {
 
       if (stored) {
         const parsed = JSON.parse(stored);
-        setPreferences(prev => ({
-          ...prev,
-          ...parsed
-        }));
+        const merged = { ...DEFAULT_PREFERENCES, ...parsed };
+        setPreferences(merged);
+        prefsRef.current = merged;
         logger.info('Preferences loaded from storage');
       }
-
-      setIsLoading(false);
     } catch (error) {
       logger.error('Error loading preferences:', error);
+    } finally {
       setIsLoading(false);
     }
   }, [address]);
 
-  // Save preferences to localStorage
+  // FIX 2: savePreferences reads from prefsRef, never stale closure
   const savePreferences = useCallback((newPrefs) => {
     try {
       if (!address) return;
 
       const storageKey = `${STORAGE_KEY}_${address}`;
-      const merged = {
-        ...preferences,
-        ...newPrefs
-      };
+      const merged = { ...prefsRef.current, ...newPrefs };
 
+      prefsRef.current = merged;
       setPreferences(merged);
       localStorage.setItem(storageKey, JSON.stringify(merged));
       logger.info('Preferences saved');
     } catch (error) {
       logger.error('Error saving preferences:', error);
     }
-  }, [address, preferences]);
+  }, [address]); // ← no longer depends on `preferences` state
 
-  // Sidebar preferences
+  // Sidebar
   const setSidebarCollapsed = useCallback((collapsed) => {
     savePreferences({ sidebarCollapsed: collapsed });
   }, [savePreferences]);
@@ -90,89 +100,68 @@ export const useUserPreferences = (address) => {
     savePreferences({ sidebarWidth: width });
   }, [savePreferences]);
 
-  // Activity feed preferences
+  // Activity feed
   const setActivityFeedOpen = useCallback((open) => {
     savePreferences({ activityFeedOpen: open });
   }, [savePreferences]);
 
-  // Theme preferences
+  // Theme
   const setTheme = useCallback((theme) => {
     savePreferences({ theme });
   }, [savePreferences]);
 
-  // Dashboard widget management
+  /**
+   * FIX 1: toggleWidget reads current widgets from prefsRef (always fresh),
+   * builds the updated array, then calls savePreferences once — no nested
+   * setState, no side effects inside a state updater.
+   */
   const toggleWidget = useCallback((widgetId) => {
-    setPreferences(prev => {
-      const widgets = prev.dashboardWidgets;
-      const updated = widgets.includes(widgetId)
-        ? widgets.filter(w => w !== widgetId)
-        : [...widgets, widgetId];
-
-      savePreferences({ dashboardWidgets: updated });
-      return { ...prev, dashboardWidgets: updated };
-    });
+    const current = prefsRef.current.dashboardWidgets;
+    const updated = current.includes(widgetId)
+      ? current.filter(w => w !== widgetId)
+      : [...current, widgetId];
+    savePreferences({ dashboardWidgets: updated });
   }, [savePreferences]);
 
   const reorderWidgets = useCallback((newOrder) => {
     savePreferences({ customDashboardOrder: newOrder });
   }, [savePreferences]);
 
-  // Notification preferences
   const setNotificationPreference = useCallback((key, value) => {
     savePreferences({
       notifications: {
-        ...preferences.notifications,
-        [key]: value
-      }
+        ...prefsRef.current.notifications,
+        [key]: value,
+      },
     });
-  }, [preferences, savePreferences]);
+  }, [savePreferences]);
 
-  // Favorite markets
   const addFavoriteMarket = useCallback((marketId) => {
-    const updated = [...new Set([...preferences.favoriteMarkets, marketId])];
+    const updated = [...new Set([...prefsRef.current.favoriteMarkets, marketId])];
     savePreferences({ favoriteMarkets: updated });
-  }, [preferences, savePreferences]);
+  }, [savePreferences]);
 
   const removeFavoriteMarket = useCallback((marketId) => {
-    const updated = preferences.favoriteMarkets.filter(id => id !== marketId);
+    const updated = prefsRef.current.favoriteMarkets.filter(id => id !== marketId);
     savePreferences({ favoriteMarkets: updated });
-  }, [preferences, savePreferences]);
+  }, [savePreferences]);
 
   const isFavoriteMarket = useCallback((marketId) => {
-    return preferences.favoriteMarkets.includes(marketId);
-  }, [preferences]);
+    return prefsRef.current.favoriteMarkets.includes(marketId);
+  }, []);
 
-  // Last viewed page
   const setLastView = useCallback((view) => {
     savePreferences({ lastView: view });
   }, [savePreferences]);
 
-  // Reset preferences to defaults
   const resetPreferences = useCallback(() => {
     try {
       if (!address) return;
 
       const storageKey = `${STORAGE_KEY}_${address}`;
       localStorage.removeItem(storageKey);
-
-      setPreferences({
-        sidebarCollapsed: false,
-        sidebarWidth: 64,
-        activityFeedOpen: false,
-        theme: 'dark',
-        dashboardWidgets: ['performance', 'trends', 'achievements', 'quickstats'],
-        notifications: {
-          achievements: true,
-          bets: true,
-          markets: true,
-          referrals: true,
-          sound: false
-        },
-        favoriteMarkets: [],
-        lastView: 'markets',
-        customDashboardOrder: []
-      });
-
+      prefsRef.current = DEFAULT_PREFERENCES;
+      setPreferences(DEFAULT_PREFERENCES);
       logger.info('Preferences reset to defaults');
     } catch (error) {
       logger.error('Error resetting preferences:', error);
@@ -180,46 +169,37 @@ export const useUserPreferences = (address) => {
   }, [address]);
 
   return {
-    // State
     preferences,
     isLoading,
 
-    // Sidebar
     setSidebarCollapsed,
     setSidebarWidth,
     sidebarCollapsed: preferences.sidebarCollapsed,
     sidebarWidth: preferences.sidebarWidth,
 
-    // Activity Feed
     setActivityFeedOpen,
     activityFeedOpen: preferences.activityFeedOpen,
 
-    // Theme
     setTheme,
     theme: preferences.theme,
 
-    // Widgets
     toggleWidget,
     reorderWidgets,
     visibleWidgets: preferences.dashboardWidgets,
     widgetOrder: preferences.customDashboardOrder,
 
-    // Notifications
     setNotificationPreference,
     notificationSettings: preferences.notifications,
 
-    // Favorites
     addFavoriteMarket,
     removeFavoriteMarket,
     isFavoriteMarket,
     favoriteMarkets: preferences.favoriteMarkets,
 
-    // Last view
     setLastView,
     lastView: preferences.lastView,
 
-    // Reset
-    resetPreferences
+    resetPreferences,
   };
 };
 

@@ -256,7 +256,7 @@ export const PREDICTION_MARKET_PROXY_ABI = [
   {
     "inputs": [
       {"internalType": "uint256","name": "marketId","type": "uint256"},
-      {"internalType": "uint8","name": "choice","type": "uint256"},
+      {"internalType": "uint8", "name": "choice", "type": "uint8"},
       {"internalType": "uint256","name": "amount","type": "uint256"}
     ],
     "name": "placeBetAdvanced",
@@ -399,14 +399,14 @@ export const PREDICTION_MARKET_PROXY_ABI = [
     "type": "event"
   },
   
-  {
+{
     "anonymous": false,
     "inputs": [
-      {"indexed": true,"internalType": "uint256","name": "marketId","type": "uint256"},
-      {"indexed": true,"internalType": "address","name": "user","type": "address"},
-      {"indexed": false,"internalType": "uint8","name": "choice","type": "uint8"},
-      {"indexed": false,"internalType": "uint256","name": "amount","type": "uint256"},
-      {"indexed": false,"internalType": "uint256","name": "effectiveMultiplier","type": "uint256"}
+      { "indexed": true, "name": "gameId", "type": "uint256" },
+      { "indexed": true, "name": "player", "type": "address" },
+      { "indexed": false, "name": "betType", "type": "uint8" },
+      { "indexed": false, "name": "number", "type": "uint256" },
+      { "indexed": false, "name": "amount", "type": "uint256" }
     ],
     "name": "BetPlaced",
     "type": "event"

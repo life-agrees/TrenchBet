@@ -249,7 +249,6 @@ export const useBetPlacement = () => {
       });
 
       setIsPending(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Route to correct function based on market type
       const txHash = await walletClient.writeContract({
@@ -412,6 +411,7 @@ const placeBetAfterApproval = useCallback(async (market, choice, amount) => {
   return {
     placeBet,
     placeBetAfterApproval, // NEW!
+    checkAllowance,
     isPending,
     isConfirming,
     isPlacingBet,

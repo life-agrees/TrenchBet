@@ -885,7 +885,7 @@ export const PREDICTION_MARKET_TYPES_ABI = [
   {
     "inputs": [
       {"internalType": "uint256","name": "marketId","type": "uint256"},
-      {"internalType": "uint8","name": "choice","type": "uint256"},
+      {"internalType": "uint8","name": "choice","type": "uint8"},
       {"internalType": "uint256","name": "amount","type": "uint256"}
     ],
     "name": "placeBet",

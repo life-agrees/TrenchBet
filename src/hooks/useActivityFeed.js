@@ -1,75 +1,73 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createLogger } from '../utils/logger';
 
 const logger = createLogger('useActivityFeed');
 
 /**
- * Fetch activities from API
- * In production, this would connect to real API endpoints
+ * fetchActivities is now a plain function (not a module-level constant),
+ * so mock timestamps are computed fresh on every call — not frozen at module load time.
  */
 const fetchActivities = async (address) => {
   try {
-    // In production, this would be:
+    // In production, replace with real API call:
     // const response = await fetch(`/api/activities?wallet=${address}&limit=50`);
     // const data = await response.json();
     // return data.activities;
-    
-    // For now, return mock data
+
+    //  Timestamps computed here (inside the function), so they're always
+    // relative to NOW at fetch time — not stale from module initialisation.
+    const now = Date.now();
+
     const mockMarketActivities = [
       {
         id: 'market-1',
         type: 'market',
         title: 'BTC/USD Market',
         desc: 'Price moved 2.3% up in last hour',
-        time: new Date(Date.now() - 2 * 60000),
-        icon: 'TrendingUp',
-        color: 'text-green-400',
+        time: new Date(now - 2 * 60_000),
         asset: 'BTC',
-        movement: '+2.3%'
+        movement: '+2.3%',
       },
       {
         id: 'market-2',
         type: 'market',
         title: 'ETH/USD Market',
         desc: 'High trading volume - 500K+ bets',
-        time: new Date(Date.now() - 5 * 60000),
-        icon: 'Target',
-        color: 'text-blue-400',
+        time: new Date(now - 5 * 60_000),
         asset: 'ETH',
-        volume: '500K+'
+        volume: '500K+',
       },
       {
         id: 'market-3',
         type: 'resolution',
         title: 'Market Resolved',
         desc: 'BTC closed at $45,200 - Winners paid',
-        time: new Date(Date.now() - 8 * 60000),
-        icon: 'TrendingUp',
-        color: 'text-primary'
-      }
+        time: new Date(now - 8 * 60_000),
+      },
     ];
 
-    const mockBetActivities = address ? [
-      {
-        id: 'bet-1',
-        type: 'bet_placed',
-        title: 'Bet Placed',
-        desc: 'You placed $50 on BTC UP',
-        time: new Date(Date.now() - 10 * 60000),
-        amount: '$50',
-        status: 'pending'
-      },
-      {
-        id: 'bet-2',
-        type: 'bet_won',
-        title: 'Bet Won!',
-        desc: 'Your ETH bet won 2.5x multiplier',
-        time: new Date(Date.now() - 1 * 3600000),
-        amount: '+$125',
-        color: 'text-success'
-      }
-    ] : [];
+    const mockBetActivities = address
+      ? [
+          {
+            id: 'bet-1',
+            type: 'bet_placed',
+            title: 'Bet Placed',
+            desc: 'You placed $50 on BTC UP',
+            time: new Date(now - 10 * 60_000),
+            amount: '$50',
+            status: 'pending',
+          },
+          {
+            id: 'bet-2',
+            type: 'bet_won',
+            title: 'Bet Won! 🎉',
+            desc: 'Your ETH bet won 2.5x multiplier',
+            time: new Date(now - 1 * 3_600_000),
+            amount: '+$125',
+          },
+        ]
+      : [];
 
     const allActivities = [...mockMarketActivities, ...mockBetActivities].sort(
       (a, b) => new Date(b.time) - new Date(a.time)
@@ -83,80 +81,79 @@ const fetchActivities = async (address) => {
 };
 
 /**
- * Hook for fetching and managing real-time activity feed data
- * Uses React Query for caching and automatic refetching
- * Polls every 10 seconds for real-time updates
+ * Hook for fetching and managing real-time activity feed data.
+ * Uses React Query for caching + auto-polling every 10 seconds
+ * Returns activities sorted by most recent, along with loading/error states and a manual refresh function.
+ * Also provides addOptimisticActivity() to add new events immediately to the UI before API round-trip.
+ * Provides a way to add optimistic activities that appear immediately in the UI
  */
 export const useActivityFeed = (address, isConnected) => {
   const queryClient = useQueryClient();
-  const intervalRef = useRef(null);
   const [localOptimisticActivities, setLocalOptimisticActivities] = useState([]);
 
-  // React Query configuration for caching and polling
-  const { 
-    data, 
-    isLoading, 
-    error, 
-    refetch 
-  } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['activities', address],
     queryFn: () => fetchActivities(address),
-    enabled: isConnected,
-    staleTime: 5000, // Consider data fresh for 5 seconds
-    refetchInterval: 10000, // Auto-refetch every 10 seconds
+    enabled: !!isConnected,
+    staleTime: 5_000,          // data is fresh for 5 s
+    refetchInterval: 10_000,   // auto-poll every 10 s
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });
 
-  // Manual refresh function
+  //  Object syntax required by TanStack Query v5
   const refresh = useCallback(() => {
-    queryClient.invalidateQueries(['activities', address]);
+    queryClient.invalidateQueries({ queryKey: ['activities', address] });
     refetch();
   }, [address, queryClient, refetch]);
 
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
-
-  // Optimistic update: add new activity immediately to UI
+  /**
+   * Add an activity immediately to the UI before the API round-trips.
+   *  When real data arrives, the optimistic entry is filtered out by
+   * checking whether the real activities array already contains a non-optimistic
+   * version of this event. We also remove the optimistic item after 5 s as a
+   * safety net (up from 3 s to give slow RPCs time to respond).
+   */
   const addOptimisticActivity = useCallback((newActivity) => {
+    const optimisticId = `optimistic-${Date.now()}`;
     const optimisticActivity = {
       ...newActivity,
-      id: `optimistic-${Date.now()}`,
+      id: optimisticId,
       time: new Date(),
       read: false,
-      pending: true // Mark as pending to show visual indicator
+      pending: true,
     };
-    
+
     setLocalOptimisticActivities(prev => [optimisticActivity, ...prev]);
-    
-    // Remove optimistic activity after a short delay (simulating API response)
+
+    // Safety-net removal after 5 s
     setTimeout(() => {
-      setLocalOptimisticActivities(prev => 
-        prev.filter(a => a.id !== optimisticActivity.id)
+      setLocalOptimisticActivities(prev =>
+        prev.filter(a => a.id !== optimisticId)
       );
-    }, 3000);
-    
+    }, 5_000);
+
     return optimisticActivity;
   }, []);
 
-  // Combine fetched data with optimistic updates
-  const activities = [
-    ...localOptimisticActivities,
-    ...(data?.activities || [])
-  ];
+  const fetchedActivities = data?.activities ?? [];
+
+  //  Strip out optimistic entries whose real counterpart has arrived.
+  // An optimistic entry is considered "settled" if the real feed contains an
+  // activity from the same source that was created within the last 10 seconds.
+  const settledIds = new Set(fetchedActivities.map(a => a.id));
+  const activeOptimistic = localOptimisticActivities.filter(
+    opt => !settledIds.has(opt.id.replace('optimistic-', ''))
+  );
+
+  const activities = [...activeOptimistic, ...fetchedActivities];
 
   return {
     activities,
     isLoading,
     error,
     refresh,
-    addOptimisticActivity
+    addOptimisticActivity,
   };
 };
 

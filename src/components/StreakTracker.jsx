@@ -3,42 +3,49 @@ import { Flame, Clock, CheckCircle, Gift } from 'lucide-react';
 import { useAccount } from 'wagmi';
 
 /**
- * Streak Tracker Component
- * Shows daily check-in streak with rewards
+ * StreakTracker
+ *
+ * FIX: `countdown` state initialised from `timeUntilNext` prop but the
+ *      useEffect only watched `[canCheckIn, timeUntilNext]` for starting
+ *      the interval — it didn't reset `countdown` when `timeUntilNext`
+ *      changed (e.g. parent re-renders after a check-in or data refresh).
+ *      Displayed countdown would stay stale.
+ *
+ *      Fix: added `setCountdown(timeUntilNext)` at the top of the effect so
+ *      the displayed value always resets to the latest prop value whenever
+ *      either `canCheckIn` or `timeUntilNext` changes.
  */
 const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUntilNext }) => {
   const { isConnected } = useAccount();
   const [countdown, setCountdown] = useState(timeUntilNext);
 
-  // Update countdown
   useEffect(() => {
-    if (!canCheckIn && timeUntilNext > 0) {
-      const interval = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(interval);
-    }
-  }, [canCheckIn, timeUntilNext]);
+    // FIX: reset countdown to latest prop value on every relevant change
+    setCountdown(timeUntilNext);
 
-  // Format time
+    if (canCheckIn || timeUntilNext <= 0) return;
+
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [canCheckIn, timeUntilNext]); // FIX: timeUntilNext already in deps, now also resets state
+
   const formatTime = (seconds) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours}h ${mins}m ${secs}s`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${h}h ${m}m ${s}s`;
   };
 
-  // Get reward for each day
-  const getRewardForDay = (day) => {
-    const rewards = [5, 5, 10, 10, 15, 20, 50];
-    return rewards[(day - 1) % 7];
-  };
+  const getRewardForDay = (day) => [5, 5, 10, 10, 15, 20, 50][(day - 1) % 7];
 
   if (!isConnected) {
     return (
@@ -48,9 +55,9 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
     );
   }
 
-  const currentStreak = streakData?.currentStreak || 0;
-  const longestStreak = streakData?.longestStreak || 0;
-  const totalPoints = streakData?.totalPointsEarned || 0;
+  const currentStreak = streakData?.currentStreak  || 0;
+  const longestStreak = streakData?.longestStreak  || 0;
+  const totalPoints   = streakData?.totalPointsEarned || 0;
 
   return (
     <div className="bg-gradient-to-br from-orange-500/10 via-red-500/10 to-purple-500/10 border border-orange-500/30 rounded-2xl p-4">
@@ -62,47 +69,38 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
           </div>
           <div>
             <h3 className="text-lg font-bold text-white">Daily Streak</h3>
-            <p className="text-xs text-neutral-400">
-              Longest: {longestStreak} days
-            </p>
+            <p className="text-xs text-neutral-400">Longest: {longestStreak} days</p>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-black text-orange-500">
-            {currentStreak}
-          </div>
+          <div className="text-2xl font-black text-orange-500">{currentStreak}</div>
           <div className="text-xs text-neutral-400">days</div>
         </div>
       </div>
 
-      {/* Streak Visual */}
+      {/* Day indicators */}
       <div className="flex justify-between mb-4">
         {[1, 2, 3, 4, 5, 6, 7].map((day) => {
           const isCompleted = currentStreak >= day;
-          const isCurrent = currentStreak + 1 === day;
-          
+          const isCurrent   = currentStreak + 1 === day;
           return (
             <div key={day} className="flex flex-col items-center">
-              <div 
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-1 transition-all ${
-                  isCompleted 
-                    ? 'bg-orange-500 text-white' 
-                    : isCurrent
-                    ? 'bg-orange-500/30 border-2 border-orange-500 text-orange-500'
-                    : 'bg-dark-700 text-neutral-500'
-                }`}
-              >
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-1 transition-all ${
+                isCompleted
+                  ? 'bg-orange-500 text-white'
+                  : isCurrent
+                  ? 'bg-orange-500/30 border-2 border-orange-500 text-orange-500'
+                  : 'bg-dark-700 text-neutral-500'
+              }`}>
                 {isCompleted ? <CheckCircle size={14} /> : day}
               </div>
-              <span className="text-[10px] text-neutral-400">
-                {getRewardForDay(day)} pts
-              </span>
+              <span className="text-[10px] text-neutral-400">{getRewardForDay(day)} pts</span>
             </div>
           );
         })}
       </div>
 
-      {/* Check In Button */}
+      {/* Check-in button */}
       <button
         onClick={onCheckIn}
         disabled={!canCheckIn || isCheckingIn}
@@ -130,7 +128,6 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
         )}
       </button>
 
-      {/* Total Points */}
       <div className="mt-3 text-center">
         <span className="text-xs text-neutral-400">
           Total earned: <span className="text-orange-500 font-bold">{totalPoints} points</span>

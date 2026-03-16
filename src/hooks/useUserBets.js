@@ -3,29 +3,35 @@ import { useAccount, usePublicClient } from 'wagmi';
 import { parseAbiItem, formatUnits } from 'viem';
 import { createLogger } from '../utils/logger';
 import { CONTRACTS } from '../config/wagmi';
-import { PREDICTION_MARKET_ABI } from '../contracts/abis';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
+
+// FIX 2: Removed unused import PREDICTION_MARKET_ABI
+// FIX 3: Removed unused constant DEFAULT_FROM_BLOCK
 
 const logger = createLogger('useUserBets');
 
-// Block range configuration - adjust based on your deployment
-// Base Sepolia RPC limits eth_getLogs to 10,000 blocks, so we use 8000 for safety
-const DEFAULT_FROM_BLOCK = BigInt(-8000); // Last 8000 blocks (negative means from current - N)
-const MAX_BLOCK_RANGE = 100000; // Look back further! // Maximum blocks to query at once (under 10,000 RPC limit)
-
+const MAX_BLOCK_RANGE = null; // search all blocks
 
 export const useUserBets = (address, markets) => {
   const { address: connectedAddress } = useAccount();
   const publicClient = usePublicClient();
   const effectiveAddress = address || connectedAddress;
-  const [userBets, setUserBets] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [lastRefreshTime, setLastRefreshTime] = useState(0);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [rawBets, setRawBets] = useState([]); // Store raw bet data before enrichment
 
-  // Helper to get current block number
+  const [userBets, setUserBets]           = useState([]);
+  const [isLoading, setIsLoading]         = useState(false);
+  const [error, setError]                 = useState(null);
+  const [lastRefreshTime, setLastRefreshTime] = useState(0);
+  const [refreshTrigger, setRefreshTrigger]   = useState(0);
+  const [rawBets, setRawBets]             = useState([]);
+
+  // FIX 1: Track rawBets length in a ref instead of putting it in fetchRawBets'
+  // dependency array. Previously rawBets.length was a dep of fetchRawBets, which
+  // meant every time setRawBets() ran, a new fetchRawBets was created, which
+  // triggered the useEffect([fetchRawBets]) and kicked off another fetch cycle.
+  // The 3-second rate limit masked the loop but it still caused wasteful
+  // recreation. Using a ref breaks the cycle entirely.
+  const rawBetsLengthRef = useRef(0);
+
   const getCurrentBlock = useCallback(async () => {
     try {
       return await publicClient.getBlockNumber();
@@ -35,83 +41,90 @@ export const useUserBets = (address, markets) => {
     }
   }, [publicClient]);
 
-// Fetch raw bet events from blockchain
   const fetchRawBets = useCallback(async (force = false) => {
     if (!effectiveAddress || !publicClient) {
       logger.debug('Skipping fetch - no address or publicClient');
       return;
     }
-    
-    // Rate limiting: don't refresh more than once every 3 seconds unless forced
+
     const now = Date.now();
     if (!force && now - lastRefreshTime < 3000) {
       logger.debug('Skipping fetch - rate limited');
       return;
     }
-    
-    // Only set loading on initial load or force refresh
-    if (rawBets.length === 0 || force) {
+
+    // FIX 1: use ref instead of rawBets.length in closure/deps
+    if (rawBetsLengthRef.current === 0 || force) {
       setIsLoading(true);
     }
 
     setError(null);
     setLastRefreshTime(now);
-    
+
     try {
-      // Get current block
       const currentBlock = await publicClient.getBlockNumber();
-      const CHUNK_SIZE = 9999; // Stay under 10k RPC limit
+      const CHUNK_SIZE = 49999; // RPC max is 50000, stay under
       const totalBlocks = Math.min(MAX_BLOCK_RANGE, Number(currentBlock));
       const numChunks = Math.ceil(totalBlocks / CHUNK_SIZE);
-      
-      logger.info(`[useUserBets] Fetching bets in ${numChunks} chunks (${totalBlocks} blocks total)...`);
-      
+
+      logger.info(`[useUserBets] Fetching all bets from earliest block...`);
+
       let allLogs = [];
-      
-      // Fetch in chunks
-      for (let i = 0; i < numChunks; i++) {
-        const toBlock = i === 0 ? currentBlock : currentBlock - BigInt(i * CHUNK_SIZE);
-        const fromBlock = currentBlock - BigInt(Math.min((i + 1) * CHUNK_SIZE, totalBlocks));
-        
-        try {
-          const logs = await publicClient.getLogs({
-            address: CONTRACTS.PROXY,
-            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
-            args: { user: effectiveAddress },
-            fromBlock,
-            toBlock,
-          });
-          
-          if (logs.length > 0) {
-            logger.info(`[useUserBets] Chunk ${i + 1}/${numChunks}: Found ${logs.length} events`);
-            allLogs.push(...logs);
+      try {
+        const logs = await publicClient.getLogs({
+          address: CONTRACTS.PROXY,
+          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
+          args: { user: effectiveAddress },
+          fromBlock: 'earliest',
+          toBlock: 'latest',
+        });
+        allLogs = logs;
+        logger.info(`[useUserBets] Found ${logs.length} total bet events`);
+      } catch (err) {
+        // RPC doesn't support 'earliest' — fall back to chunking last 500k blocks
+        logger.warn(`[useUserBets] Single call failed, falling back to chunks: ${err.message}`);
+        const currentBlock = await publicClient.getBlockNumber();
+        const CHUNK_SIZE = 49999; // RPC max is 50000, stay under
+        const totalBlocks = Math.min(490000, Number(currentBlock));
+        const numChunks = Math.ceil(totalBlocks / CHUNK_SIZE);
+
+        for (let i = 0; i < numChunks; i++) {
+          const toBlock   = currentBlock - BigInt(i * CHUNK_SIZE);
+          const fromBlock = currentBlock - BigInt(Math.min((i + 1) * CHUNK_SIZE, totalBlocks));
+          try {
+            const logs = await publicClient.getLogs({
+              address: CONTRACTS.PROXY,
+              event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
+              args: { user: effectiveAddress },
+              fromBlock,
+              toBlock,
+            });
+            if (logs.length > 0) allLogs.push(...logs);
+          } catch (chunkErr) {
+            logger.warn(`[useUserBets] Chunk ${i + 1} failed:`, chunkErr.message);
           }
-        } catch (err) {
-          logger.warn(`[useUserBets] Chunk ${i + 1}/${numChunks} failed:`, err.message);
-          // Continue with other chunks even if one fails
         }
       }
 
       logger.info(`[useUserBets] Found ${allLogs.length} total bet events`);
-      
-      // Store raw bet data
+
       const rawBetData = allLogs.map(log => ({
-        txHash: log.transactionHash,
-        marketId: Number(log.args.marketId),
-        choice: Number(log.args.choice),
-        amount: log.args.amount,
+        txHash:      log.transactionHash,
+        marketId:    Number(log.args.marketId),
+        choice:      Number(log.args.choice),
+        amount:      log.args.amount,              // actual bet amount
+        multiplier:  Number(log.args.effectiveMultiplier), // store for payout calc
         blockNumber: log.blockNumber,
-        logIndex: log.logIndex
+        logIndex:    log.logIndex,
       }));
-      
-      // Sort by block number (newest first)
+
       rawBetData.sort((a, b) => {
-        if (b.blockNumber !== a.blockNumber) {
-          return Number(b.blockNumber) - Number(a.blockNumber);
-        }
+        if (b.blockNumber !== a.blockNumber) return Number(b.blockNumber) - Number(a.blockNumber);
         return b.logIndex - a.logIndex;
       });
-      
+
+      // FIX 1: update ref before state so next render's ref is already correct
+      rawBetsLengthRef.current = rawBetData.length;
       setRawBets(rawBetData);
       logger.info(`[useUserBets] Stored ${rawBetData.length} raw bet events`);
     } catch (err) {
@@ -120,9 +133,9 @@ export const useUserBets = (address, markets) => {
     } finally {
       setIsLoading(false);
     }
-  }, [effectiveAddress, publicClient, rawBets.length, lastRefreshTime]);
+  // FIX 1: rawBets.length removed from deps — use rawBetsLengthRef.current instead
+  }, [effectiveAddress, publicClient, lastRefreshTime]);
 
-  // Enrich raw bets with market data and claim status
   const enrichBets = useCallback(async () => {
     if (rawBets.length === 0) {
       setUserBets([]);
@@ -131,25 +144,24 @@ export const useUserBets = (address, markets) => {
 
     if (!markets || markets.length === 0) {
       logger.debug('Markets not loaded yet, skipping enrichment');
-      // Still show bets without market enrichment
       const basicBets = rawBets.map(rawBet => ({
-        txHash: rawBet.txHash,
-        marketId: rawBet.marketId,
+        txHash:      rawBet.txHash,
+        marketId:    rawBet.marketId,
         marketLabel: `Market #${rawBet.marketId}`,
         choiceLabel: `Choice ${rawBet.choice + 1}`,
-        choice: rawBet.choice,
-        amount: rawBet.amount,
+        choice:      rawBet.choice,
+        amount:      rawBet.amount,
         market: {
           id: rawBet.marketId,
           resolved: false,
           endTime: 0,
           marketType: 0,
-          asset: 'Unknown'
+          asset: 'Unknown',
         },
         claimed: false,
         isClaimableConfirmed: false,
         blockNumber: rawBet.blockNumber,
-        logIndex: rawBet.logIndex
+        logIndex:    rawBet.logIndex,
       }));
       setUserBets(basicBets);
       return;
@@ -157,56 +169,35 @@ export const useUserBets = (address, markets) => {
 
     try {
       logger.info(`Enriching ${rawBets.length} bets with market data...`);
-      
+
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
-        const marketId = rawBet.marketId;
-        const choice = rawBet.choice;
-        const amount = rawBet.amount;
-        
-        // Find market data from provided markets array
+        const { marketId, choice, amount } = rawBet;
         const market = markets?.find(m => m.id === marketId);
-        
-        // Get market label
-        const marketLabel = market 
+
+        const marketLabel = market
           ? `${market.asset} - ${getMarketTypeLabel(market.marketType)}`
           : `Market #${marketId}`;
-        
-        // Get choice label
+
         const choiceLabel = getChoiceLabel(market, choice);
-        
-        // Check if user has claimed winnings for this specific bet
+
         let claimed = false;
         let isClaimableConfirmed = false;
-        
-        if (market && market.resolved && publicClient) {
-          try {
-            const userPositions = await publicClient.readContract({
-              address: CONTRACTS.PROXY,
-              abi: PREDICTION_MARKET_PROXY_ABI,
-              functionName: 'getUserPositionsInMarket',
-              args: [BigInt(marketId), effectiveAddress]
-            });
-            
-            // Find the specific position for this bet (matching by choice)
-            const position = userPositions.find(pos => Number(pos.choice) === choice);
-            
-            if (position) {
-              // Check if this specific position was claimed
-              claimed = position.claimed;
-              
-              // Check if this position is a winning position that can be claimed
-              if (!position.claimed) {
-                if (market.marketType === 0) { // Binary
-                  const predictedUp = choice === 1;
-                  const userWon = predictedUp === market.priceWentUp;
-                  isClaimableConfirmed = userWon;
-                } else if (market.marketType === 1) { // Multi-choice
-                  isClaimableConfirmed = choice === market.winningChoice;
-                }
-              }
+
+        if (market && market.resolved) {
+          if (market.marketType === 0) {
+            // Binary: compare choice vs priceWentUp
+            const predictedUp = choice === 1;
+            const didWin = predictedUp === market.priceWentUp;
+            isClaimableConfirmed = didWin;
+            // claimed: we can't read it without working contract call
+            // so check if market resolved and won — user likely needs to claim
+            claimed = false;
+          } else if (market.marketType === 1 || market.marketType === 2 || market.marketType === 3) {
+            // Multi/Range/Time: compare choice vs winningChoice
+            if (market.winningChoice !== null && market.winningChoice !== undefined) {
+              isClaimableConfirmed = choice === market.winningChoice;
             }
-          } catch (err) {
-            logger.warn(`Failed to check claim status for market ${marketId}:`, err.message);
+            claimed = false;
           }
         }
 
@@ -218,207 +209,98 @@ export const useUserBets = (address, markets) => {
           choice,
           amount,
           market: market || {
-            id: marketId,
-            resolved: false,
-            endTime: 0,
-            marketType: 0,
-            asset: 'Unknown'
+            id: marketId, resolved: false, endTime: 0, marketType: 0, asset: 'Unknown',
           },
           claimed,
           isClaimableConfirmed,
           blockNumber: rawBet.blockNumber,
-          logIndex: rawBet.logIndex
+          logIndex:    rawBet.logIndex,
         };
       }));
-      
+
       setUserBets(enrichedBets);
       logger.info(`Enriched ${enrichedBets.length} user bets`);
     } catch (err) {
       logger.error('Error enriching bets:', err);
-      // Keep existing bets on error
     }
   }, [rawBets, markets, effectiveAddress, publicClient]);
 
-  // Combined fetch function for backward compatibility
   const fetchUserBets = useCallback(async (force = false) => {
     await fetchRawBets(force);
   }, [fetchRawBets]);
 
-  // Initial fetch and when dependencies change
   useEffect(() => {
     fetchRawBets();
   }, [fetchRawBets, refreshTrigger]);
 
-  // Re-enrich bets when markets data becomes available or changes
   useEffect(() => {
     enrichBets();
   }, [enrichBets, markets]);
 
-  // Auto-refresh every 10 seconds to catch new bets
   useEffect(() => {
     if (!effectiveAddress) return;
-    
     const interval = setInterval(() => {
       fetchRawBets(false);
-    }, 10000); // Refresh every 10 seconds
-    
+    }, 10000);
     return () => clearInterval(interval);
   }, [effectiveAddress, fetchRawBets]);
 
-  // Force refresh function
   const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
-    setLastRefreshTime(0); // Reset rate limit
+    setLastRefreshTime(0);
     fetchRawBets(true);
   }, [fetchRawBets]);
 
-  // Compute ongoing, won, lost, and pending bets
-  const ongoingBets = useMemo(() => {
-    const filtered = userBets.filter(bet => {
-      // If market data not available yet, consider it ongoing
-      if (!bet.market) return true;
-      return !bet.market.resolved;
-    });
-    logger.info(`ongoingBets: ${filtered.length} of ${userBets.length}`);
-    return filtered;
-  }, [userBets]);
+  // NOTE: logger.info calls removed from useMemo — side effects inside memo
+  // are a React anti-pattern and fire twice in Strict Mode.
+  const ongoingBets = useMemo(() =>
+    userBets.filter(bet => !bet.market || !bet.market.resolved),
+  [userBets]);
 
-  const pendingBets = useMemo(() => {
-    const filtered = userBets.filter(bet => {
-      // Pending = market is resolved but outcome data is missing
-      if (!bet.market) {
-        logger.info(`Bet ${bet.marketId}: no market data`);
-        return false;
-      }
-      if (!bet.market.resolved) {
-        logger.info(`Bet ${bet.marketId}: market not resolved`);
-        return false;
-      }
-      
-      // For binary markets: check if priceWentUp is missing
+  const pendingBets = useMemo(() =>
+    userBets.filter(bet => {
+      if (!bet.market || !bet.market.resolved) return false;
       if (bet.market.marketType === 0) {
-        const actualUp = bet.market.priceWentUp;
-        const isPending = actualUp === null || actualUp === undefined;
-        logger.info(`Bet ${bet.marketId}: binary, priceWentUp=${actualUp}, pending=${isPending}`);
-        return isPending;
+        return bet.market.priceWentUp === null || bet.market.priceWentUp === undefined;
       }
-      
-      // For multi-choice markets: check if winningChoice is missing
       if (bet.market.marketType === 1) {
-        const isPending = bet.market.winningChoice === null || bet.market.winningChoice === undefined;
-        logger.info(`Bet ${bet.marketId}: multi-choice, winningChoice=${bet.market.winningChoice}, pending=${isPending}`);
-        return isPending;
+        return bet.market.winningChoice === null || bet.market.winningChoice === undefined;
       }
-      
-      logger.info(`Bet ${bet.marketId}: other market type ${bet.market.marketType}`);
       return false;
-    });
-    logger.info(`pendingBets: ${filtered.length} of ${userBets.length}`);
-    return filtered;
-  }, [userBets]);
+    }),
+  [userBets]);
 
-  const wonBets = useMemo(() => {
-    const filtered = userBets.filter(bet => {
-      // Need market data to determine win/loss
-      if (!bet.market) {
-        logger.info(`Bet ${bet.marketId}: won filter - no market`);
-        return false;
-      }
-      if (!bet.market.resolved) {
-        logger.info(`Bet ${bet.marketId}: won filter - not resolved`);
-        return false;
-      }
-      
-      // Skip if outcome data is missing (these go to pendingBets)
+  const wonBets = useMemo(() =>
+    userBets.filter(bet => {
+      if (!bet.market || !bet.market.resolved) return false;
       if (bet.market.marketType === 0) {
         const actualUp = bet.market.priceWentUp;
-        if (actualUp === null || actualUp === undefined) {
-          logger.info(`Bet ${bet.marketId}: won filter - missing priceWentUp`);
-          return false;
-        }
-      } else if (bet.market.marketType === 1) {
-        if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) {
-          logger.info(`Bet ${bet.marketId}: won filter - missing winningChoice`);
-          return false;
-        }
+        if (actualUp === null || actualUp === undefined) return false;
+        return (bet.choice === 1) === actualUp;
       }
-      
-      // For binary markets: check if user's choice matches the outcome
-      if (bet.market.marketType === 0) { // Binary UP/DOWN
-        const predictedUp = bet.choice === 1;
-        const actualUp = bet.market.priceWentUp;
-        const userWon = predictedUp === actualUp;
-        logger.info(`Bet ${bet.marketId}: binary, predicted=${predictedUp}, actual=${actualUp}, won=${userWon}`);
-        return userWon;
-      }
-      
-      // For multi-choice markets: check if choice matches winningChoice
       if (bet.market.marketType === 1) {
-        const won = bet.choice === bet.market.winningChoice;
-        logger.info(`Bet ${bet.marketId}: multi-choice, choice=${bet.choice}, winning=${bet.market.winningChoice}, won=${won}`);
-        return won;
+        if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return false;
+        return bet.choice === bet.market.winningChoice;
       }
-      
-      // Default: use claimable status
-      const won = bet.claimed || bet.isClaimableConfirmed;
-      logger.info(`Bet ${bet.marketId}: default, won=${won}`);
-      return won;
-    });
-    logger.info(`wonBets: ${filtered.length} of ${userBets.length}`);
-    return filtered;
-  }, [userBets]);
+      return bet.claimed || bet.isClaimableConfirmed;
+    }),
+  [userBets]);
 
-  const lostBets = useMemo(() => {
-    const filtered = userBets.filter(bet => {
-      // Need market data to determine win/loss
-      if (!bet.market) {
-        logger.info(`Bet ${bet.marketId}: lost filter - no market`);
-        return false;
-      }
-      if (!bet.market.resolved) {
-        logger.info(`Bet ${bet.marketId}: lost filter - not resolved`);
-        return false;
-      }
-      
-      // Skip if outcome data is missing (these go to pendingBets)
+  const lostBets = useMemo(() =>
+    userBets.filter(bet => {
+      if (!bet.market || !bet.market.resolved) return false;
       if (bet.market.marketType === 0) {
         const actualUp = bet.market.priceWentUp;
-        if (actualUp === null || actualUp === undefined) {
-          logger.info(`Bet ${bet.marketId}: lost filter - missing priceWentUp`);
-          return false;
-        }
-      } else if (bet.market.marketType === 1) {
-        if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) {
-          logger.info(`Bet ${bet.marketId}: lost filter - missing winningChoice`);
-          return false;
-        }
+        if (actualUp === null || actualUp === undefined) return false;
+        return (bet.choice === 1) !== actualUp;
       }
-      
-      // For binary markets: check if user's choice doesn't match the outcome
-      if (bet.market.marketType === 0) { // Binary UP/DOWN
-        const predictedUp = bet.choice === 1;
-        const actualUp = bet.market.priceWentUp;
-        // User lost if their prediction doesn't match actual outcome
-        const userLost = predictedUp !== actualUp;
-        logger.info(`Bet ${bet.marketId}: binary, predicted=${predictedUp}, actual=${actualUp}, lost=${userLost}`);
-        return userLost;
-      }
-      
-      // For multi-choice markets: check if choice doesn't match winningChoice
       if (bet.market.marketType === 1) {
-        const lost = bet.choice !== bet.market.winningChoice;
-        logger.info(`Bet ${bet.marketId}: multi-choice, choice=${bet.choice}, winning=${bet.market.winningChoice}, lost=${lost}`);
-        return lost;
+        if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return false;
+        return bet.choice !== bet.market.winningChoice;
       }
-      
-      // Default: not claimable means lost
-      const lost = !bet.isClaimableConfirmed;
-      logger.info(`Bet ${bet.marketId}: default, lost=${lost}`);
-      return lost;
-    });
-    logger.info(`lostBets: ${filtered.length} of ${userBets.length}`);
-    return filtered;
-  }, [userBets]);
+      return !bet.isClaimableConfirmed;
+    }),
+  [userBets]);
 
   return {
     userBets,
@@ -428,32 +310,18 @@ export const useUserBets = (address, markets) => {
     lostBets,
     isLoading,
     error,
-    refresh: forceRefresh
+    refresh: forceRefresh,
   };
 };
 
-// Helper functions
 function getMarketTypeLabel(marketType) {
-  const labels = {
-    0: 'Binary UP/DOWN',
-    1: 'Multi-Choice',
-    2: 'Range Market',
-    3: 'Time-Based'
-  };
-  return labels[marketType] || 'Unknown';
+  return { 0: 'Binary UP/DOWN', 1: 'Multi-Choice', 2: 'Range Market', 3: 'Time-Based' }[marketType] || 'Unknown';
 }
 
 function getChoiceLabel(market, choice) {
   if (!market) return `Choice ${choice + 1}`;
-  
-  if (market.marketType === 0) { // Binary
-    return choice === 1 ? 'UP' : 'DOWN';
-  }
-  
-  if (market.marketType === 1 && market.options && market.options[choice]) {
-    return market.options[choice];
-  }
-  
+  if (market.marketType === 0) return choice === 1 ? 'UP' : 'DOWN';
+  if (market.marketType === 1 && market.options?.[choice]) return market.options[choice];
   return `Choice ${choice + 1}`;
 }
 

@@ -1,41 +1,74 @@
-import React from 'react';
-import { X, Clock, TrendingUp, CheckCircle, Lock } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Clock, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 
-export const PointsHistoryModal = ({ isOpen, onClose }) => {
+/**
+ * PointsHistoryModal
+ *
+ * FIX 1: `walletAddress` prop was passed from App.jsx but never accepted in
+ *         the component signature — it only took `isOpen` and `onClose`.
+ *         Real history was never fetched; the modal always showed the same
+ *         two hardcoded mock entries regardless of who was connected.
+ *         Now accepts `walletAddress` and fetches from `/api/points/history`.
+ *
+ * FIX 2: Modal was rendered with `isOpen={false}` hardcoded in App.jsx —
+ *         it could never open. This fix is in App.jsx (pass a toggle handler).
+ *         Added a comment here as a reminder.
+ *
+ * FIX 3: Design system — gray-* → dark-* tokens throughout.
+ *
+ * NOTE for App.jsx: wire up a `showPointsHistory` toggle so this modal can
+ * actually open:
+ *   - Change `<PointsHistoryModal isOpen={false} ...>` to
+ *     `<PointsHistoryModal isOpen={showPointsHistory} ...>`
+ *   - Pass `onOpenHistory={() => setShowPointsHistory(true)}` to PointsBalance
+ */
+export const PointsHistoryModal = ({ isOpen, onClose, walletAddress }) => {
+  // FIX 1: real state instead of hardcoded mock
+  const [history, setHistory]   = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError]       = useState(null);
+
+  useEffect(() => {
+    if (!isOpen || !walletAddress) return;
+
+    const fetchHistory = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/points/history?wallet=${walletAddress}&limit=50`
+        );
+        if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`);
+        const data = await response.json();
+        setHistory(data.history ?? data ?? []);
+      } catch (err) {
+        setError(err.message);
+        // Graceful fallback to empty — don't show stale mock data
+        setHistory([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, [isOpen, walletAddress]);
+
   if (!isOpen) return null;
 
-  // Mock data for demonstration
-  const history = [
-    {
-      id: 1,
-      type: 'earned',
-      amount: 100,
-      description: 'Daily login bonus',
-      timestamp: new Date(Date.now() - 86400000),
-      status: 'completed'
-    },
-    {
-      id: 2,
-      type: 'spent',
-      amount: -50,
-      description: 'Market bet',
-      timestamp: new Date(Date.now() - 172800000),
-      status: 'completed'
-    }
-  ];
-
   return (
+    // FIX 3: dark-* tokens
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
+
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900/50">
+        <div className="flex items-center justify-between p-4 border-b border-dark-800 bg-dark-900/50">
           <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-400" />
+            <Clock className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-bold text-white">Points History</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 text-neutral-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -43,8 +76,18 @@ export const PointsHistoryModal = ({ isOpen, onClose }) => {
 
         {/* Content */}
         <div className="p-4 max-h-[60vh] overflow-y-auto">
-          {history.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-10 text-neutral-500">
+              <Loader2 className="w-8 h-8 animate-spin text-primary mb-3" />
+              <p className="text-sm">Loading history...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-400">
+              <p className="text-sm">Failed to load history</p>
+              <p className="text-xs text-neutral-500 mt-1">{error}</p>
+            </div>
+          ) : history.length === 0 ? (
+            <div className="text-center py-8 text-neutral-500">
               <Clock className="w-12 h-12 mx-auto mb-3 opacity-50" />
               <p>No points history yet</p>
             </div>
@@ -53,16 +96,15 @@ export const PointsHistoryModal = ({ isOpen, onClose }) => {
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 bg-gray-800/50 rounded-lg border border-gray-700"
+                  className="p-3 bg-dark-800/50 rounded-lg border border-dark-700"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      {item.type === 'earned' ? (
-                        <TrendingUp className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4 text-blue-400" />
-                      )}
-                      <span className="font-medium text-white">
+                      {item.amount > 0
+                        ? <TrendingUp className="w-4 h-4 text-green-400" />
+                        : <TrendingDown className="w-4 h-4 text-red-400" />
+                      }
+                      <span className={`font-medium ${item.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
                         {item.amount > 0 ? '+' : ''}{item.amount} points
                       </span>
                     </div>
@@ -74,9 +116,10 @@ export const PointsHistoryModal = ({ isOpen, onClose }) => {
                       {item.status}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-400 mt-1">{item.description}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {item.timestamp.toLocaleDateString()} at {item.timestamp.toLocaleTimeString()}
+                  <p className="text-sm text-neutral-400 mt-1">{item.description}</p>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    {new Date(item.timestamp).toLocaleDateString()} at{' '}
+                    {new Date(item.timestamp).toLocaleTimeString()}
                   </p>
                 </div>
               ))}

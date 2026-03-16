@@ -9,7 +9,19 @@ import 'dotenv/config';
 // === CONFIG ===
 const ALCHEMY_URL = `https://base-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
 // PROXY PATTERN: All events are emitted through the proxy contract
-const PROXY_CONTRACT_ADDRESS = process.env.PROXY_ADDRESS || "0x9F710F341dD6b2d9ec20843B28180F5C6C2B0a97";
+// Uses VITE_PROXY_ADDRESS to match the main app's configuration
+const PROXY_CONTRACT_ADDRESS = process.env.VITE_PROXY_ADDRESS;
+
+// Validate required environment variables
+if (!PROXY_CONTRACT_ADDRESS) {
+  console.error('❌ FATAL: VITE_PROXY_ADDRESS is not set in environment variables');
+  process.exit(1);
+}
+
+if (!process.env.ALCHEMY_API_KEY) {
+  console.error('❌ FATAL: ALCHEMY_API_KEY is not set in environment variables');
+  process.exit(1);
+}
 // Legacy: Core and Types addresses (kept for reference, but not used with proxy)
 const CORE_CONTRACT_ADDRESS = process.env.PREDICTION_MARKET_CORE_ADDRESS;
 const TYPES_CONTRACT_ADDRESS = process.env.PREDICTION_MARKET_TYPES_ADDRESS;

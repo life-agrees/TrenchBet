@@ -10,7 +10,14 @@ import { useAccount } from 'wagmi';
 
 /**
  * Dashboard View Component
- * Main dashboard showing all user stats and performance with personalization
+ *
+ * FIX 1: Corrected check order — loading → error → empty → content.
+ *         Previously empty-stats check fired first, hiding spinner and errors.
+ * FIX 2: "Customize Dashboard" footer button now correctly toggles edit mode
+ *         (was calling setEditMode(false), always exiting instead of entering).
+ * FIX 3: preferences.visibleWidgets guarded with ?? [] so .includes() never
+ *         throws when the hook returns undefined.
+ * FIX 4: preferences.toggleWidget guarded with optional chaining.
  */
 const DashboardView = ({
   userStats = {},
@@ -24,16 +31,7 @@ const DashboardView = ({
   const preferences = useUserPreferences(address);
   const [editMode, setEditMode] = useState(false);
 
-  if (!userStats || Object.keys(userStats).length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-neutral-500 animate-fade-in">
-        <Trophy size={64} className="mb-4 opacity-30" />
-        <h2 className="text-2xl font-bold mb-2">Welcome to Your Dashboard</h2>
-        <p>Place some bets to see your performance metrics here</p>
-      </div>
-    );
-  }
-
+  // FIX 1: loading and error checks BEFORE the empty-stats early return
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -57,9 +55,23 @@ const DashboardView = ({
     );
   }
 
-  const isWidgetVisible = (widgetId) => {
-    return preferences.visibleWidgets.includes(widgetId);
-  };
+  if (!userStats || Object.keys(userStats).length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-neutral-500 animate-fade-in">
+        <Trophy size={64} className="mb-4 opacity-30" />
+        <h2 className="text-2xl font-bold mb-2">Welcome to Your Dashboard</h2>
+        <p>Place some bets to see your performance metrics here</p>
+      </div>
+    );
+  }
+
+  // FIX 3: guard against undefined visibleWidgets
+  const isWidgetVisible = (widgetId) =>
+    (preferences?.visibleWidgets ?? []).includes(widgetId);
+
+  // FIX 4: guard toggleWidget call
+  const handleToggleWidget = (widgetId) =>
+    preferences?.toggleWidget?.(widgetId);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -78,13 +90,9 @@ const DashboardView = ({
           }`}
         >
           {editMode ? (
-            <>
-              <Eye size={16} /> Done Editing
-            </>
+            <><Eye size={16} /> Done Editing</>
           ) : (
-            <>
-              <Settings size={16} /> Customize
-            </>
+            <><Settings size={16} /> Customize</>
           )}
         </button>
       </div>
@@ -92,20 +100,16 @@ const DashboardView = ({
       {/* Performance Metrics */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            📊 Performance Overview
-          </h2>
+          <h2 className="text-2xl font-bold text-white">📊 Performance Overview</h2>
           {editMode && (
             <button
-              onClick={() => preferences.toggleWidget('performance')}
+              onClick={() => handleToggleWidget('performance')}
               className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
               title={isWidgetVisible('performance') ? 'Hide widget' : 'Show widget'}
             >
-              {isWidgetVisible('performance') ? (
-                <Eye size={18} className="text-primary" />
-              ) : (
-                <EyeOff size={18} className="text-neutral-600" />
-              )}
+              {isWidgetVisible('performance')
+                ? <Eye size={18} className="text-primary" />
+                : <EyeOff size={18} className="text-neutral-600" />}
             </button>
           )}
         </div>
@@ -115,41 +119,36 @@ const DashboardView = ({
       {/* Charts Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            📈 Analytics
-          </h2>
+          <h2 className="text-2xl font-bold text-white">📈 Analytics</h2>
           {editMode && (
             <span className="text-xs text-neutral-500 px-3 py-1 bg-dark-800 rounded-lg">Edit Mode</span>
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Win/Loss Chart */}
           <div className={editMode ? 'relative' : ''}>
             {editMode && (
               <button
-                onClick={() => preferences.toggleWidget('winloss')}
+                onClick={() => handleToggleWidget('winloss')}
                 className="absolute top-4 right-4 z-10 p-2 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <Eye size={18} className={isWidgetVisible('winloss') ? 'text-primary' : 'text-neutral-600'} />
+                {isWidgetVisible('winloss')
+                  ? <Eye size={18} className="text-primary" />
+                  : <EyeOff size={18} className="text-neutral-600" />}
               </button>
             )}
             {isWidgetVisible('winloss') && (
-              <WinLossChart
-                wins={userStats.wins || 0}
-                losses={userStats.losses || 0}
-                isLoading={isLoading}
-              />
+              <WinLossChart wins={userStats.wins || 0} losses={userStats.losses || 0} isLoading={isLoading} />
             )}
           </div>
-
-          {/* Trend Chart */}
           <div className={editMode ? 'relative' : ''}>
             {editMode && (
               <button
-                onClick={() => preferences.toggleWidget('trends')}
+                onClick={() => handleToggleWidget('trends')}
                 className="absolute top-4 right-4 z-10 p-2 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <Eye size={18} className={isWidgetVisible('trends') ? 'text-primary' : 'text-neutral-600'} />
+                {isWidgetVisible('trends')
+                  ? <Eye size={18} className="text-primary" />
+                  : <EyeOff size={18} className="text-neutral-600" />}
               </button>
             )}
             {isWidgetVisible('trends') && (
@@ -162,15 +161,15 @@ const DashboardView = ({
       {/* Stats by Time Period */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-            📊 Betting Statistics
-          </h2>
+          <h2 className="text-2xl font-bold text-white">📊 Betting Statistics</h2>
           {editMode && (
             <button
-              onClick={() => preferences.toggleWidget('stats')}
+              onClick={() => handleToggleWidget('stats')}
               className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
             >
-              <Eye size={18} className={isWidgetVisible('stats') ? 'text-primary' : 'text-neutral-600'} />
+              {isWidgetVisible('stats')
+                ? <Eye size={18} className="text-primary" />
+                : <EyeOff size={18} className="text-neutral-600" />}
             </button>
           )}
         </div>
@@ -179,18 +178,18 @@ const DashboardView = ({
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Side - Achievements */}
+        {/* Achievements */}
         <div className="lg:col-span-2 relative">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              🏆 Your Achievements
-            </h2>
+            <h2 className="text-2xl font-bold text-white">🏆 Your Achievements</h2>
             {editMode && (
               <button
-                onClick={() => preferences.toggleWidget('achievements')}
+                onClick={() => handleToggleWidget('achievements')}
                 className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <Eye size={18} className={isWidgetVisible('achievements') ? 'text-primary' : 'text-neutral-600'} />
+                {isWidgetVisible('achievements')
+                  ? <Eye size={18} className="text-primary" />
+                  : <EyeOff size={18} className="text-neutral-600" />}
               </button>
             )}
           </div>
@@ -203,49 +202,47 @@ const DashboardView = ({
           )}
         </div>
 
-        {/* Right Side - Quick Stats */}
+        {/* Quick Stats */}
         <div className="relative">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-              ⚡ Quick Stats
-            </h2>
+            <h2 className="text-2xl font-bold text-white">⚡ Quick Stats</h2>
             {editMode && (
               <button
-                onClick={() => preferences.toggleWidget('quickstats')}
+                onClick={() => handleToggleWidget('quickstats')}
                 className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
               >
-                <Eye size={18} className={isWidgetVisible('quickstats') ? 'text-primary' : 'text-neutral-600'} />
+                {isWidgetVisible('quickstats')
+                  ? <Eye size={18} className="text-primary" />
+                  : <EyeOff size={18} className="text-neutral-600" />}
               </button>
             )}
           </div>
           {isWidgetVisible('quickstats') && (
             <div className="space-y-4">
-              {/* Most Traded Asset */}
               <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Most Traded</p>
                 <p className="text-2xl font-black text-primary">BTC/USD</p>
-                <p className="text-xs text-neutral-500 mt-2">{userBets.filter(b => b.asset === 'BTC').length} bets</p>
+                <p className="text-xs text-neutral-500 mt-2">
+                  {userBets.filter(b => b.asset === 'BTC').length} bets
+                </p>
               </div>
 
-              {/* Average Multiplier */}
               <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Avg Multiplier</p>
                 <p className="text-2xl font-black text-primary">
-                  {userBets.length > 0 ? (userBets.reduce((sum, b) => sum + (b.multiplier || 1), 0) / userBets.length).toFixed(2) : '0'}x
+                  {userBets.length > 0
+                    ? (userBets.reduce((sum, b) => sum + (b.multiplier || 1), 0) / userBets.length).toFixed(2)
+                    : '0.00'}x
                 </p>
                 <p className="text-xs text-neutral-500 mt-2">Weighted average</p>
               </div>
 
-              {/* Risk Score */}
               <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Risk Profile</p>
-                <div className="flex items-center gap-2">
-                  <div className="text-2xl font-black text-yellow-400">MODERATE</div>
-                </div>
+                <div className="text-2xl font-black text-yellow-400">MODERATE</div>
                 <p className="text-xs text-neutral-500 mt-2">Based on bets</p>
               </div>
 
-              {/* Next Reward */}
               <div className="bg-dark-800 border border-primary/30 rounded-xl p-5 relative overflow-hidden hover:border-primary/50 transition-all">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full -mr-8 -mt-8" />
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Next Milestone</p>
@@ -265,21 +262,22 @@ const DashboardView = ({
         </div>
       </div>
 
-      {/* Footer Stats */}
+      {/* Footer CTA */}
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-xl p-8 text-center hover:border-primary/40 transition-all">
         <h3 className="text-2xl font-bold text-white mb-4">Keep Pushing Forward! 🚀</h3>
         <p className="text-neutral-300 mb-6 max-w-2xl mx-auto">
           You're building an impressive track record. Stay consistent, make strategic bets, and watch your portfolio grow.
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
-          <button className="px-8 py-3 bg-primary hover:bg-primary-400 text-dark-950 font-bold rounded-lg transition-all hover:scale-105">
+          <button className="px-8 py-3 bg-primary hover:bg-primary/90 text-dark-950 font-bold rounded-lg transition-all hover:scale-105">
             Explore Markets
           </button>
+          {/* FIX 2: was setEditMode(false) — now correctly toggles */}
           <button
-            onClick={() => setEditMode(false)}
+            onClick={() => setEditMode(!editMode)}
             className="px-8 py-3 bg-dark-800 hover:bg-dark-700 border border-dark-700 text-white font-bold rounded-lg transition-all"
           >
-            Customize Dashboard
+            {editMode ? 'Exit Customize' : 'Customize Dashboard'}
           </button>
         </div>
       </div>

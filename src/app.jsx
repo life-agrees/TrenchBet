@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAccount, useWriteContract } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { formatUnits } from 'viem';
 import {
   TrendingUp, Clock, DollarSign, Wallet, Trophy,
   Target, BarChart3, Settings, AlertTriangle, CheckCircle,
-  XCircle, RefreshCw, Loader2
+  XCircle, RefreshCw, Loader2,
+  Zap  // FIX 1: Added missing Zap import (was crashing the Streaks view)
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -54,6 +55,8 @@ import { useDebounce } from './hooks/useDebounce';
 import { usePrefetchMarket } from './hooks/usePrefetchMarket';
 import { useCurrentPrices } from './hooks/useCurrentPrice';
 import { useFavorites } from './hooks/useFavorites';
+import { useUserPreferences } from './hooks/useUserPreferences';
+import { useLeaderboard } from './hooks/useLeaderboard';
 import { trackBetPlaced } from './services/analyticsService';
 
 // Skeleton components
@@ -65,134 +68,143 @@ import { createLogger } from './utils/logger';
 
 const logger = createLogger('App');
 
-// = UTILITY FUNCTIONS =
+// ── Utility functions ──────────────────────────────────────────────────────
 
 const getMarketLabel = (marketType, asset) => {
-  const typeMap = {
-    0: 'Binary UP/DOWN',
-    1: 'Multi-Choice',
-    2: 'Range Market',
-  };
+  const typeMap = { 0: 'Binary UP/DOWN', 1: 'Multi-Choice', 2: 'Range Market' };
   return `${asset} - ${typeMap[marketType] || 'Unknown Market'}`;
 };
 
 const getMarketTimeRemaining = (market) => {
-  if (market.marketType === 3) {
-    return market.resolved ? "Ended" : "Active Target";
-  }
+  if (market.marketType === 3) return market.resolved ? 'Ended' : 'Active Target';
 
   const now = Date.now();
-  const end = Number(market.endTime);
+  // FIX 3: endTime is Unix seconds — multiply by 1000 for ms comparison
+  const end = Number(market.endTime) * 1000;
   const remaining = end - now;
 
   if (remaining <= 0) return 'Market Ended';
 
   const seconds = Math.floor((remaining / 1000) % 60);
   const minutes = Math.floor((remaining / 1000 / 60) % 60);
-  const hours = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-  const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+  const hours   = Math.floor((remaining / (1000 * 60 * 60)) % 24);
+  const days    = Math.floor(remaining / (1000 * 60 * 60 * 24));
 
-  if (days > 0) return `${days}d ${hours}h`;
+  if (days > 0)  return `${days}d ${hours}h`;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m ${seconds}s`;
 };
 
-// ==================== MAIN COMPONENT ====================
+// ── Main component ─────────────────────────────────────────────────────────
+
 const App = () => {
   const { address, isConnected, chain } = useAccount();
   const { writeContractAsync } = useWriteContract();
 
-  // Custom hooks - ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
+  // ── All hooks — must be called before any conditional returns ──
   const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets, forceRefresh } = useMarkets();
 
-  // Handle market creation callback to refresh markets
   const handleMarketCreated = useCallback(() => {
-    console.log('🔄 Market created - refreshing markets...');
     forceRefresh();
   }, [forceRefresh]);
 
-  const { userBets, ongoingBets, pendingBets, wonBets, lostBets, isLoading: isLoadingUserBets, error: userBetsError, refresh: refreshUserBets } = useUserBets(address, markets);
-  const { enabled: notificationsEnabled, showNotification, isSupported: notificationsSupported, notificationCenter, unreadCount, markAsRead, markAllAsRead } = useEnhancedNotifications();
+  const {
+    userBets, ongoingBets, pendingBets, wonBets, lostBets,
+    isLoading: isLoadingUserBets, error: userBetsError, refresh: refreshUserBets
+  } = useUserBets(address, markets);
+
+const {
+  enabled: notificationsEnabled,
+  isSupported: notificationsSupported,
+  sendNotification,
+  notificationHistory,
+  unreadCount, markAsRead, markAllAsRead,
+  settings: notificationSettings,
+  updateSettings: updateNotificationSettings,
+} = useEnhancedNotifications();
+
   const rtNotifications = useRealtimeNotifications(address, isConnected);
   const userStats = useUserStats(userBets, wonBets, lostBets, pendingBets);
-  const { stats: referralStats, generateReferralCode, shareReferral } = useReferrals();
-  const { achievements, checkAchievements, shareAchievement } = useAchievements();
-  const { credits: betCredits, placeBetWithCredits } = useBetCredits();
-  const { insuranceStatus, claimInsurance } = useFirstBetInsurance();
 
-
+  const { stats: referralStats, shareReferral } = useReferrals();
+  const { achievements, shareAchievement } = useAchievements();
+  const { creditsBalance: betCredits } = useBetCredits();
+  const { status: insuranceStatus } = useFirstBetInsurance();
 
   const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
-  const { isOwner } = useAdminOwner(CONTRACTS.PREDICTION_MARKET_CORE, CONTRACTS.PREDICTION_MARKET_TYPES);
-  
-  // Debug admin status
-  console.log('[App] Admin status:', { isOwner, core: CONTRACTS.PREDICTION_MARKET_CORE, types: CONTRACTS.PREDICTION_MARKET_TYPES });
+  const { leaderboard, isLoading: isLoadingLeaderboard, refresh: refreshLeaderboard } = useLeaderboard(10);
+  const { isOwner } = useAdminOwner();
 
-  const { formattedUsdcBalance, usdcBalanceNum, isLoading: isLoadingBalance } = useBalance();
-  const { pointsData, isLoading: isLoadingPoints } = usePointsData(address);
+  const { formattedUsdcBalance, usdcBalanceNum } = useBalance();
+  const { pointsData } = usePointsData(address);
 
   const { handleMouseEnter, handleMouseLeave } = usePrefetchMarket();
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  // Fetch current prices for all assets
-  const { prices: currentPrices, isLoading: isPricesLoading } = useCurrentPrices(['BTC', 'ETH', 'SOL']);
+  const { prices: currentPrices } = useCurrentPrices(['BTC', 'ETH', 'SOL']);
 
-  // Sort markets function
-  const sortMarkets = (markets) => {
-    switch (sortBy) {
-      case 'endingSoon':
-        return [...markets].sort((a, b) => a.endTime - b.endTime);
-      case 'mostActive':
-        return [...markets].sort((a, b) => (b.totalBets || 0) - (a.totalBets || 0));
-      case 'highestPool':
-        const getPool = (m) => (m.yesPool || 0) + (m.noPool || 0);
-        return [...markets].sort((a, b) => getPool(b) - getPool(a));
-      default:
-        return markets;
-    }
-  };
+  // FIX 4: Read sidebarCollapsed from preferences so MainLayout can apply
+  // correct padding. Previously isSidebarCollapsed was never passed to MainLayout,
+  // so content never adjusted when sidebar collapsed.
+  const preferences = useUserPreferences(address);
+  const isSidebarCollapsed = preferences?.sidebarCollapsed ?? false;
 
+  // ── UI state ───────────────────────────────────────────────────────────────
 
-  // UI state
-
-  const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showAdminPanel, setShowAdminPanel]         = useState(false);
+  const [showAddFundsModal, setShowAddFundsModal]   = useState(false);
+  const [searchQuery, setSearchQuery]               = useState('');
   const debouncedSearchQuery = useDebounce(searchQuery, DURATIONS.DEBOUNCE);
-  const [currentView, setCurrentView] = useState('markets');
-  const [betView, setBetView] = useState('ongoing');
-  const [farcasterUser, setFarcasterUser] = useState(null);
-  const [betAmount, setBetAmount] = useState('10');
-  const [selectedBet, setSelectedBet] = useState(null);
+  const [currentView, setCurrentView]               = useState('markets');
+  const [betView, setBetView]                       = useState('ongoing');
+  const [farcasterUser, setFarcasterUser]           = useState(null);
+  const [betAmount, setBetAmount]                   = useState('10');
+  const [selectedBet, setSelectedBet]               = useState(null);
   const [selectedAssetFilter, setSelectedAssetFilter] = useState('ALL');
-  const [shareModalData, setShareModalData] = useState(null);
+  const [shareModalData, setShareModalData]         = useState(null);
   const [showNotificationSettings, setShowNotificationSettings] = useState(false);
-  const [showPointsHistory, setShowPointsHistory] = useState(false);
-  const [showLanding, setShowLanding] = useState(true);
+  const [showPointsHistory, setShowPointsHistory]   = useState(false);
+  const [showLanding, setShowLanding]               = useState(true);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
-  const [showReferralDashboard, setShowReferralDashboard] = useState(false);
-  const [showAchievements, setShowAchievements] = useState(false);
-  const [showAirdropModal, setShowAirdropModal] = useState(false);
+  const [showAirdropModal, setShowAirdropModal]     = useState(false);
+  const [sortBy, setSortBy]                         = useState('endingSoon');
 
-  const [sortBy, setSortBy] = useState('endingSoon');
+  const previousAchievementsCount = useRef(0);
 
-  // Ref to track previous achievements for notification triggering
-  const previousAchievementsCount = React.useRef(0);
+  // FIX 5: Track which bets have had notifications sent via a Set ref instead
+  // of directly mutating bet objects from state (React state must not be mutated)
+  const notifiedBetIds = useRef(new Set());
 
+  // ── Derived data ───────────────────────────────────────────────────────────
 
-  // Calculate live stats for landing page
   const liveStats = useMemo(() => {
     const activeMarkets = (liveMarkets || []).length;
-    const totalVolume = (markets || []).reduce((sum, m) =>
-      sum + (parseFloat(m?.yesPool || 0) + parseFloat(m?.noPool || 0)), 0
+    const totalVolume = (markets || []).reduce(
+      (sum, m) => sum + (parseFloat(m?.yesPool || 0) + parseFloat(m?.noPool || 0)), 0
     );
-    const totalBets = (markets || []).reduce((sum, m) =>
-      sum + (parseInt(m?.totalBets || 0)), 0
+    const totalBets = (markets || []).reduce(
+      (sum, m) => sum + (parseInt(m?.totalBets || 0)), 0
     );
     return { activeMarkets, totalVolume: Math.round(totalVolume), totalBets };
   }, [markets, liveMarkets]);
 
-  // ==== HANDLERS ====
+  const sortMarkets = (marketsToSort) => {
+    switch (sortBy) {
+      case 'endingSoon':
+        return [...marketsToSort].sort((a, b) => a.endTime - b.endTime);
+      case 'mostActive':
+        return [...marketsToSort].sort((a, b) => (b.totalBets || 0) - (a.totalBets || 0));
+      case 'highestPool':
+        return [...marketsToSort].sort((a, b) =>
+          ((b.yesPool || 0) + (b.noPool || 0)) - ((a.yesPool || 0) + (a.noPool || 0))
+        );
+      default:
+        return marketsToSort;
+    }
+  };
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
   const handlePlaceBet = useCallback(async () => {
     if (!selectedBet) return;
     try {
@@ -204,31 +216,22 @@ const App = () => {
   }, [selectedBet, betAmount, placeBet]);
 
   const handleResolve = async (marketId, winningChoice) => {
-    if (!isOwner) {
-      toast.error('Admin only.');
-      return;
-    }
+    if (!isOwner) { toast.error('Admin only.'); return; }
     const market = markets.find(m => m.id === marketId);
     if (!market) return;
 
     let functionName = 'resolveMarket';
     let args = [marketId];
-
-    if (market.marketType === 1) {
-      functionName = 'resolveMultiChoiceMarket';
-      args = [marketId, winningChoice];
-    } else if (market.marketType === 2) {
-      functionName = 'resolveRangeMarket';
-    } else if (market.marketType === 3) {
-      functionName = 'resolveTimeMarket';
-    }
+    if (market.marketType === 1) { functionName = 'resolveMultiChoiceMarket'; args = [marketId, winningChoice]; }
+    else if (market.marketType === 2) { functionName = 'resolveRangeMarket'; }
+    else if (market.marketType === 3) { functionName = 'resolveTimeMarket'; }
 
     try {
       await writeContractAsync({
         address: CONTRACTS.PROXY,
         abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: functionName,
-        args: args,
+        functionName,
+        args,
       });
       toast.success('Resolution sent.');
     } catch (error) {
@@ -237,10 +240,7 @@ const App = () => {
   };
 
   const handleClaim = async (marketId) => {
-    if (!address) {
-      toast.error('Please connect your wallet first.');
-      return;
-    }
+    if (!address) { toast.error('Please connect your wallet first.'); return; }
     try {
       await writeContractAsync({
         address: CONTRACTS.PROXY,
@@ -256,55 +256,52 @@ const App = () => {
 
   const handleBetClick = useCallback((market, choiceIndex, choiceLabel, multiplier, defaultBet) => {
     setBetAmount(defaultBet?.toString() || '10');
-    setSelectedBet({
-      market,
-      choice: choiceIndex,
-      choiceLabel,
-      multiplier,
-      yesPool: market.yesPool,
-      noPool: market.noPool
-    });
-    
-    // Track the action
+    setSelectedBet({ market, choice: choiceIndex, choiceLabel, multiplier, yesPool: market.yesPool, noPool: market.noPool });
     trackBetPlaced(market.id, defaultBet, choiceLabel, multiplier);
   }, []);
 
-
   const handleBetPlaced = useCallback(() => {
-    // Trigger bet placed notification
-    if (rtNotifications && rtNotifications.addNotification) {
-      rtNotifications.addNotification('bet_placed', {
-        title: 'Bet Placed',
-        description: `Your $${selectedBet?.market?.displayName || 'prediction'} bet has been placed!`,
-        amount: betAmount
-      });
-    }
+    rtNotifications?.addNotification?.('bet_placed', {
+      title: 'Bet Placed',
+      description: `Your $${selectedBet?.market?.displayName || 'prediction'} bet has been placed!`,
+      amount: betAmount,
+    });
     setTimeout(() => {
       refreshMarkets();
       refreshUserBets();
     }, 1000);
   }, [refreshMarkets, refreshUserBets, rtNotifications, selectedBet, betAmount]);
 
-  const handleOpenShareModal = useCallback((market) => {
-    setShareModalData(market);
-  }, []);
-
-  const handleOpenAdminPanel = useCallback(() => {
-    setShowAdminPanel(true);
-  }, []);
-
+  const handleOpenShareModal = useCallback((market) => { setShareModalData(market); }, []);
+  const handleOpenAdminPanel  = useCallback(() => { setShowAdminPanel(true); }, []);
   const handleCloseAdminPanel = useCallback(() => {
     setShowAdminPanel(false);
     refreshMarkets();
     refreshUserBets();
   }, [refreshMarkets, refreshUserBets]);
 
-  // ==== EFFECTS ====
+  // FIX : Added 'streaks' case so the Streaks sidebar item actually navigates
+  const handleSidebarNavigation = useCallback((viewId) => {
+    const viewMap = {
+      dashboard:   'dashboard',
+      portfolio:   'myBets',
+      markets:     'markets',
+      leaderboard: 'leaderboard',
+      referrals:   'referrals',
+      achievements:'achievements',
+      streaks:     'streaks',   // FIX  was missing
+      admin:       'admin',
+      settings:    'settings',
+    };
+    if (viewMap[viewId]) setCurrentView(viewMap[viewId]);
+  }, []);
+
+  // ── Effects ────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const handleUnhandledRejection = (event) => {
       logger.error('Unhandled promise rejection', event.reason);
-      if (event.reason?.message?.includes('503') ||
-          event.reason?.message?.includes('rate limit')) {
+      if (event.reason?.message?.includes('503') || event.reason?.message?.includes('rate limit')) {
         toast.error('Network congestion detected. Please wait a moment and try again.');
         event.preventDefault();
       }
@@ -317,7 +314,7 @@ const App = () => {
     if (isSuccess && lastBetRef.current === hash) {
       setSelectedBet(null);
       if (notificationsEnabled && notificationsSupported) {
-        showNotification('✅ Bet Placed!', {
+        sendNotification('✅ Bet Placed!', {
           body: `Your bet of $${betAmount} has been placed successfully. Good luck!`,
           tag: 'bet-placed',
         });
@@ -329,94 +326,84 @@ const App = () => {
       refreshMarkets();
       refreshUserBets();
     }
-  }, [isSuccess, hash, refreshMarkets, refreshUserBets, notificationsEnabled, notificationsSupported, showNotification, betAmount, resetBetPlacement]);
+  }, [isSuccess, hash, refreshMarkets, refreshUserBets, notificationsEnabled, notificationsSupported, sendNotification, betAmount, resetBetPlacement]);
 
   useEffect(() => {
     if (sdk.isFarcaster) {
-      sdk.getUserContext().then(setFarcasterUser).catch(e => logger.error('Failed to get Farcaster user context', e));
+      sdk.getUserContext().then(setFarcasterUser).catch(e => logger.error('Farcaster context error', e));
     }
   }, []);
 
-  // Monitor bet wins and losses to send notifications
+  // FIX 5: use notifiedBetIds ref instead of mutating bet objects
   useEffect(() => {
-    if (wonBets && wonBets.length > 0 && rtNotifications) {
-      wonBets.forEach((bet) => {
-        if (bet.market && !bet.notificationSent) {
-          // Convert BigInt to number first!
-          const amountNum = Number(formatUnits(bet.amount, 6));
-          const payout = Number(bet.amountWon) || (amountNum * (bet.multiplier || 1.5));
-          rtNotifications.notifyBetWon?.(
-            `+$${Number(payout).toFixed(2)}`,
-            `${bet.multiplier || 1.5}x on ${bet.market.displayName || 'prediction'}`
-          );
-          // Mark as notification sent (in real app, update database)
-          bet.notificationSent = true;
-        }
-      });
-    }
+    if (!wonBets?.length || !rtNotifications) return;
+    wonBets.forEach((bet) => {
+      if (bet.market && !notifiedBetIds.current.has(`won-${bet.txHash}`)) {
+        notifiedBetIds.current.add(`won-${bet.txHash}`);
+        const amountNum = Number(formatUnits(bet.amount, 6));
+        const payout = Number(bet.amountWon) || (amountNum * (bet.multiplier || 1.5));
+        rtNotifications.notifyBetWon?.(
+          `+$${payout.toFixed(2)}`,
+          `${bet.multiplier || 1.5}x on ${bet.market.displayName || 'prediction'}`
+        );
+      }
+    });
   }, [wonBets, rtNotifications]);
 
-  // Monitor lost bets
   useEffect(() => {
-    if (lostBets && lostBets.length > 0 && rtNotifications) {
-      lostBets.forEach((bet) => {
-        if (bet.market && !bet.notificationSent) {
-          const amountNum = Number(formatUnits(bet.amount, 6)); // Fix here too!
-          rtNotifications.notifyBetLost?.(
-            `-$${amountNum.toFixed(2)}`,
-            `${bet.market.displayName || 'prediction'}`
-          );
-          // Mark as notification sent (in real app, update database)
-          bet.notificationSent = true;
-        }
-      });
-    }
+    if (!lostBets?.length || !rtNotifications) return;
+    lostBets.forEach((bet) => {
+      if (bet.market && !notifiedBetIds.current.has(`lost-${bet.txHash}`)) {
+        notifiedBetIds.current.add(`lost-${bet.txHash}`);
+        const amountNum = Number(formatUnits(bet.amount, 6));
+        rtNotifications.notifyBetLost?.(
+          `-$${amountNum.toFixed(2)}`,
+          `${bet.market.displayName || 'prediction'}`
+        );
+      }
+    });
   }, [lostBets, rtNotifications]);
 
-  // Monitor achievement unlocks
   useEffect(() => {
-    if (achievements && achievements.length > previousAchievementsCount.current && rtNotifications) {
+    if (achievements?.length > previousAchievementsCount.current && rtNotifications) {
       const newAchievements = achievements.slice(previousAchievementsCount.current);
       newAchievements.forEach((achievement) => {
-        rtNotifications.notifyAchievement?.(
-          achievement.name,
-          achievement.description || 'Great job!'
-        );
+        rtNotifications.notifyAchievement?.(achievement.name, achievement.description || 'Great job!');
       });
       previousAchievementsCount.current = achievements.length;
     }
   }, [achievements, rtNotifications]);
 
-  // ==== RENDER HELPERS ====
+  // ── Render helpers ─────────────────────────────────────────────────────────
+
   const renderUserBet = (bet) => {
-    const market = bet.market;
+    const market  = bet.market;
     const claimed = bet.claimed;
     const canClaim = bet.isClaimableConfirmed;
-    
-    // Determine if this bet was a win or loss based on market outcome
+
     let isWin = false;
     let isLoss = false;
-    if (market && market.resolved) {
-      if (market.marketType === 0) { // Binary
+    if (market?.resolved) {
+      if (market.marketType === 0) {
         const predictedUp = bet.choice === 1;
-        isWin = predictedUp === market.priceWentUp;
+        isWin  = predictedUp === market.priceWentUp;
         isLoss = !isWin;
-      } else if (market.marketType === 1) { // Multi-choice
-        isWin = bet.choice === market.winningChoice;
+      } else if (market.marketType === 1) {
+        isWin  = bet.choice === market.winningChoice;
         isLoss = !isWin;
       }
     }
-    
+
     let oddsDisplay = '';
     if (market && !market.resolved) {
       const isUp = bet.choice === 1;
       const oddsData = formatOddsDisplay({
         useFixedOdds: market.useFixedOdds,
         multiplier: isUp ? market.yesMultiplier : market.noMultiplier,
-        poolPercentage: isUp 
+        poolPercentage: isUp
           ? calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).upPercentage
           : calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).downPercentage,
-        choice: bet.choice
+        choice: bet.choice,
       });
       oddsDisplay = oddsData.text;
     }
@@ -431,29 +418,35 @@ const App = () => {
               <span className="ml-2 text-secondary font-medium">• {oddsDisplay}</span>
             )}
           </span>
-          <span className="text-sm text-neutral-400">Amount: <span className="font-semibold text-success">{formatUnits(bet.amount, 6)} USDC</span></span>
+          <span className="text-sm text-neutral-400">
+            Amount: <span className="font-semibold text-success">{formatUnits(bet.amount, 6)} USDC</span>
+          </span>
         </div>
         <div className="flex flex-col items-end gap-2">
           {!market.resolved ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-500 text-white">{getMarketTimeRemaining(market)}</span>
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-500 text-white">
+              {getMarketTimeRemaining(market)}
+            </span>
           ) : isWin && canClaim ? (
             <button onClick={() => handleClaim(market.id)} className="bg-secondary hover:bg-secondary-500 text-neutral-900 font-bold py-2 px-4 rounded-lg flex items-center gap-1 text-sm">
               <Trophy size={16} /> Claim Winnings
             </button>
           ) : isWin && claimed ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-success text-white flex items-center gap-1"><CheckCircle size={14} /> Claimed</span>
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-success text-white flex items-center gap-1">
+              <CheckCircle size={14} /> Claimed
+            </span>
           ) : isLoss ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500 text-white flex items-center gap-1"><XCircle size={14} /> Lost</span>
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500 text-white flex items-center gap-1">
+              <XCircle size={14} /> Lost
+            </span>
           ) : (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-neutral-500 text-white flex items-center gap-1">Unknown</span>
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-neutral-500 text-white">Unknown</span>
           )}
         </div>
       </div>
     );
   };
 
-
-  // Render loading state for user bets
   const renderUserBetsLoading = () => (
     <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl">
       <Loader2 className="animate-spin text-primary mb-3" size={32} />
@@ -461,73 +454,46 @@ const App = () => {
     </div>
   );
 
-  // Render error state for user bets
   const renderUserBetsError = () => (
     <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl border border-red-500/30">
       <AlertTriangle className="text-red-500 mb-3" size={32} />
       <p className="text-red-400 mb-2">Failed to load bets</p>
       <p className="text-sm text-neutral-500 mb-3">{userBetsError}</p>
-      <button 
+      <button
         onClick={() => refreshUserBets()}
-        className="px-4 py-2 bg-primary hover:bg-primary-400 text-dark-950 font-bold rounded-lg flex items-center gap-2 transition-all"
+        className="px-4 py-2 bg-primary hover:bg-primary/90 text-dark-950 font-bold rounded-lg flex items-center gap-2"
       >
         <RefreshCw size={16} /> Retry
       </button>
     </div>
   );
 
-  // Render empty state for user bets
   const renderUserBetsEmpty = (message) => (
-    <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl text-neutral-400" role="status" aria-live="polite">
-      <BarChart3 size={32} aria-hidden="true" className="mb-3 opacity-50" />
+    <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl text-neutral-400">
+      <BarChart3 size={32} className="mb-3 opacity-50" />
       <p className="text-lg">{message}</p>
       <p className="text-sm text-neutral-500 mt-2">Place a bet to see it here</p>
     </div>
   );
 
-  // Get filtered bets based on current view
   const getFilteredBets = useCallback(() => {
     switch (betView) {
-      case 'ongoing':
-        return ongoingBets;
-      case 'pending':
-        return pendingBets;
-      case 'wins':
-        return wonBets;
-      case 'losses':
-        return lostBets;
-      default:
-        return userBets;
+      case 'ongoing':  return ongoingBets;
+      case 'pending':  return pendingBets;
+      case 'wins':     return wonBets;
+      case 'losses':   return lostBets;
+      default:         return userBets;
     }
   }, [betView, ongoingBets, pendingBets, wonBets, lostBets, userBets]);
 
-  // Handle navigation from sidebar - MUST BE BEFORE ANY RETURNS
-  const handleSidebarNavigation = useCallback((viewId) => {
-    if (viewId === 'dashboard') {
-      setCurrentView('dashboard');
-    } else if (viewId === 'portfolio') {
-      setCurrentView('myBets');
-    } else if (viewId === 'markets') {
-      setCurrentView('markets');
-    } else if (viewId === 'leaderboard') {
-      setCurrentView('leaderboard');
-    } else if (viewId === 'referrals') {
-      setCurrentView('referrals');
-    } else if (viewId === 'achievements') {
-      setCurrentView('achievements');
-    } else if (viewId === 'admin') {
-      setCurrentView('admin');
-    } else if (viewId === 'settings') {
-      setCurrentView('settings');
-    }
-  }, []);
+  // ── Early return (after all hooks) ────────────────────────────────────────
 
-  // ==== EARLY RETURN (NOW AFTER ALL HOOKS) ====
   if (showLanding && !isConnected) {
-    return <LandingPage onLaunchApp={() => setShowLanding(false)} liveStats={liveStats} />;
+    return <LandingPage onLaunchApp={() => setShowLanding(false)} liveStats={liveStats} isLoadingStats={isLoadingMarkets} />;
   }
 
-  // Render content based on current view
+  // ── Content renderer ───────────────────────────────────────────────────────
+
   const renderContent = () => {
     switch (currentView) {
       case 'dashboard':
@@ -537,50 +503,51 @@ const App = () => {
             userBets={userBets}
             achievements={achievements}
             isLoading={isLoadingUserBets}
-            onViewAchievements={() => setShowAchievements(true)}
+            onViewAchievements={() => setCurrentView('achievements')}
           />
-        ) : (
-          <EmptyState isConnected={isConnected} variant="empty" />
-        );
+        ) : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'myBets':
         return (
           <section id="myBets-panel" role="tabpanel" className="animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-primary">My Bets</h2>
-              <button 
+              <button
                 onClick={() => refreshUserBets()}
                 disabled={isLoadingUserBets}
                 className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 rounded-xl transition-all disabled:opacity-50"
               >
-                <RefreshCw size={16} className={isLoadingUserBets ? 'animate-spin' : ''} /> 
+                <RefreshCw size={16} className={isLoadingUserBets ? 'animate-spin' : ''} />
                 {isLoadingUserBets ? 'Refreshing...' : 'Refresh'}
               </button>
             </div>
             <div className="flex border-b border-dark-600 mb-6 overflow-x-auto" role="tablist">
-              {[{ key: 'ongoing', label: `Ongoing (${ongoingBets.length})`, icon: Clock }, { key: 'pending', label: `Pending (${pendingBets.length})`, icon: AlertTriangle, hidden: pendingBets.length === 0 }, { key: 'wins', label: `Wins (${wonBets.length})`, icon: Trophy }, { key: 'losses', label: `Losses (${lostBets.length})`, icon: XCircle }].filter(item => !item.hidden).map(({ key, label, icon: Icon }) => (
-                <button 
-                  key={key} 
-                  onClick={() => setBetView(key)} 
-                  className={`py-3 px-6 text-lg font-semibold transition-all duration-300 flex items-center gap-2 relative ${betView === key ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-white hover:bg-primary/5'}`}
+              {[
+                { key: 'ongoing', label: `Ongoing (${ongoingBets.length})`,  icon: Clock },
+                { key: 'pending', label: `Pending (${pendingBets.length})`,  icon: AlertTriangle, hidden: pendingBets.length === 0 },
+                { key: 'wins',    label: `Wins (${wonBets.length})`,         icon: Trophy },
+                { key: 'losses',  label: `Losses (${lostBets.length})`,      icon: XCircle },
+              ].filter(item => !item.hidden).map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setBetView(key)}
+                  className={`py-3 px-6 text-lg font-semibold transition-all flex items-center gap-2 ${
+                    betView === key ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-white hover:bg-primary/5'
+                  }`}
                 >
-                  <Icon size={20} className={betView === key ? 'text-primary' : 'text-neutral-500'} />{label}
+                  <Icon size={20} className={betView === key ? 'text-primary' : 'text-neutral-500'} />
+                  {label}
                 </button>
               ))}
             </div>
-
             <div className="flex flex-col gap-4">
-              {isLoadingUserBets ? (
-                renderUserBetsLoading()
-              ) : userBetsError ? (
-                renderUserBetsError()
-              ) : (() => {
-                const filteredBets = getFilteredBets();
-                if (filteredBets.length === 0) {
-                  return renderUserBetsEmpty(`No ${betView} bets found`);
-                }
-                return filteredBets.map(renderUserBet);
-              })()}
+              {isLoadingUserBets ? renderUserBetsLoading()
+               : userBetsError ? renderUserBetsError()
+               : (() => {
+                  const filteredBets = getFilteredBets();
+                  if (filteredBets.length === 0) return renderUserBetsEmpty(`No ${betView} bets found`);
+                  return filteredBets.map(renderUserBet);
+                })()}
             </div>
           </section>
         );
@@ -589,72 +556,49 @@ const App = () => {
         return (
           <section id="leaderboard-panel" role="tabpanel" className="animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-primary flex items-center gap-3"><Trophy size={32} className="text-secondary" />Top Predictors</h2>
-              <button disabled className="flex items-center gap-2 px-4 py-2 bg-dark-700 border-2 border-dark-600 rounded-xl transition-all opacity-50 cursor-not-allowed">
-                <RefreshCw size={16} /> Refresh
-              </button>
+              <h2 className="text-3xl font-bold text-primary flex items-center gap-3">
+                <Trophy size={32} className="text-secondary" /> Top Predictors
+              </h2>
             </div>
-            <LeaderboardView data={[]} isLoading={false} currentUserAddress={address} />
+<LeaderboardView data={leaderboard} isLoading={isLoadingLeaderboard} currentUserAddress={address} />
           </section>
         );
 
       case 'achievements':
-        return isConnected ? (
-          <AchievementsPage 
-            isOpen={true}
-            onClose={() => setCurrentView('dashboard')}
-            achievements={achievements}
-            onShare={shareAchievement}
-          />
-        ) : (
-          <EmptyState isConnected={isConnected} variant="empty" />
-        );
+        return isConnected
+          ? <AchievementsPage isOpen achievements={achievements} onClose={() => setCurrentView('dashboard')} onShare={shareAchievement} />
+          : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'referrals':
-        return isConnected ? (
-          <ReferralDashboard 
-            isOpen={true}
-            onClose={() => setCurrentView('dashboard')}
-            stats={referralStats}
-            onShare={shareReferral}
-          />
-        ) : (
-          <EmptyState isConnected={isConnected} variant="empty" />
-        );
+        return isConnected
+          ? <ReferralDashboard isOpen stats={referralStats} onClose={() => setCurrentView('dashboard')} onShare={shareReferral} />
+          : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'admin':
-        return isOwner ? (
-          <AdminPanel 
-            isOpen={true}
-            onClose={() => setCurrentView('markets')}
-            onMarketCreated={forceRefresh}
-          />
-        ) : (
-          <EmptyState isConnected={isConnected} variant="empty" />
-        );
+        return isOwner
+          ? <AdminPanel isOpen onClose={() => setCurrentView('markets')} onMarketCreated={forceRefresh} />
+          : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'settings':
         return (
-          <NotificationSettings 
-            isOpen={true}
+          <NotificationSettings
+            isOpen
             onClose={() => setCurrentView('dashboard')}
-            enabled={notificationsEnabled}
-            onToggle={() => {}}
-            permission="default"
+            settings={notificationSettings}
+            onUpdateSettings={updateNotificationSettings}
           />
         );
 
+      // FIX 2: Streaks view now reachable via handleSidebarNavigation
       case 'streaks':
         return isConnected ? (
           <section id="streaks-panel" className="animate-in fade-in duration-500">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold text-primary flex items-center gap-3">
-                <Zap size={32} className="text-yellow-400" />
-                Your Streaks
+                <Zap size={32} className="text-yellow-400" /> Your Streaks
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Current Streak Card */}
               <div className="bg-dark-800 border-2 border-yellow-400/30 rounded-2xl p-6 hover:border-yellow-400/60 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-lg bg-yellow-400/20 flex items-center justify-center">
@@ -667,8 +611,6 @@ const App = () => {
                 </div>
                 <p className="text-sm text-neutral-400">Win consecutive bets to build your streak</p>
               </div>
-
-              {/* Best Streak Card */}
               <div className="bg-dark-800 border-2 border-yellow-400/20 rounded-2xl p-6 hover:border-yellow-400/40 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-lg bg-yellow-400/10 flex items-center justify-center">
@@ -681,8 +623,6 @@ const App = () => {
                 </div>
                 <p className="text-sm text-neutral-400">Your personal best streak record</p>
               </div>
-
-              {/* Streak Status Card */}
               <div className="bg-dark-800 border-2 border-yellow-400/20 rounded-2xl p-6 hover:border-yellow-400/40 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-lg bg-yellow-400/10 flex items-center justify-center">
@@ -697,9 +637,7 @@ const App = () => {
               </div>
             </div>
           </section>
-        ) : (
-          <EmptyState isConnected={isConnected} variant="empty" />
-        );
+        ) : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'markets':
       default:
@@ -711,13 +649,12 @@ const App = () => {
                   <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                     Active Markets
                     {searchQuery !== debouncedSearchQuery && (
-                      <span className="text-sm text-neutral-400 search-loading flex items-center gap-2">
+                      <span className="text-sm text-neutral-400 flex items-center gap-2">
                         <Clock size={16} /> Searching...
                       </span>
                     )}
                   </h2>
                   <div className="flex items-center gap-4">
-                    {/* Sort Dropdown */}
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-neutral-400">Sort by:</span>
                       <select
@@ -735,19 +672,25 @@ const App = () => {
                       {['ALL', 'BTC', 'ETH', 'SOL'].map((asset) => {
                         const now = Date.now();
                         const safeMarkets = markets || [];
+                        // FIX 3: consistent * 1000 for endTime (Unix seconds → ms)
                         const activeMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) * 1000 > now);
                         const count = asset === 'ALL' ? activeMarkets.length : activeMarkets.filter(m => m.asset === asset).length;
                         return (
                           <button
                             key={asset}
                             onClick={() => setSelectedAssetFilter(asset)}
-                            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all duration-300 flex items-center gap-2 ${
-                              selectedAssetFilter === asset ? 'bg-primary text-dark-950 scale-105 glow-primary' : 'bg-dark-800 border-2 border-dark-600 text-neutral-400 hover:border-primary hover:text-white'
+                            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
+                              selectedAssetFilter === asset
+                                ? 'bg-primary text-dark-950 scale-105'
+                                : 'bg-dark-800 border-2 border-dark-600 text-neutral-400 hover:border-primary hover:text-white'
                             }`}
                           >
-                            {asset === 'BTC' && '₿'}{asset === 'ETH' && 'Ξ'}{asset === 'SOL' && '◎'}{asset === 'ALL' && '🌐'}
+                            {asset === 'BTC' && '₿'}{asset === 'ETH' && 'Ξ'}
+                            {asset === 'SOL' && '◎'}{asset === 'ALL' && '🌐'}
                             <span>{asset}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-dark-950/30' : 'bg-dark-700'}`}>{count}</span>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-dark-950/30' : 'bg-dark-700'}`}>
+                              {count}
+                            </span>
                           </button>
                         );
                       })}
@@ -766,8 +709,11 @@ const App = () => {
             {(() => {
               const now = Date.now();
               const safeMarkets = markets || [];
-              const currentLiveMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) > now);
-              let filteredMarkets = selectedAssetFilter === 'ALL' ? currentLiveMarkets : currentLiveMarkets.filter(m => m.asset === selectedAssetFilter);
+              // FIX 3: * 1000 consistently — endTime is Unix seconds
+              const currentLiveMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) * 1000 > now);
+              let filteredMarkets = selectedAssetFilter === 'ALL'
+                ? currentLiveMarkets
+                : currentLiveMarkets.filter(m => m.asset === selectedAssetFilter);
 
               if (debouncedSearchQuery.trim()) {
                 const query = debouncedSearchQuery.toLowerCase();
@@ -780,7 +726,12 @@ const App = () => {
               const sortedMarkets = sortMarkets(filteredMarkets);
 
               if (!isLoadingMarkets && currentLiveMarkets.length === 0) return <EmptyState isConnected={isConnected} variant="empty" />;
-              if (!isLoadingMarkets && sortedMarkets.length === 0) return <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600"><AlertTriangle size={48} className="text-primary mb-4" /><p className="text-xl text-neutral-400">No markets available</p></div>;
+              if (!isLoadingMarkets && sortedMarkets.length === 0) return (
+                <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600">
+                  <AlertTriangle size={48} className="text-primary mb-4" />
+                  <p className="text-xl text-neutral-400">No markets available</p>
+                </div>
+              );
 
               return sortedMarkets.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
                 <VirtualMarketList
@@ -793,7 +744,7 @@ const App = () => {
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
-                  {sortedMarkets.map((market, index) => (
+                  {sortedMarkets.map((market) => (
                     <MarketCard
                       key={Number(market.id)}
                       market={market}
@@ -815,6 +766,8 @@ const App = () => {
     }
   };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <>
       <MainLayout
@@ -826,6 +779,7 @@ const App = () => {
         userPoints={pointsData?.total_points || 0}
         onAddFunds={() => setShowAddFundsModal(true)}
         chainName={chain?.name || 'Network'}
+        isSidebarCollapsed={isSidebarCollapsed}  // FIX 4: now correctly passed
       >
         <Toaster
           position="top-right"
@@ -834,20 +788,10 @@ const App = () => {
             style: {
               background: '#1a1a1a',
               color: '#fff',
-              border: '1px solid rgba(205, 255, 0, 0.3)',
+              border: '1px solid rgba(205,255,0,0.3)',
             },
-            success: {
-              iconTheme: {
-                primary: '#00FF88',
-                secondary: '#1a1a1a',
-              },
-            },
-            error: {
-              iconTheme: {
-                primary: '#FF4757',
-                secondary: '#1a1a1a',
-              },
-            },
+            success: { iconTheme: { primary: '#00FF88', secondary: '#1a1a1a' } },
+            error:   { iconTheme: { primary: '#FF4757', secondary: '#1a1a1a' } },
           }}
         />
 
@@ -865,34 +809,30 @@ const App = () => {
           />
         )}
 
-        <NotificationCenter 
-          isOpen={showNotificationCenter} 
+        <NotificationCenter
+          isOpen={showNotificationCenter}
           onClose={() => setShowNotificationCenter(false)}
-          notifications={notificationCenter}
+notifications={notificationHistory}
           unreadCount={unreadCount}
           onMarkAsRead={markAsRead}
           onMarkAllAsRead={markAllAsRead}
         />
 
-        <AirdropClaimModal 
-          isOpen={showAirdropModal} 
-          onClose={() => setShowAirdropModal(false)}
-        />
+        <AirdropClaimModal isOpen={showAirdropModal} onClose={() => setShowAirdropModal(false)} />
 
-        <AddFundsModal 
-          isOpen={showAddFundsModal} 
-          onClose={() => setShowAddFundsModal(false)} 
-          network={chain?.name || 'Base Sepolia'} 
+        <AddFundsModal
+          isOpen={showAddFundsModal}
+          onClose={() => setShowAddFundsModal(false)}
+          network={chain?.name || 'Base Sepolia'}
           address={address}
           formattedUsdcBalance={formattedUsdcBalance}
           usdcBalanceNum={usdcBalanceNum}
         />
 
         <ShareModal market={shareModalData} isOpen={!!shareModalData} onClose={() => setShareModalData(null)} />
-        <PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} walletAddress={address} />
+<PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} walletAddress={address} />
       </MainLayout>
 
-      {/* Footer - Outside MainLayout for full width */}
       <Footer />
     </>
   );

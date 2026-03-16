@@ -1,18 +1,20 @@
+// ─── AchievementsWidget.jsx ──────────────────────────────────────────────────
+// FIX: Division by zero on progress bar when totalAchievements === 0
 import React from 'react';
 import { Trophy, Lock, CheckCircle, ArrowRight } from 'lucide-react';
 
-/**
- * Achievements Widget Component
- * Mini achievements display for dashboard
- */
 const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
   const unlockedAchievements = achievements.filter(a => a.unlocked).slice(0, 3);
   const totalUnlocked = achievements.filter(a => a.unlocked).length;
   const totalAchievements = achievements.length;
 
+  // FIX: Guard against division by zero
+  const progressPercent = totalAchievements > 0
+    ? (totalUnlocked / totalAchievements) * 100
+    : 0;
+
   return (
     <div className="bg-dark-800 border border-secondary/30 rounded-xl p-6 hover:border-secondary transition-all duration-300">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
@@ -23,26 +25,21 @@ const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
             <p className="text-xs text-neutral-400">{totalUnlocked} of {totalAchievements}</p>
           </div>
         </div>
-        <button
-          onClick={onViewAll}
-          className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
-        >
+        <button onClick={onViewAll} className="p-2 hover:bg-dark-700 rounded-lg transition-colors">
           <ArrowRight size={18} className="text-neutral-400 hover:text-primary" />
         </button>
       </div>
 
-      {/* Progress Bar */}
       <div className="mb-6">
         <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
-            style={{ width: `${(totalUnlocked / totalAchievements) * 100}%` }}
+            style={{ width: `${progressPercent}%` }}
           />
         </div>
         <p className="text-xs text-neutral-400 mt-2">{totalUnlocked} unlocked achievements</p>
       </div>
 
-      {/* Recent Unlocked */}
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
@@ -64,10 +61,10 @@ const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
               {achievement.rarity && (
                 <span className={`text-xs px-2 py-1 rounded font-bold flex-shrink-0
                   ${achievement.rarity === 'legendary' ? 'bg-yellow-500/20 text-yellow-400' : ''}
-                  ${achievement.rarity === 'epic' ? 'bg-purple-500/20 text-purple-400' : ''}
-                  ${achievement.rarity === 'rare' ? 'bg-blue-500/20 text-blue-400' : ''}
-                  ${achievement.rarity === 'uncommon' ? 'bg-green-500/20 text-green-400' : ''}
-                  ${achievement.rarity === 'common' ? 'bg-neutral-500/20 text-neutral-300' : ''}
+                  ${achievement.rarity === 'epic'      ? 'bg-purple-500/20 text-purple-400' : ''}
+                  ${achievement.rarity === 'rare'      ? 'bg-blue-500/20 text-blue-400'     : ''}
+                  ${achievement.rarity === 'uncommon'  ? 'bg-green-500/20 text-green-400'   : ''}
+                  ${achievement.rarity === 'common'    ? 'bg-neutral-500/20 text-neutral-300': ''}
                 `}>
                   {achievement.rarity}
                 </span>
@@ -83,7 +80,6 @@ const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
         </div>
       )}
 
-      {/* View All Button */}
       <button
         onClick={onViewAll}
         className="w-full mt-4 py-3 px-4 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-primary font-bold text-sm transition-all"

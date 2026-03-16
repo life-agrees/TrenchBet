@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { parseEther, parseUnits } from 'viem';
+import { useAccount, useWriteContract, usePublicClient } from 'wagmi';
 import { CONTRACTS } from '../config/wagmi';
 import { TRENCHY_REFERRALS_ABI } from '../contracts/abis';
 import { createLogger } from '../utils/logger';
@@ -8,38 +7,41 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger('useReferrals');
 
 /**
- * Hook for managing referral system
+ * useReferrals
+ *
+ * FIX: Contract reads were using Ethers.js v5 syntax via `window.trenchyReferrals`
+ * which is never set anywhere in the codebase:
+ *   window.trenchyReferrals?.read.getReferrer([address])  ← always undefined
+ *
+ * This meant every call silently fell through to localStorage, and the
+ * actual REFERRALS contract was never queried — even when deployed.
+ *
+ * Fix: Use Wagmi's `usePublicClient` for contract reads (consistent with the
+ * rest of the codebase). localStorage remains as a graceful fallback for
+ * when the contract isn't deployed yet.
+ *
+ * NOTE: `stats` prop shape added to match App.jsx destructuring:
+ *   const { stats: referralStats, generateReferralCode, shareReferral } = useReferrals();
+ * The hook now returns a `stats` object and a `shareReferral` alias.
  */
 export const useReferrals = () => {
   const { address, isConnected } = useAccount();
-  
-  // State
-  const [referralCode, setReferralCode] = useState('');
-  const [referrer, setReferrer] = useState(null);
-  const [referralCount, setReferralCount] = useState(0);
+  const publicClient = usePublicClient();
+
+  const [referralCode, setReferralCode]         = useState('');
+  const [referrer, setReferrer]                 = useState(null);
+  const [referralCount, setReferralCount]       = useState(0);
   const [referralEarnings, setReferralEarnings] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-  
-  // Contract writes
+  const [isLoading, setIsLoading]               = useState(false);
+  const [error, setError]                       = useState(null);
+
   const { writeContractAsync: writeContract } = useWriteContract();
-  
-  // Generate referral code from address (simple hash for now)
+
   const generateReferralCode = useCallback((addr) => {
     if (!addr) return '';
-    // Create a simple referral code: first 8 chars of address
     return addr.slice(2, 10).toUpperCase();
   }, []);
-  
-  // Parse referral code back to address (for display)
-  const getAddressFromCode = useCallback((code) => {
-    if (!code || code.length !== 8) return null;
-    // In a real implementation, you'd query a mapping
-    // For now, we'll store codes in localStorage
-    return null;
-  }, []);
-  
-  // Fetch user's referral data
+
   const fetchReferralData = useCallback(async () => {
     if (!isConnected || !address) {
       setReferralCode('');
@@ -48,35 +50,53 @@ export const useReferrals = () => {
       setReferralEarnings(0);
       return;
     }
-    
+
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Generate referral code for current user
-      const code = generateReferralCode(address);
-      setReferralCode(code);
-      
-      // Try to read from contract (will fail if not deployed yet)
-      try {
-        const referrerData = await window.trenchyReferrals?.read.getReferrer([address]);
-        setReferrer(referrerData || null);
-        
-        const count = await window.trenchyReferrals?.read.getReferralCount([address]);
-        setReferralCount(Number(count) || 0);
-        
-        const earnings = await window.trenchyReferrals?.read.getReferralEarnings([address]);
-        setReferralEarnings(Number(earnings) || 0);
-      } catch (e) {
-        // Contract not deployed yet, use localStorage as fallback
-        logger.warn('Referral contract not available, using localStorage');
-        const stored = localStorage.getItem(`referral_${address}`);
-        if (stored) {
-          const data = JSON.parse(stored);
-          setReferrer(data.referrer);
-          setReferralCount(data.count || 0);
-          setReferralEarnings(data.earnings || 0);
+
+      setReferralCode(generateReferralCode(address));
+
+      // FIX: use Wagmi publicClient instead of window.trenchyReferrals
+      if (publicClient && CONTRACTS.REFERRALS && CONTRACTS.REFERRALS !== '0x0000000000000000000000000000000000000000') {
+        try {
+          const [refAddr, count, earnings] = await Promise.all([
+            publicClient.readContract({
+              address: CONTRACTS.REFERRALS,
+              abi: TRENCHY_REFERRALS_ABI,
+              functionName: 'getReferrer',
+              args: [address],
+            }),
+            publicClient.readContract({
+              address: CONTRACTS.REFERRALS,
+              abi: TRENCHY_REFERRALS_ABI,
+              functionName: 'getReferralCount',
+              args: [address],
+            }),
+            publicClient.readContract({
+              address: CONTRACTS.REFERRALS,
+              abi: TRENCHY_REFERRALS_ABI,
+              functionName: 'getReferralEarnings',
+              args: [address],
+            }),
+          ]);
+
+          setReferrer(refAddr || null);
+          setReferralCount(Number(count) || 0);
+          setReferralEarnings(Number(earnings) || 0);
+          return;
+        } catch (e) {
+          logger.warn('Referral contract read failed, falling back to localStorage:', e.message);
         }
+      }
+
+      // Fallback: localStorage
+      const stored = localStorage.getItem(`referral_${address}`);
+      if (stored) {
+        const data = JSON.parse(stored);
+        setReferrer(data.referrer ?? null);
+        setReferralCount(data.count ?? 0);
+        setReferralEarnings(data.earnings ?? 0);
       }
     } catch (err) {
       logger.error('Error fetching referral data:', err);
@@ -84,74 +104,48 @@ export const useReferrals = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [address, isConnected, generateReferralCode]);
-  
-  // Register a referral
+  }, [address, isConnected, publicClient, generateReferralCode]);
+
   const registerReferral = useCallback(async (referralCodeOrAddress) => {
-    if (!isConnected || !address) {
-      throw new Error('Wallet not connected');
-    }
-    
-    // Validate input
+    if (!isConnected || !address) throw new Error('Wallet not connected');
+
     let referrerAddress = referralCodeOrAddress;
-    
-    // If it's a code (8 chars), try to find the address
-    if (referralCodeOrAddress.length === 8) {
-      // In a real app, you'd query a backend or on-chain mapping
-      // For now, check if it's a valid address format
-      if (!referralCodeOrAddress.startsWith('0x')) {
-        referrerAddress = '0x' + referralCodeOrAddress.toLowerCase();
-      }
+    if (referralCodeOrAddress.length === 8 && !referralCodeOrAddress.startsWith('0x')) {
+      referrerAddress = '0x' + referralCodeOrAddress.toLowerCase();
     }
-    
-    // Validate it's a proper address
-    if (!referrerAddress || !referrerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
-      throw new Error('Invalid referral code or address');
-    }
-    
-    // Can't refer yourself
-    if (referrerAddress.toLowerCase() === address.toLowerCase()) {
-      throw new Error('Cannot refer yourself');
-    }
-    
+
+    if (!referrerAddress?.match(/^0x[a-fA-F0-9]{40}$/)) throw new Error('Invalid referral code or address');
+    if (referrerAddress.toLowerCase() === address.toLowerCase()) throw new Error('Cannot refer yourself');
+
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Try contract first
-      try {
-        const hash = await writeContract({
-          address: CONTRACTS.REFERRALS,
-          abi: TRENCHY_REFERRALS_ABI,
-          functionName: 'registerReferral',
-          args: [referrerAddress],
-        });
-        
-        logger.info('Referral registered on-chain:', hash);
-        return hash;
-      } catch (e) {
-        // Contract not deployed, use localStorage
-        logger.warn('Referral contract not available, using localStorage fallback');
-        
-        // Store in localStorage
-        const key = `referred_${address}`;
-        localStorage.setItem(key, JSON.stringify({
-          referrer: referrerAddress,
-          timestamp: Date.now(),
-        }));
-        
-        // Update referrer's count in localStorage
-        const referrerKey = `referral_${referrerAddress}`;
-        const existingData = localStorage.getItem(referrerKey);
-        const referrerData = existingData ? JSON.parse(existingData) : { count: 0, earnings: 0 };
-        referrerData.count = (referrerData.count || 0) + 1;
-        localStorage.setItem(referrerKey, JSON.stringify(referrerData));
-        
-        // Refresh data
-        await fetchReferralData();
-        
-        return null;
+
+      if (CONTRACTS.REFERRALS && CONTRACTS.REFERRALS !== '0x0000000000000000000000000000000000000000') {
+        try {
+          const hash = await writeContract({
+            address: CONTRACTS.REFERRALS,
+            abi: TRENCHY_REFERRALS_ABI,
+            functionName: 'registerReferral',
+            args: [referrerAddress],
+          });
+          logger.info('Referral registered on-chain:', hash);
+          await fetchReferralData();
+          return hash;
+        } catch (e) {
+          logger.warn('Referral contract write failed, using localStorage fallback:', e.message);
+        }
       }
+
+      // localStorage fallback
+      localStorage.setItem(`referred_${address}`, JSON.stringify({ referrer: referrerAddress, timestamp: Date.now() }));
+      const referrerKey   = `referral_${referrerAddress}`;
+      const existingData  = localStorage.getItem(referrerKey);
+      const referrerData  = existingData ? JSON.parse(existingData) : { count: 0, earnings: 0 };
+      referrerData.count  = (referrerData.count || 0) + 1;
+      localStorage.setItem(referrerKey, JSON.stringify(referrerData));
+      await fetchReferralData();
+      return null;
     } catch (err) {
       logger.error('Error registering referral:', err);
       setError(err.message);
@@ -160,79 +154,49 @@ export const useReferrals = () => {
       setIsLoading(false);
     }
   }, [address, isConnected, writeContract, fetchReferralData]);
-  
-  // Get shareable referral link
-  const getReferralLink = useCallback(() => {
-    if (!referralCode) return '';
-    // In production, this would be your actual domain
-    return `https://trenchy.bet/ref/${referralCode}`;
-  }, [referralCode]);
-  
-  // Share to Twitter
-  const shareToTwitter = useCallback(() => {
-    const text = `Join me on @TrenchyBet - the decentralized prediction market! Use my referral code: ${referralCode}`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
-  }, [referralCode]);
-  
-  // Share to Telegram
-  const shareToTelegram = useCallback(() => {
-    const text = `Join me on TrenchyBet! Use my referral code: ${referralCode}\n\n${getReferralLink()}`;
-    const url = `https://t.me/share/url?url=${encodeURIComponent(getReferralLink())}&text=${encodeURIComponent(text)}`;
-    window.open(url, '_blank');
-  }, [referralCode, getReferralLink]);
-  
-  // Copy to clipboard
-  const copyReferralCode = useCallback(async () => {
-    if (!referralCode) return;
-    try {
-      await navigator.clipboard.writeText(referralCode);
-      return true;
-    } catch (err) {
-      logger.error('Error copying to clipboard:', err);
-      return false;
-    }
-  }, [referralCode]);
-  
-  // Copy referral link
-  const copyReferralLink = useCallback(async () => {
-    const link = getReferralLink();
-    if (!link) return;
-    try {
-      await navigator.clipboard.writeText(link);
-      return true;
-    } catch (err) {
-      logger.error('Error copying link to clipboard:', err);
-      return false;
-    }
-  }, [getReferralLink]);
-  
-  // Fetch data on mount and when address changes
-  useEffect(() => {
-    fetchReferralData();
-  }, [fetchReferralData]);
-  
+
+  const getReferralLink  = useCallback(() => referralCode ? `https://trenchy.bet/ref/${referralCode}` : '', [referralCode]);
+  const shareToTwitter   = useCallback(() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join me on @TrenchyBet! Use my referral code: ${referralCode}`)}`, '_blank'), [referralCode]);
+  const shareToTelegram  = useCallback(() => window.open(`https://t.me/share/url?url=${encodeURIComponent(getReferralLink())}&text=${encodeURIComponent(`Join me on TrenchyBet! Code: ${referralCode}`)}`, '_blank'), [referralCode, getReferralLink]);
+  const copyReferralCode = useCallback(async () => { try { await navigator.clipboard.writeText(referralCode); return true; } catch { return false; } }, [referralCode]);
+  const copyReferralLink = useCallback(async () => { try { await navigator.clipboard.writeText(getReferralLink()); return true; } catch { return false; } }, [getReferralLink]);
+
+  // Share alias matching App.jsx destructuring: shareReferral
+  const shareReferral = shareToTwitter;
+
+  useEffect(() => { fetchReferralData(); }, [fetchReferralData]);
+
+  // stats object matching App.jsx: const { stats: referralStats } = useReferrals()
+  const stats = {
+    referralCode,
+    referrer,
+    referralCount,
+    referralEarnings,
+    hasReferrer: !!referrer,
+    isReferrer:  referralCount > 0,
+  };
+
   return {
-    // State
+    // Flat exports (backwards compatible)
     referralCode,
     referrer,
     referralCount,
     referralEarnings,
     isLoading,
     error,
-    
-    // Actions
     registerReferral,
     getReferralLink,
     shareToTwitter,
     shareToTelegram,
     copyReferralCode,
     copyReferralLink,
+    shareReferral,       // alias for App.jsx
+    generateReferralCode,
     refresh: fetchReferralData,
-    
-    // Helpers
     hasReferrer: !!referrer,
-    isReferrer: referralCount > 0,
+    isReferrer:  referralCount > 0,
+    // Stats object for App.jsx destructuring
+    stats,
   };
 };
 

@@ -167,12 +167,12 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
   // Admin check - fetch contract owner from PROXY (shared storage)
   const { data: proxyOwner, isLoading: isLoadingProxyOwner } = useReadContract({
     address: PROXY_ADDRESS,
-    abi: PREDICTION_MARKET_CORE_ABI,
+    abi: [{ name: 'owner', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'address' }] }],
     functionName: 'owner',
     enabled: !!address && !!PROXY_ADDRESS,
   });
 
-  // Get owner address from environment variable or fallback to contract owner
+  // Get owner address from environment variable 
   const ENV_OWNER_ADDRESS = import.meta.env?.OWNER_ADDRESS || import.meta.env?.VITE_OWNER_ADDRESS;
   
   // Check if user is admin - either from proxy contract ownership or env variable
@@ -180,14 +180,19 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     ? address.toLowerCase() === proxyOwner.toLowerCase()
     : false;
   
-  // Dev mode fallback - check against env OWNER_ADDRESS or allow any wallet if proxy returns no owner
-  const isDevOwner = address && ENV_OWNER_ADDRESS
+  // ✅ FIXED: Strict ENV owner check only - no fallback security hole
+  const isEnvOwner = address && ENV_OWNER_ADDRESS
     ? address.toLowerCase() === ENV_OWNER_ADDRESS.toLowerCase()
-    : (!proxyOwner && !!address);
+    : false;
     
-  const isAdmin = isContractOwner || isDevOwner;
-
   const isLoadingOwner = isLoadingProxyOwner;
+
+  // Warn if proxyOwner fetch failed (helps debugging)
+  if (isLoadingOwner === false && proxyOwner === undefined) {
+    console.warn('⚠️ Proxy owner() fetch failed - using ENV owner only');
+  }
+  
+  const isAdmin = isContractOwner || isEnvOwner;
 
 
 
@@ -335,133 +340,81 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     checkConfirmation();
   }, [pendingTxHash, publicClient, activeTab]);
 
-  // Fetch dashboard stats
+  // ✅ FIXED: Fetch dashboard stats from PROXY only (shared storage)
   const fetchStats = async () => {
-    if (!publicClient || !CONTRACTS.PREDICTION_MARKET_CORE || !CONTRACTS.PREDICTION_MARKET_TYPES) {
-      console.error('Missing publicClient or contract addresses');
+    if (!publicClient || !PROXY_ADDRESS) {
+      console.error('Missing publicClient or PROXY_ADDRESS');
       return;
     }
 
-    console.log('📊 Fetching dashboard stats...');
+    console.log('📊 Fetching dashboard stats from PROXY...');
     setIsLoadingStats(true);
 
     try {
-      // 1. Get market counters from BOTH contracts
-      let coreCounter = 0n;
-      let typesCounter = 0n;
-      
+      // 1. Get marketCounter from PROXY (shared storage across Core/Types)
+      let marketCounter = 0n;
       try {
-        [coreCounter, typesCounter] = await Promise.all([
-          publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET_CORE,
-            abi: PREDICTION_MARKET_CORE_ABI,
-            functionName: 'marketCounter'
-          }),
-          publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET_TYPES,
-            abi: PREDICTION_MARKET_TYPES_ABI,
-            functionName: 'marketCounter'
-          })
-        ]);
-        console.log('✅ Market counters:', { core: coreCounter.toString(), types: typesCounter.toString() });
-      } catch (error) {
-        console.warn('⚠️ marketCounter() failed:', error.message);
-      }
-
-      const totalMarkets = Number(coreCounter) + Number(typesCounter);
-
-      // 2. Get accumulated fees from BOTH contracts
-      let coreFees = 0n;
-      let typesFees = 0n;
-      
-      try {
-        [coreFees, typesFees] = await Promise.all([
-          publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET_CORE,
-            abi: PREDICTION_MARKET_CORE_ABI,
-            functionName: 'accumulatedFees'
-          }).catch(() => 0n),
-          publicClient.readContract({
-            address: CONTRACTS.PREDICTION_MARKET_TYPES,
-            abi: PREDICTION_MARKET_TYPES_ABI,
-            functionName: 'accumulatedFees'
-          }).catch(() => 0n)
-        ]);
-        console.log('✅ Accumulated fees:', { 
-          core: formatUnits(coreFees, 6), 
-          types: formatUnits(typesFees, 6) 
+        marketCounter = await publicClient.readContract({
+          address: PROXY_ADDRESS,
+          abi: PREDICTION_MARKET_CORE_ABI,
+          functionName: 'marketCounter'
         });
+        console.log('✅ Proxy marketCounter:', marketCounter.toString());
       } catch (error) {
-        console.warn('⚠️ accumulatedFees() failed:', error.message);
+        console.warn('⚠️ Proxy marketCounter() failed:', error.message);
       }
+      const totalMarkets = Number(marketCounter);
 
-      const accumulatedFees = coreFees + typesFees;
-
-      // 3. Get contract USDC balances from BOTH contracts
-      let coreBalance = 0n;
-      let typesBalance = 0n;
-      
+      // 2. Get accumulatedFees from PROXY (shared storage)
+      let accumulatedFees = 0n;
       try {
-        [coreBalance, typesBalance] = await Promise.all([
-          publicClient.readContract({
-            address: CONTRACTS.USDC,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [CONTRACTS.PREDICTION_MARKET_CORE]
-          }).catch(() => 0n),
-          publicClient.readContract({
-            address: CONTRACTS.USDC,
-            abi: ERC20_ABI,
-            functionName: 'balanceOf',
-            args: [CONTRACTS.PREDICTION_MARKET_TYPES]
-          }).catch(() => 0n)
-        ]);
-        console.log('✅ Contract balances:', { 
-          core: formatUnits(coreBalance, 6), 
-          types: formatUnits(typesBalance, 6) 
+        accumulatedFees = await publicClient.readContract({
+          address: PROXY_ADDRESS,
+          abi: [{ name: 'accumulatedFees', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint256' }] }],
+          functionName: 'accumulatedFees'
         });
+        console.log('✅ Proxy accumulatedFees:', formatUnits(accumulatedFees, 6));
       } catch (error) {
-        console.warn('⚠️ balanceOf() failed:', error.message);
+        console.warn('⚠️ Proxy accumulatedFees() failed:', error.message);
       }
 
-      const contractBalance = coreBalance + typesBalance;
+      // 3. Get USDC balanceOf(PROXY)
+      let contractBalance = 0n;
+      try {
+        contractBalance = await publicClient.readContract({
+          address: CONTRACTS.USDC,
+          abi: ERC20_ABI,
+          functionName: 'balanceOf',
+          args: [PROXY_ADDRESS]
+        });
+        console.log('✅ Proxy USDC balance:', formatUnits(contractBalance, 6));
+      } catch (error) {
+        console.warn('⚠️ Proxy USDC balanceOf() failed:', error.message);
+      }
 
-      // 4. Get bet events from BOTH contracts
+      // 4. Get bet events from PROXY only (events bubble up via delegatecall)
       let totalBets = 0;
       let totalVolume = 0n;
       let uniqueUsers = new Set();
 
       try {
-        const [coreLogs, typesLogs] = await Promise.all([
-          publicClient.getLogs({
-            address: CONTRACTS.PREDICTION_MARKET_CORE,
-            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-            fromBlock: 'earliest',
-            toBlock: 'latest'
-          }).catch(() => []),
-          publicClient.getLogs({
-            address: CONTRACTS.PREDICTION_MARKET_TYPES,
-            event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-            fromBlock: 'earliest',
-            toBlock: 'latest'
-          }).catch(() => [])
-        ]);
+        const logs = await publicClient.getLogs({
+          address: PROXY_ADDRESS,
+event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed player, uint8 betType, uint256 number, uint256 amount)'),
+          fromBlock: 'earliest',
+          toBlock: 'latest'
+        }).catch(() => []);
 
-        const allLogs = [...coreLogs, ...typesLogs];
-        console.log(`✅ Found ${allLogs.length} bet events (${coreLogs.length} core, ${typesLogs.length} types)`);
+        console.log(`✅ Found ${logs.length} bet events from PROXY`);
 
-        allLogs.forEach(log => {
-          if (log.args.user) {
-            uniqueUsers.add(log.args.user.toLowerCase());
-          }
-          if (log.args.amount) {
-            totalVolume += log.args.amount;
-          }
+        logs.forEach(log => {
+          if (log.args?.player) uniqueUsers.add(log.args.player.toLowerCase()); // was user
+          if (log.args?.amount) totalVolume += log.args.amount;
         });
 
-        totalBets = allLogs.length;
+        totalBets = logs.length;
       } catch (error) {
-        console.warn('⚠️ Event fetching failed:', error.message);
+        console.warn('⚠️ Proxy event fetching failed:', error.message);
       }
 
       setStats({
@@ -472,11 +425,11 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
         contractBalance
       });
 
-      console.log('✅ Stats updated:', {
+      console.log('✅ Stats updated from PROXY:', {
         users: uniqueUsers.size,
         volume: formatUnits(totalVolume, 6),
         bets: totalBets,
-        totalMarkets
+        markets: totalMarkets
       });
 
     } catch (error) {
@@ -946,7 +899,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
 
 
 
-  // Handle withdraw fees
+  // ✅ FIXED: Withdraw fees from PROXY only (fees stored in proxy)
   const handleWithdraw = async () => {
     if (!walletClient || !address) {
       toast.error('Please connect wallet');
@@ -961,52 +914,23 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     try {
       setIsPending(true);
       
-      // Withdraw from both contracts
-      const withdrawPromises = [];
-      
-      if (CONTRACTS.PREDICTION_MARKET_CORE) {
-        withdrawPromises.push(
-          walletClient.writeContract({
-            address: CONTRACTS.PREDICTION_MARKET_CORE,
-            abi: PREDICTION_MARKET_CORE_ABI,
-            functionName: 'withdrawFees',
-            account: address
-          }).catch(err => {
-            console.log('Core withdraw skipped or failed:', err.message);
-            return null;
-          })
-        );
-      }
-      
-      if (CONTRACTS.PREDICTION_MARKET_TYPES) {
-        withdrawPromises.push(
-          walletClient.writeContract({
-            address: CONTRACTS.PREDICTION_MARKET_TYPES,
-            abi: PREDICTION_MARKET_TYPES_ABI,
-            functionName: 'withdrawFees',
-            account: address
-          }).catch(err => {
-            console.log('Types withdraw skipped or failed:', err.message);
-            return null;
-          })
-        );
-      }
-
-      toast.loading('Withdrawing fees...', { id: 'withdraw' });
+      toast.loading('Withdrawing fees from PROXY...', { id: 'withdraw' });
       setIsConfirming(true);
 
-      const results = await Promise.all(withdrawPromises);
-      const successCount = results.filter(r => r !== null).length;
+      const txHash = await walletClient.writeContract({
+        address: PROXY_ADDRESS,
+        abi: PREDICTION_MARKET_CORE_ABI,
+        functionName: 'withdrawFees',
+        account: address
+      });
 
-      if (successCount > 0) {
-        toast.success(`Fees withdrawn from ${successCount} contract(s)!`, { id: 'withdraw' });
-        fetchStats(); // Refresh stats
-      } else {
-        toast.error('No fees were withdrawn', { id: 'withdraw' });
-      }
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      
+      toast.success('Fees withdrawn from PROXY!', { id: 'withdraw' });
+      fetchStats(); // Refresh stats
 
     } catch (error) {
-      console.error('Withdraw error:', error);
+      console.error('Proxy withdraw error:', error);
       toast.error(error.message || 'Failed to withdraw fees', { id: 'withdraw' });
     } finally {
       setIsPending(false);
@@ -1513,11 +1437,11 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
       address,
       proxyOwner,
       isContractOwner,
-      isDevOwner,
+      isEnvOwner,
       ENV_OWNER_ADDRESS: import.meta.env?.OWNER_ADDRESS || import.meta.env?.VITE_OWNER_ADDRESS,
       PROXY_ADDRESS
     });
-  }, [isOpen, internalIsOpen, propIsOpen, isAdmin, address, proxyOwner, isContractOwner, isDevOwner]);
+  }, [isOpen, internalIsOpen, propIsOpen, isAdmin, address, proxyOwner, isContractOwner, isEnvOwner]);
 
 
 
@@ -1530,7 +1454,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
       address, 
       proxyOwner, 
       isContractOwner, 
-      isDevOwner,
+      isEnvOwner,
       PROXY_ADDRESS
     });
     return null;
@@ -1611,7 +1535,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
                   stats={stats}
                   isLoadingStats={isLoadingStats}
                   handleWithdraw={handleWithdraw}
-                  contractAddress={CONTRACTS.PREDICTION_MARKET_CORE}
+                  contractAddress={PROXY_ADDRESS}
                   isPending={isPending}
                   isConfirming={isConfirming}
                   onNavigate={setActiveTab}
