@@ -34,7 +34,8 @@ const getMarketTypeLabel = (type) => {
   return labels[type] || 'Unknown';
 };
 
-export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBalance, usdcBalanceNum, onBetPlaced }) => {
+export const BetModal = ({ isOpen, onClose, market, usdcBalance, 
+  formattedUsdcBalance, usdcBalanceNum, onBetPlaced, initialChoice }) => {
   const [position, setPosition] = useState('yes');
   const [selectedChoice, setSelectedChoice] = useState(0);
   const [amount, setAmount] = useState('');
@@ -66,16 +67,25 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
     }
   }, [amount, usdcBalanceNum, formattedUsdcBalance]);
 
-  // Reset retry count and selected choice when modal opens
+  // Reset retry count when modal opens
   useEffect(() => {
     if (isOpen) {
       setRetryCount(0);
-      setSelectedChoice(0);
-      setPosition('yes');
-      setIsApproved(false); // Reset approval state when modal opens
+      setIsApproved(false);
       reset();
     }
   }, [isOpen, reset]);
+
+  // Restore initial choice when modal opens
+  useEffect(() => {
+    if (isOpen && initialChoice !== undefined && initialChoice !== null) {
+      if (market?.marketType === 0) {
+        setPosition(initialChoice === 1 ? 'yes' : 'no');
+      } else {
+        setSelectedChoice(initialChoice);
+      }
+    }
+  }, [isOpen, initialChoice, market?.marketType]);
 
   
   // Helper to get option color based on index
@@ -307,8 +317,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+      <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-white">Place Bet</h2>
             {/* Asset Badge */}
@@ -329,7 +339,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
           <p className="text-gray-400 text-sm">{market.title}</p>
 
           {/* Market Type Indicator */}
@@ -556,7 +566,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
 
 
 
-          <div>
+          <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium text-gray-400">
                 Bet Amount (USDC)
@@ -578,9 +588,9 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance, formattedUsdcBa
                 step="0.01"
                 min="0.01"
                 disabled={isPlacingBet}
-                className={`w-full bg-gray-800 border rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full bg-gray-800 border rounded-lg px-6 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors ${
                   inputError ? 'border-red-500 focus:border-red-500' : 'border-gray-700 focus:border-blue-500'
-                }`}
+                } pr-16`}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">
                 USDC

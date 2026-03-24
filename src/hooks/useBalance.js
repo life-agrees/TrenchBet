@@ -50,7 +50,7 @@ export const useBalance = () => {
     refetchOnWindowFocus: true,
   });
 
-  const refreshBalance = useCallback(async () => {
+const refetchBalance = useCallback(async () => {
     try {
       await Promise.all([refetchEth(), refetchUsdc()]);
       logger.info('Balances refreshed');
@@ -88,7 +88,7 @@ export const useBalance = () => {
     isLoadingUsdc,
     error:         ethError || usdcError,
 
-    refreshBalance,
+    refetchBalance: refetchBalance,
   };
 };
 

@@ -33,7 +33,15 @@ export function useCountdown(endTime) {
  */
 function calculateTimeRemaining(endTime) {
   const now = Date.now();
-  const total = Math.max(0, endTime - now);
+  let total = Math.max(0, endTime - now);
+  
+  // 🔧 ROBUST FIX: Auto-detect and convert raw seconds timestamps
+  // If endTime produces absurd days (>10 years), treat as seconds → ms
+  const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+  if (total > 10 * ONE_YEAR_MS || (endTime > 0 && endTime < 1e12)) {
+    console.warn('🔧 useCountdown: Auto-fixing raw seconds timestamp:', endTime, '→', endTime * 1000);
+    total = Math.max(0, endTime * 1000 - now);
+  }
   
   if (total <= 0) {
     return { 
@@ -51,6 +59,21 @@ function calculateTimeRemaining(endTime) {
   const hours = Math.floor((total % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   const minutes = Math.floor((total % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((total % (1000 * 60)) / 1000);
+
+  // Sanity check disabled - allow reasonable future dates
+  // if (days > 3650) { ... disabled
+  if (false && days > 3650) {
+    console.error('🚨 useCountdown: Invalid time after fix:', { endTime, days, total });
+    return { 
+      days: 999, 
+      hours: 99, 
+      minutes: 99, 
+      seconds: 99, 
+      total, 
+      expired: false,
+      formatted: 'Invalid Time'
+    };
+  }
 
   // Format for display
   let formatted = '';

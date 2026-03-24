@@ -75,13 +75,13 @@ const getMarketLabel = (marketType, asset) => {
   return `${asset} - ${typeMap[marketType] || 'Unknown Market'}`;
 };
 
-const getMarketTimeRemaining = (market) => {
+  const getMarketTimeRemaining = (market) => {
   if (market.marketType === 3) return market.resolved ? 'Ended' : 'Active Target';
+  if (market.resolved) return 'Market Ended';
 
   const now = Date.now();
-  // FIX 3: endTime is Unix seconds — multiply by 1000 for ms comparison
-  const end = Number(market.endTime) * 1000;
-  const remaining = end - now;
+  const endTimeMs = Number(market.endTime); // already in ms from useMarkets
+  const remaining = Math.max(0, endTimeMs - now);
 
   if (remaining <= 0) return 'Market Ended';
 
@@ -104,9 +104,11 @@ const App = () => {
   // ── All hooks — must be called before any conditional returns ──
   const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets, forceRefresh } = useMarkets();
 
-  const handleMarketCreated = useCallback(() => {
-    forceRefresh();
-  }, [forceRefresh]);
+const handleMarketCreated = useCallback(() => {
+  forceRefresh();
+  setTimeout(() => forceRefresh(), 3000);
+  setTimeout(() => forceRefresh(), 8000);
+}, [forceRefresh]);
 
   const {
     userBets, ongoingBets, pendingBets, wonBets, lostBets,
@@ -135,7 +137,7 @@ const {
   const { leaderboard, isLoading: isLoadingLeaderboard, refresh: refreshLeaderboard } = useLeaderboard(10);
   const { isOwner } = useAdminOwner();
 
-  const { formattedUsdcBalance, usdcBalanceNum } = useBalance();
+const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
   const { pointsData } = usePointsData(address);
 
   const { handleMouseEnter, handleMouseLeave } = usePrefetchMarket();
@@ -221,8 +223,11 @@ const {
     if (!market) return;
 
     let functionName = 'resolveMarket';
-    let args = [marketId];
-    if (market.marketType === 1) { functionName = 'resolveMultiChoiceMarket'; args = [marketId, winningChoice]; }
+    let args = [BigInt(marketId)];
+    if (market.marketType === 1) { 
+      functionName = 'resolveMultiChoiceMarket'; 
+      args = [BigInt(marketId), winningChoice]; 
+    }
     else if (market.marketType === 2) { functionName = 'resolveRangeMarket'; }
     else if (market.marketType === 3) { functionName = 'resolveTimeMarket'; }
 
@@ -246,9 +251,26 @@ const {
         address: CONTRACTS.PROXY,
         abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'claimWinnings',
-        args: [marketId],
+        args: [BigInt(marketId)],
       });
       toast.success('Claim sent. Your winnings will be available shortly.');
+      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
+    } catch (error) {
+      toast.error(`Claim failed: ${error.shortMessage || error.message}`);
+    }
+  };
+
+const handleClaimAdvanced = async (marketId) => {
+    if (!address) { toast.error('Please connect your wallet first.'); return; }
+    try {
+      await writeContractAsync({
+        address: CONTRACTS.PROXY,
+        abi: PREDICTION_MARKET_PROXY_ABI,
+        functionName: 'claimWinningsAdvanced',
+        args: [BigInt(marketId)],
+      });
+      toast.success('Claim sent. Your winnings will be available shortly.');
+      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
     } catch (error) {
       toast.error(`Claim failed: ${error.shortMessage || error.message}`);
     }
@@ -269,8 +291,9 @@ const {
     setTimeout(() => {
       refreshMarkets();
       refreshUserBets();
+      refetchBalance(); // ← ADD THIS
     }, 1000);
-  }, [refreshMarkets, refreshUserBets, rtNotifications, selectedBet, betAmount]);
+}, [refreshMarkets, refreshUserBets, refetchBalance, rtNotifications, selectedBet, betAmount]);
 
   const handleOpenShareModal = useCallback((market) => { setShareModalData(market); }, []);
   const handleOpenAdminPanel  = useCallback(() => { setShowAdminPanel(true); }, []);
@@ -379,20 +402,24 @@ const {
   const renderUserBet = (bet) => {
     const market  = bet.market;
     const claimed = bet.claimed;
-    const canClaim = bet.isClaimableConfirmed;
+    const canClaim = bet.isClaimableConfirmed && !bet.claimed;
 
     let isWin = false;
     let isLoss = false;
-    if (market?.resolved) {
-      if (market.marketType === 0) {
-        const predictedUp = bet.choice === 1;
-        isWin  = predictedUp === market.priceWentUp;
-        isLoss = !isWin;
-      } else if (market.marketType === 1) {
-        isWin  = bet.choice === market.winningChoice;
-        isLoss = !isWin;
-      }
+if (market?.resolved) {
+  if (market.marketType === 0) {
+    const predictedUp = bet.choice === 1;
+    isWin  = predictedUp === market.priceWentUp;
+    isLoss = !isWin;
+  } else if (market.marketType === 1 || 
+             market.marketType === 2 || 
+             market.marketType === 3) {  // ← ADD types 2 & 3
+    if (market.winningChoice !== null && market.winningChoice !== undefined) {
+      isWin  = Number(bet.choice) === Number(market.winningChoice);
+      isLoss = !isWin;
     }
+  }
+}
 
     let oddsDisplay = '';
     if (market && !market.resolved) {
@@ -428,7 +455,13 @@ const {
               {getMarketTimeRemaining(market)}
             </span>
           ) : isWin && canClaim ? (
-            <button onClick={() => handleClaim(market.id)} className="bg-secondary hover:bg-secondary-500 text-neutral-900 font-bold py-2 px-4 rounded-lg flex items-center gap-1 text-sm">
+            <button onClick={() => {
+  if (market.marketType === 0) {
+    handleClaim(market.id);
+  } else {
+    handleClaimAdvanced(market.id); // ← need to add this handler
+  }
+}} className="bg-secondary hover:bg-secondary-500 text-neutral-900 font-bold py-2 px-4 rounded-lg flex items-center gap-1 text-sm">
               <Trophy size={16} /> Claim Winnings
             </button>
           ) : isWin && claimed ? (
@@ -672,8 +705,8 @@ const {
                       {['ALL', 'BTC', 'ETH', 'SOL'].map((asset) => {
                         const now = Date.now();
                         const safeMarkets = markets || [];
-                        // FIX 3: consistent * 1000 for endTime (Unix seconds → ms)
-                        const activeMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) * 1000 > now);
+                        // FIX 3: endTime already in ms from useMarkets
+                        const activeMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) > now);
                         const count = asset === 'ALL' ? activeMarkets.length : activeMarkets.filter(m => m.asset === asset).length;
                         return (
                           <button
@@ -709,8 +742,8 @@ const {
             {(() => {
               const now = Date.now();
               const safeMarkets = markets || [];
-              // FIX 3: * 1000 consistently — endTime is Unix seconds
-              const currentLiveMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) * 1000 > now);
+              // FIX 3: endTime already in ms from useMarkets
+              const currentLiveMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) > now);
               let filteredMarkets = selectedAssetFilter === 'ALL'
                 ? currentLiveMarkets
                 : currentLiveMarkets.filter(m => m.asset === selectedAssetFilter);
@@ -797,11 +830,13 @@ const {
 
         {renderContent()}
 
-        {selectedBet && (
+{selectedBet && (
           <BetModal
             isOpen={!!selectedBet}
             onClose={() => setSelectedBet(null)}
             market={selectedBet.market}
+            initialChoice={selectedBet.choice}
+            initialChoiceLabel={selectedBet.choiceLabel}
             usdcBalance={usdcBalanceNum}
             formattedUsdcBalance={formattedUsdcBalance}
             usdcBalanceNum={usdcBalanceNum}

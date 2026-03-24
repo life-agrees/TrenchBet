@@ -54,13 +54,13 @@
 // This proxy delegates to Core and Types implementations with shared storage
 // Deployed: 2026-02-25 - NEW FIXED PROXY (no storage collision)
 // IMPORTANT: New proxy has correct storage layout without Ownable collision
-export const PROXY_ADDRESS = "0x0834C6560d6a0f9655C3d8BF2d429d083696B371";
+export const PROXY_ADDRESS = "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581";
 
 // Implementation contracts (behind proxy - do not use directly)
 // UPDATED: New fixed implementations deployed on 2025-01-25
 // Fixed storage collision issue - now reads owner from EIP-1967 admin slot
 export const PREDICTION_MARKET_CORE_ADDRESS = "0xeD7E731289980D206a62cB3dca145BdA003A4177";
-export const PREDICTION_MARKET_TYPES_ADDRESS = "0x91d9d263771E75a74793d22ceC52e29bFeE7d9C4";
+export const PREDICTION_MARKET_TYPES_ADDRESS = "0x3281167bF88D2BE1FD2a96E42366C3b1e72A5e75";
 
 
 

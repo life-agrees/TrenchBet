@@ -81,7 +81,8 @@ contract PredictionMarketProxy is PredictionMarketStorage, Proxy {
             selector == bytes4(keccak256("claimWinningsAdvanced(uint256)")) ||
             selector == bytes4(keccak256("resolveMultiChoiceMarket(uint256,uint8)")) ||
             selector == bytes4(keccak256("resolveRangeMarket(uint256)")) ||
-            selector == bytes4(keccak256("resolveTimeMarket(uint256)"))
+            selector == bytes4(keccak256("resolveTimeMarket(uint256)")) ||
+            selector == bytes4(keccak256("getCurrentOddsAdvanced(uint256)"))
         ) {
             bytes32 typesSlot = _TYPES_IMPLEMENTATION_SLOT;
             assembly {
@@ -131,6 +132,40 @@ contract PredictionMarketProxy is PredictionMarketStorage, Proxy {
      */
     function getTimeMarketData(uint256 marketId) public view returns (uint256 targetPrice, uint256[] memory timeframes) {
         return (timeMarkets[marketId].targetPrice, timeMarkets[marketId].timeframes);
+    }
+    
+    /**
+     * @notice Get total pool size for any market type
+     * @dev Aggregates option/range/timeframe pools for advanced markets
+     */
+    function getTotalPool(uint256 marketId) public view returns (uint256) {
+        MarketCore memory core = marketCore[marketId];
+        
+        if (core.marketType == MarketType.BINARY) {
+            return marketPools[marketId].yesPool + marketPools[marketId].noPool;
+        } else if (core.marketType == MarketType.MULTI_CHOICE) {
+            uint256 total = 0;
+            uint256 len = multiChoiceMarkets[marketId].options.length;
+            for (uint8 i = 0; i < len; i++) {
+                total += multiChoiceMarkets[marketId].optionPools[i];
+            }
+            return total;
+        } else if (core.marketType == MarketType.RANGE) {
+            uint256 total = 0;
+            uint256 len = rangeMarkets[marketId].rangeMins.length;
+            for (uint8 i = 0; i < len; i++) {
+                total += rangeMarkets[marketId].rangePools[i];
+            }
+            return total;
+        } else if (core.marketType == MarketType.TIME_BASED) {
+            uint256 total = 0;
+            uint256 len = timeMarkets[marketId].timeframes.length;
+            for (uint8 i = 0; i < len; i++) {
+                total += timeMarkets[marketId].timeframePools[i];
+            }
+            return total;
+        }
+        return 0;
     }
     
     function upgradeCore(address newImplementation) external onlyAdmin {

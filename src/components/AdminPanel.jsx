@@ -110,7 +110,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     duration: 15,
     yesMultiplier: 200,
     noMultiplier: 200,
-    useFixedOdds: true, // Changed default to true
+    useFixedOdds: false, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -122,7 +122,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     options: ['', '', ''],
     duration: 60,
     multipliers: [200, 200, 200],
-    useFixedOdds: true, // Changed default to true
+    useFixedOdds: false, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -137,7 +137,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     ],
     duration: 30,
     multipliers: [200, 200, 200],
-    useFixedOdds: true, // Changed default to true
+    useFixedOdds: false, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -152,7 +152,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
       { label: '30 days', seconds: 2592000 },
     ],
     multipliers: [300, 200, 150],
-    useFixedOdds: true, // Changed default to true
+    useFixedOdds: false, // Changed default to true
     useTimeDecay: false,
     decayStartPercent: 50,
     minMultiplier: 120,
@@ -543,7 +543,7 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         endTime: Number(market.endTime) * 1000,
         startPrice: market.startPrice ? Number(market.startPrice) / 1e8 : 0,
         endPrice: market.endPrice ? Number(market.endPrice) / 1e8 : 0,
-        totalPool: Number(((market.yesPool || 0n) + (market.noPool || 0n)) / 1000000n),
+        totalPool: 0,
 
         resolved: market.resolved,
         winningChoice: market.winningChoice ? Number(market.winningChoice) : 0,
@@ -554,6 +554,17 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         contractSource: contractType,
         contractAddress: contract.address,
       };
+try {
+  const rawTotal = await publicClient.readContract({
+    address: PROXY_ADDRESS,
+    abi: [{ name: 'getTotalPool', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ name: '', type: 'uint256' }] }],
+    functionName: 'getTotalPool',
+    args: [BigInt(marketId)]
+  });
+  baseMarket.totalPool = Number(rawTotal) / 1e6;
+} catch (e) {
+  baseMarket.totalPool = baseMarket.yesPool + baseMarket.noPool;
+}
 
       // Step 3: Fetch type-specific data (only from Types contract)
       if (contractType === 'types') {
@@ -775,7 +786,7 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         endTime: Number(market.endTime) * 1000,
         startPrice: market.startPrice ? Number(market.startPrice) / 1e8 : 0,
         endPrice: market.endPrice ? Number(market.endPrice) / 1e8 : 0,
-        totalPool: Number(((market.yesPool || 0n) + (market.noPool || 0n)) / 1000000n),
+        totalPool: 0,
         resolved: market.resolved,
         winningChoice: market.winningChoice ? Number(market.winningChoice) : 0,
         totalBets: Number(market.totalBets) || 0,
@@ -785,6 +796,17 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         contractSource: 'proxy',
         contractAddress: PROXY_ADDRESS,
       };
+try {
+  const rawTotal = await publicClient.readContract({
+    address: PROXY_ADDRESS,
+    abi: [{ name: 'getTotalPool', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ name: '', type: 'uint256' }] }],
+    functionName: 'getTotalPool',
+    args: [BigInt(marketId)]
+  });
+  baseMarket.totalPool = Number(rawTotal) / 1e6;
+} catch (e) {
+  baseMarket.totalPool = baseMarket.yesPool + baseMarket.noPool;
+}
 
       // Fetch type-specific data from PROXY using appropriate ABI
       if (marketType === 1) {
@@ -1055,8 +1077,8 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
       const args = [
         sanitizeInput(binaryForm.asset),
         BigInt(binaryForm.duration * 60),
-        BigInt(binaryForm.yesMultiplier),
-        BigInt(binaryForm.noMultiplier),
+        BigInt(binaryForm.useFixedOdds ? binaryForm.yesMultiplier : 0),
+        BigInt(binaryForm.useFixedOdds ? binaryForm.noMultiplier : 0),
         binaryForm.useTimeDecay,
         BigInt(binaryForm.decayStartPercent),
         BigInt(binaryForm.minMultiplier),
@@ -1174,7 +1196,7 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         validOptions.map(o => sanitizeInput(o)),
         sanitizeInput(multiChoiceForm.question),
         BigInt(multiChoiceForm.duration * 60),
-        validOptions.map((_, idx) => BigInt(multiChoiceForm.multipliers[idx] || 200)),
+multiChoiceForm.useFixedOdds ? validOptions.map((_, idx) => BigInt(multiChoiceForm.multipliers[idx] || 200)) : [],
         multiChoiceForm.useTimeDecay,
         BigInt(multiChoiceForm.decayStartPercent),
         BigInt(multiChoiceForm.minMultiplier),
@@ -1262,7 +1284,7 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         rangeMins,
         rangeMaxs,
         BigInt(rangeForm.duration * 60),
-        rangeForm.multipliers.map((m) => BigInt(m)),
+rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
         rangeForm.useTimeDecay,
         BigInt(rangeForm.decayStartPercent),
         BigInt(rangeForm.minMultiplier),
@@ -1348,7 +1370,7 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
         sanitizeInput(timeForm.asset),
         targetPriceBigInt,
         timeframeSeconds,
-        timeForm.multipliers.map((m) => BigInt(m)),
+timeForm.useFixedOdds ? timeForm.multipliers.map((m) => BigInt(m)) : [],
         timeForm.useTimeDecay,
         BigInt(timeForm.decayStartPercent),
         BigInt(timeForm.minMultiplier),

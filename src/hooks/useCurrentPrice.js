@@ -34,12 +34,20 @@ export function useCurrentPrice(asset) {
     const fetchPrice = async () => {
       try {
         setIsLoading(true);
+        // FIX: Skip price fetch for custom/multi-choice markets (no Chainlink feed)
+        const upperAsset = asset.toUpperCase();
+        if (!['BTC', 'ETH', 'LINK'].includes(upperAsset)) {
+          logger.debug(`Skipping price fetch for custom asset: ${asset}`);
+          if (isMounted) setCurrentPrice(null);
+          setIsLoading(false);
+          return;
+        }
 
         const price = await publicClient.readContract({
           address: CHAINLINK_RESOLVER_ADDRESS,
           abi: CHAINLINK_RESOLVER_ABI,
           functionName: 'getLatestPrice',
-          args: [asset],
+          args: [upperAsset],
         });
 
         if (isMounted && price) {

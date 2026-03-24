@@ -63,48 +63,31 @@ export const useUserBets = (address, markets) => {
 
     try {
       const currentBlock = await publicClient.getBlockNumber();
-      const CHUNK_SIZE = 49999; // RPC max is 50000, stay under
-      const totalBlocks = Math.min(MAX_BLOCK_RANGE, Number(currentBlock));
-      const numChunks = Math.ceil(totalBlocks / CHUNK_SIZE);
+      const CHUNK_SIZE = 49999n;
+      const totalBlocks = 490000n;
+      const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
 
-      logger.info(`[useUserBets] Fetching all bets from earliest block...`);
+      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 490k blocks)...`);
 
       let allLogs = [];
-      try {
-        const logs = await publicClient.getLogs({
-          address: CONTRACTS.PROXY,
-          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
-          args: { user: effectiveAddress },
-          fromBlock: 'earliest',
-          toBlock: 'latest',
-        });
-        allLogs = logs;
-        logger.info(`[useUserBets] Found ${logs.length} total bet events`);
-      } catch (err) {
-        // RPC doesn't support 'earliest' — fall back to chunking last 500k blocks
-        logger.warn(`[useUserBets] Single call failed, falling back to chunks: ${err.message}`);
-        const currentBlock = await publicClient.getBlockNumber();
-        const CHUNK_SIZE = 49999; // RPC max is 50000, stay under
-        const totalBlocks = Math.min(490000, Number(currentBlock));
-        const numChunks = Math.ceil(totalBlocks / CHUNK_SIZE);
-
-        for (let i = 0; i < numChunks; i++) {
-          const toBlock   = currentBlock - BigInt(i * CHUNK_SIZE);
-          const fromBlock = currentBlock - BigInt(Math.min((i + 1) * CHUNK_SIZE, totalBlocks));
-          try {
-            const logs = await publicClient.getLogs({
-              address: CONTRACTS.PROXY,
-              event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
-              args: { user: effectiveAddress },
-              fromBlock,
-              toBlock,
-            });
-            if (logs.length > 0) allLogs.push(...logs);
-          } catch (chunkErr) {
-            logger.warn(`[useUserBets] Chunk ${i + 1} failed:`, chunkErr.message);
-          }
+      for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+        const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+        try {
+          const chunk = await publicClient.getLogs({
+            address: CONTRACTS.PROXY,
+            event: parseAbiItem(
+              'event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'
+            ),
+            args: { user: effectiveAddress },
+            fromBlock: from,
+            toBlock: to,
+          });
+          allLogs.push(...chunk);
+        } catch (chunkErr) {
+          logger.warn(`[useUserBets] Chunk from ${from} failed:`, chunkErr.message);
         }
       }
+
 
       logger.info(`[useUserBets] Found ${allLogs.length} total bet events`);
 
@@ -170,6 +153,44 @@ export const useUserBets = (address, markets) => {
     try {
       logger.info(`Enriching ${rawBets.length} bets with market data...`);
 
+      // Fetch all WinningsClaimed events for this user once
+      let claimedMarketIds = new Set();
+      try {
+        let claimedLogs = [];
+        try {
+          claimedLogs = await publicClient.getLogs({
+            address: CONTRACTS.PROXY,
+            event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
+            args: { user: effectiveAddress },
+            fromBlock: 'earliest',
+            toBlock: 'latest',
+          });
+        } catch {
+          // Chunk fallback
+          const currentBlock = await publicClient.getBlockNumber();
+          const CHUNK_SIZE = 49999n;
+          const totalBlocks = 490000n;
+          const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
+          for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+            const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+            try {
+              const chunk = await publicClient.getLogs({
+                address: CONTRACTS.PROXY,
+                event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
+                args: { user: effectiveAddress },
+                fromBlock: from,
+                toBlock: to,
+              });
+              claimedLogs.push(...chunk);
+            } catch { /* skip chunk */ }
+          }
+        }
+        claimedMarketIds = new Set(claimedLogs.map(log => Number(log.args.marketId)));
+        logger.info(`Found ${claimedMarketIds.size} claimed markets`);
+      } catch (e) {
+        logger.warn('Failed to fetch WinningsClaimed events:', e.message);
+      }
+
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
         const { marketId, choice, amount } = rawBet;
         const market = markets?.find(m => m.id === marketId);
@@ -185,19 +206,18 @@ export const useUserBets = (address, markets) => {
 
         if (market && market.resolved) {
           if (market.marketType === 0) {
-            // Binary: compare choice vs priceWentUp
             const predictedUp = choice === 1;
-            const didWin = predictedUp === market.priceWentUp;
-            isClaimableConfirmed = didWin;
-            // claimed: we can't read it without working contract call
-            // so check if market resolved and won — user likely needs to claim
-            claimed = false;
-          } else if (market.marketType === 1 || market.marketType === 2 || market.marketType === 3) {
-            // Multi/Range/Time: compare choice vs winningChoice
+            isClaimableConfirmed = predictedUp === market.priceWentUp;
+            claimed = claimedMarketIds.has(marketId);
+          } else if (
+            market.marketType === 1 ||
+            market.marketType === 2 ||
+            market.marketType === 3
+          ) {
             if (market.winningChoice !== null && market.winningChoice !== undefined) {
-              isClaimableConfirmed = choice === market.winningChoice;
+              isClaimableConfirmed = Number(choice) === Number(market.winningChoice);
             }
-            claimed = false;
+            claimed = claimedMarketIds.has(marketId);
           }
         }
 
@@ -260,13 +280,11 @@ export const useUserBets = (address, markets) => {
   const pendingBets = useMemo(() =>
     userBets.filter(bet => {
       if (!bet.market || !bet.market.resolved) return false;
+      // Only truly pending if resolved but outcome unknown
       if (bet.market.marketType === 0) {
         return bet.market.priceWentUp === null || bet.market.priceWentUp === undefined;
       }
-      if (bet.market.marketType === 1) {
-        return bet.market.winningChoice === null || bet.market.winningChoice === undefined;
-      }
-      return false;
+      return bet.market.winningChoice === null || bet.market.winningChoice === undefined;
     }),
   [userBets]);
 
@@ -278,11 +296,9 @@ export const useUserBets = (address, markets) => {
         if (actualUp === null || actualUp === undefined) return false;
         return (bet.choice === 1) === actualUp;
       }
-      if (bet.market.marketType === 1) {
-        if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return false;
-        return bet.choice === bet.market.winningChoice;
-      }
-      return bet.claimed || bet.isClaimableConfirmed;
+      // Multi-choice, Range, Time — ALL use winningChoice from MarketResolved event
+      if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return false;
+      return Number(bet.choice) === Number(bet.market.winningChoice);
     }),
   [userBets]);
 
@@ -294,11 +310,9 @@ export const useUserBets = (address, markets) => {
         if (actualUp === null || actualUp === undefined) return false;
         return (bet.choice === 1) !== actualUp;
       }
-      if (bet.market.marketType === 1) {
-        if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return false;
-        return bet.choice !== bet.market.winningChoice;
-      }
-      return !bet.isClaimableConfirmed;
+      // Multi-choice, Range, Time
+      if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return false;
+      return Number(bet.choice) !== Number(bet.market.winningChoice);
     }),
   [userBets]);
 

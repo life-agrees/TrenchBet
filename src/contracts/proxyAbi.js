@@ -85,6 +85,13 @@ export const PREDICTION_MARKET_PROXY_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+  {
+    "name": "getCurrentOddsAdvanced",
+    "type": "function",
+    "stateMutability": "view",
+    "inputs": [{"name": "marketId", "type": "uint256"}],
+    "outputs": [{"name": "multipliers", "type": "uint256[]"}]
+  },
   
   {
     "inputs": [
@@ -153,6 +160,16 @@ export const PREDICTION_MARKET_PROXY_ABI = [
     "stateMutability": "view",
     "type": "function"
   },
+
+  {
+    "name": "getTotalPool",
+    "type": "function",
+    "stateMutability": "view",
+    "inputs": [{"name": "marketId", "type": "uint256"}],
+    "outputs": [{"name": "", "type": "uint256"}]
+  },
+
+
 
   // ==================== WRITE FUNCTIONS - BINARY MARKETS (Core) ====================
   
@@ -402,11 +419,11 @@ export const PREDICTION_MARKET_PROXY_ABI = [
 {
     "anonymous": false,
     "inputs": [
-      { "indexed": true, "name": "gameId", "type": "uint256" },
-      { "indexed": true, "name": "player", "type": "address" },
-      { "indexed": false, "name": "betType", "type": "uint8" },
-      { "indexed": false, "name": "number", "type": "uint256" },
-      { "indexed": false, "name": "amount", "type": "uint256" }
+      { "indexed": true, "internalType": "uint256", "name": "marketId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint8", "name": "choice", "type": "uint8" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" },
+      { "indexed": false, "internalType": "uint256", "name": "effectiveMultiplier", "type": "uint256" }
     ],
     "name": "BetPlaced",
     "type": "event"

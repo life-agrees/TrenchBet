@@ -1,21 +1,17 @@
 import React, { useMemo } from 'react';
 import {
   TrendingUp, TrendingDown, Clock, Bitcoin, CircleDollarSign, Layers,
-  Users, PlayCircle, Loader2, BarChart3, Target, Timer,
-  AlertCircle, Zap, Star, TrendingDown as DecayIcon
+  Users, Loader2, BarChart3, Target, Timer, AlertCircle, Zap,
+  Star, TrendingDown as DecayIcon, Trophy
 } from 'lucide-react';
 
 import { useCountdown, getUrgency } from '../hooks/useCountdown';
 import { useCurrentPrice } from '../hooks/useCurrentPrice';
 import { useTimeDecay } from '../hooks/useTimeDecay';
-
 import {
   generateMarketTitle,
-  generateMarketDescription,
   calculateTotalPool,
-  calculateVolume,
   calculatePriceChange,
-  getPriceTrend
 } from '../utils/marketDisplay';
 import {
   safeToFixed,
@@ -23,473 +19,507 @@ import {
   calculateMarketPercentages,
   calculateRangePosition,
   getRangeStatus,
-  getDecayPhase
 } from '../marketUtils';
-
 import { MiniPriceChart, ActivityBadge, WinProbability } from './Marketcomponents';
 import { MarketCardSkeleton } from './SkeletonLoader';
 
 // ── Static helpers ────────────────────────────────────────────────────────────
 
-const getAssetInfo = (asset) => {
-  const assetColors = {
-    BTC:    'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    ETH:    'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    SOL:    'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    CRYPTO: 'bg-[#c0ff00]/20 text-[#c0ff00] border-[#c0ff00]/30',
-  };
-  return {
-    color: assetColors[asset] || 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    icon: asset === 'BTC' ? Bitcoin : asset === 'ETH' ? CircleDollarSign : Layers,
-  };
+const ASSET_STYLES = {
+  BTC:  { color: 'text-orange-400', bg: 'bg-orange-500/10',  border: 'border-orange-500/20',  icon: Bitcoin },
+  ETH:  { color: 'text-blue-400',   bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    icon: CircleDollarSign },
+  SOL:  { color: 'text-purple-400', bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  icon: Layers },
+  LINK: { color: 'text-blue-300',   bg: 'bg-blue-400/10',    border: 'border-blue-400/20',    icon: Layers },
+};
+const getAsset = (a) => ASSET_STYLES[a] || { color: 'text-[#CDFF00]', bg: 'bg-[#CDFF00]/10', border: 'border-[#CDFF00]/20', icon: Layers };
+
+const TYPE_META = {
+  0: { label: 'Binary', Icon: TrendingUp,  accent: '#CDFF00' },
+  1: { label: 'Multi',  Icon: BarChart3,   accent: '#60a5fa' },
+  2: { label: 'Range',  Icon: Target,      accent: '#a78bfa' },
+  3: { label: 'Time',   Icon: Timer,       accent: '#fb923c' },
 };
 
-const getMarketTypeLabel = (type) =>
-  ({ 0: 'Binary', 1: 'Multi', 2: 'Range', 3: 'Time' }[type] || 'Unknown');
-
 const OPTION_COLORS = [
-  'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  'bg-orange-500/20 text-orange-400 border-orange-500/30',
-  'bg-pink-500/20 text-pink-400 border-pink-500/30',
-  'bg-teal-500/20 text-teal-400 border-teal-500/30',
-  'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-  'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-  'bg-lime-500/20 text-lime-400 border-lime-500/30',
-  'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  { bg: 'bg-blue-500/15',   border: 'border-blue-500/30',   text: 'text-blue-300'   },
+  { bg: 'bg-purple-500/15', border: 'border-purple-500/30', text: 'text-purple-300' },
+  { bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-300' },
+  { bg: 'bg-pink-500/15',   border: 'border-pink-500/30',   text: 'text-pink-300'   },
+  { bg: 'bg-teal-500/15',   border: 'border-teal-500/30',   text: 'text-teal-300'   },
+  { bg: 'bg-yellow-500/15', border: 'border-yellow-500/30', text: 'text-yellow-300' },
 ];
-const getOptionColor = (index) => OPTION_COLORS[index % OPTION_COLORS.length];
+const oc = (i) => OPTION_COLORS[i % OPTION_COLORS.length];
 
-// ── MarketCard component ──────────────────────────────────────────────────────
+// ── Card Header ───────────────────────────────────────────────────────────────
+
+const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite, decayDisplay }) => {
+  const AssetIcon = assetStyle.icon;
+  const TypeIcon  = typeMeta.Icon;
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${assetStyle.bg} ${assetStyle.border} ${assetStyle.color}`}>
+        <AssetIcon className="w-3.5 h-3.5" />
+        <span>{market.asset}</span>
+      </div>
+      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-dark-700/60 border border-dark-600 text-[10px] font-semibold text-neutral-400">
+        <TypeIcon className="w-3 h-3" style={{ color: typeMeta.accent }} />
+        {typeMeta.label}
+      </div>
+      {decayDisplay.showBadge && (
+        <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${decayDisplay.badgeColor}`}>
+          <DecayIcon className="w-3 h-3" />
+          {decayDisplay.label}
+        </div>
+      )}
+      <div className="ml-auto flex items-center gap-1.5">
+        <ActivityBadge totalBets={market.totalBets || 0} resolved={market.resolved} />
+        {onToggleFavorite && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+            className={`p-1 rounded-md transition-all hover:scale-110 ${isFavorite ? 'text-yellow-400' : 'text-neutral-600 hover:text-yellow-400'}`}
+          >
+            <Star className={`w-3.5 h-3.5 ${isFavorite ? 'fill-current' : ''}`} />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Stats Bar ─────────────────────────────────────────────────────────────────
+
+const StatsBar = ({ market, totalPool, countdown, urgency }) => (
+  <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-dark-900/60 border border-dark-700/50 text-xs">
+    <div className="flex items-center gap-1 text-neutral-500">
+      <Users className="w-3 h-3" />
+      <span className="text-white font-semibold">{safeToFixed(totalPool, 1)}</span>
+      <span>USDC</span>
+    </div>
+    <div className="w-px h-3 bg-dark-600" />
+    <div className="flex items-center gap-1 text-neutral-500">
+      <Trophy className="w-3 h-3" />
+      <span className="text-white font-semibold">{market.totalBets || 0}</span>
+      <span>bets</span>
+    </div>
+    <div className="w-px h-3 bg-dark-600" />
+    <div className={`flex items-center gap-1 ml-auto font-semibold ${urgency.color || 'text-green-400'}`}>
+      <Clock className="w-3 h-3" />
+      <span>{countdown.formatted}</span>
+    </div>
+  </div>
+);
+
+// ── Binary Hero ───────────────────────────────────────────────────────────────
+
+const BinaryHero = ({ market, currentPrice, priceChange, yesOdds, noOdds, isPlacingBet, disabled, onYes, onNo }) => {
+  const { upPercentage, downPercentage } = calculateMarketPercentages(market.yesPool || 0, market.noPool || 0);
+  const upW = market.useFixedOdds ? 50 : upPercentage;
+  const dnW = 100 - upW;
+
+  return (
+    <div className="space-y-2.5">
+      {currentPrice && (
+        <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-dark-900/50 border border-dark-700/50">
+          <div className="flex items-center gap-1.5">
+            <Zap className="w-3.5 h-3.5 text-yellow-400" />
+            <span className="text-xs text-neutral-500">Live</span>
+          </div>
+          <div className="flex items-center gap-2">
+            {priceChange && <MiniPriceChart startPrice={market.startPrice} currentPrice={currentPrice} isPositive={priceChange.isPositive} />}
+            <span className="text-sm font-bold text-white">${safeToFixed(currentPrice, currentPrice >= 1000 ? 0 : 2)}</span>
+            {priceChange && <span className={`text-xs font-semibold ${priceChange.color}`}>{priceChange.formatted}</span>}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <div className="flex rounded-full overflow-hidden h-1.5">
+          <div className="bg-green-500/70 transition-all duration-500" style={{ width: `${upW}%` }} />
+          <div className="bg-red-500/70 flex-1" />
+        </div>
+        <div className="flex justify-between mt-1 px-0.5 text-[10px]">
+          <span className="text-green-400 font-semibold">{upW}% UP</span>
+          <span className="text-red-400 font-semibold">DOWN {dnW}%</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          onClick={onYes}
+          disabled={disabled}
+          className="flex flex-col items-center gap-1 py-3 rounded-xl bg-green-500/10 border border-green-500/25 hover:bg-green-500/20 hover:border-green-500/50 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed group"
+        >
+          {isPlacingBet
+            ? <Loader2 className="w-4 h-4 text-green-400 animate-spin" />
+            : <TrendingUp className="w-4 h-4 text-green-400 group-hover:scale-110 transition-transform" />
+          }
+          <span className="text-green-400 font-bold text-sm">UP</span>
+          <span className="text-green-300/60 text-[11px]">{yesOdds.text}</span>
+        </button>
+        <button
+          onClick={onNo}
+          disabled={disabled}
+          className="flex flex-col items-center gap-1 py-3 rounded-xl bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 hover:border-red-500/50 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed group"
+        >
+          {isPlacingBet
+            ? <Loader2 className="w-4 h-4 text-red-400 animate-spin" />
+            : <TrendingDown className="w-4 h-4 text-red-400 group-hover:scale-110 transition-transform" />
+          }
+          <span className="text-red-400 font-bold text-sm">DOWN</span>
+          <span className="text-red-300/60 text-[11px]">{noOdds.text}</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Multi-Choice Hero ─────────────────────────────────────────────────────────
+
+const MultiHero = ({ market, disabled, onOption }) => (
+  <div>
+    <div className="flex items-center gap-1.5 mb-2">
+      <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
+      <span className="text-xs text-neutral-400 font-medium">Pick one option</span>
+    </div>
+    <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto">
+      {(market.options || []).map((opt, idx) => {
+        const c = oc(idx);
+        const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
+        const mult = rawMult != null && !isNaN(Number(rawMult)) ? rawMult : 200;
+        const oddsText = market.useFixedOdds ? `${(mult / 100).toFixed(2)}x` : 'Pool odds';
+        return (
+          <button
+            key={idx}
+            onClick={(e) => { e.stopPropagation(); onOption(e, idx, opt); }}
+            disabled={disabled}
+            className={`flex flex-col items-start px-3 py-2.5 rounded-xl border transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${c.bg} ${c.border} hover:brightness-110`}
+          >
+            <span className={`text-xs font-bold truncate w-full ${c.text}`}>{opt}</span>
+            <span className="text-[10px] text-neutral-500 mt-0.5">{oddsText}</span>
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+// ── Range Hero ────────────────────────────────────────────────────────────────
+
+const RangeHero = ({ market, currentPrice, disabled, onRange }) => {
+  const ranges  = market.ranges || [];
+  const allMin  = Math.min(...ranges.map(r => r.min || 0));
+  const allMax  = Math.max(...ranges.map(r => r.max || 0));
+  const span    = allMax - allMin || 1;
+  const pricePos = currentPrice
+    ? Math.min(100, Math.max(0, ((currentPrice - allMin) / span) * 100))
+    : null;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <Target className="w-3.5 h-3.5 text-purple-400" />
+          <span className="text-xs text-neutral-400 font-medium">Select range</span>
+        </div>
+        {currentPrice && (
+          <span className="text-xs text-yellow-400 font-semibold">
+            ${safeToFixed(currentPrice, currentPrice >= 1000 ? 0 : 2)} now
+          </span>
+        )}
+      </div>
+
+      {/* Visual price track */}
+      <div className="relative h-2.5 rounded-full bg-dark-700 mb-3 overflow-visible">
+        {ranges.map((range, idx) => {
+          const left  = ((range.min - allMin) / span) * 100;
+          const width = ((range.max  - range.min) / span) * 100;
+          const inRange = currentPrice && currentPrice >= range.min && currentPrice <= range.max;
+          const colors  = ['#60a5fa','#a78bfa','#fb923c','#f472b6','#2dd4bf'];
+          return (
+            <div
+              key={idx}
+              className="absolute top-0 h-full rounded-sm transition-opacity"
+              style={{
+                left: `${left}%`,
+                width: `${width}%`,
+                background: inRange ? '#CDFF00' : colors[idx % colors.length],
+                opacity: inRange ? 1 : 0.4,
+              }}
+            />
+          );
+        })}
+        {pricePos !== null && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-yellow-400 border-2 border-dark-800 shadow-lg z-10"
+            style={{ left: `calc(${pricePos}% - 6px)` }}
+          />
+        )}
+      </div>
+
+      {/* Range option buttons */}
+      <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+        {ranges.map((range, idx) => {
+          const c = oc(idx);
+          const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
+          const mult = rawMult != null && !isNaN(Number(rawMult)) ? rawMult : 200;
+          const oddsText = market.useFixedOdds ? `${(mult / 100).toFixed(2)}x` : 'Pool';
+          const label  = `$${range.min?.toLocaleString?.() || range.min} – $${range.max?.toLocaleString?.() || range.max}`;
+          const inRange = currentPrice && currentPrice >= range.min && currentPrice <= range.max;
+          return (
+            <button
+              key={idx}
+              onClick={(e) => { e.stopPropagation(); onRange(e, idx, label); }}
+              disabled={disabled}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-all hover:scale-[1.01] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${
+                inRange
+                  ? 'bg-[#CDFF00]/10 border-[#CDFF00]/40'
+                  : `${c.bg} ${c.border}`
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {inRange && <span className="w-1.5 h-1.5 rounded-full bg-[#CDFF00]" />}
+                <span className={`font-semibold ${inRange ? 'text-[#CDFF00]' : c.text}`}>{label}</span>
+              </div>
+              <span className="text-neutral-500">{oddsText}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ── Time Hero ─────────────────────────────────────────────────────────────────
+
+const TimeHero = ({ market, currentPrice, disabled, onTimeframe }) => {
+  const progress = currentPrice && market.targetPrice
+    ? Math.min(100, (currentPrice / market.targetPrice) * 100)
+    : 0;
+  const reached = currentPrice && market.targetPrice && currentPrice >= market.targetPrice;
+
+  return (
+    <div>
+      {market.targetPrice && (
+        <div className="px-3 py-2.5 rounded-xl bg-dark-900/60 border border-dark-700/50 mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] text-neutral-500 uppercase tracking-wide">Target</span>
+            <span className={`text-sm font-bold ${reached ? 'text-[#CDFF00]' : 'text-white'}`}>
+              ${safeToFixed(market.targetPrice, market.targetPrice >= 1000 ? 0 : 2)}
+            </span>
+          </div>
+          <div className="relative h-1.5 rounded-full bg-dark-700 overflow-hidden">
+            <div
+              className="absolute left-0 top-0 h-full rounded-full transition-all duration-700"
+              style={{ width: `${progress}%`, background: reached ? '#CDFF00' : '#fb923c' }}
+            />
+          </div>
+          {currentPrice && (
+            <div className="flex justify-between mt-1.5 text-[10px]">
+              <span className="text-orange-400 font-semibold">
+                ${safeToFixed(currentPrice, currentPrice >= 1000 ? 0 : 2)}
+              </span>
+              <span className="text-neutral-600">
+                {Math.abs(((market.targetPrice - currentPrice) / currentPrice) * 100).toFixed(1)}% to go
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center gap-1.5 mb-2">
+        <Timer className="w-3.5 h-3.5 text-orange-400" />
+        <span className="text-xs text-neutral-400 font-medium">When will it hit?</span>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5 max-h-[110px] overflow-y-auto">
+        {(market.timeframes || []).map((tf, idx) => {
+          const c = oc(idx);
+          const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
+          const mult = rawMult != null && !isNaN(Number(rawMult)) ? rawMult : 200;
+          const oddsText = market.useFixedOdds ? `${(mult / 100).toFixed(2)}x` : 'Pool';
+          return (
+            <button
+              key={idx}
+              onClick={(e) => { e.stopPropagation(); onTimeframe(e, idx, tf.label); }}
+              disabled={disabled}
+              className={`flex flex-col items-start px-3 py-2.5 rounded-xl border transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${c.bg} ${c.border} hover:brightness-110`}
+            >
+              <span className={`text-xs font-bold ${c.text}`}>{tf.label}</span>
+              <span className="text-[10px] text-neutral-500 mt-0.5">{oddsText}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ── Main Card ─────────────────────────────────────────────────────────────────
 
 const MarketCardComponent = ({
   market,
   onClick,
   onBetClick,
   usdcBalance,
-  isLoading     = false,
-  isPlacingBet  = false,
+  isLoading    = false,
+  isPlacingBet = false,
   currentPrice: providedCurrentPrice,
-  isFavorite    = false,
+  isFavorite   = false,
   onToggleFavorite,
 }) => {
   const { currentPrice: fetchedPrice } = useCurrentPrice(
     providedCurrentPrice ? null : market?.asset
   );
   const currentPrice = providedCurrentPrice || fetchedPrice;
-
-  const countdown = useCountdown(market?.endTime);
-  const urgency   = getUrgency(countdown);
-
-  const { decayDisplay, isLatePhase, isDecaying } = useTimeDecay(market);
+  const countdown    = useCountdown(market?.endTime);
+  const urgency      = getUrgency(countdown);
+  const { decayDisplay, isLatePhase } = useTimeDecay(market);
 
   if (isLoading || !market) return <MarketCardSkeleton />;
 
-  const assetInfo = getAssetInfo(market.asset);
-  const AssetIcon = assetInfo.icon;
-
-  const totalPool    = calculateTotalPool(market);
-  const priceChange  = currentPrice && market.startPrice
+  const assetStyle  = getAsset(market.asset);
+  const typeMeta    = TYPE_META[market.marketType] || TYPE_META[0];
+  const totalPool   = calculateTotalPool(market);
+  const priceChange = currentPrice && market.startPrice
     ? calculatePriceChange(currentPrice, market.startPrice)
     : null;
-  const priceTrend   = priceChange ? getPriceTrend(priceChange.value) : null;
-
-  const title       = generateMarketTitle(market);
-  const description = generateMarketDescription(market, currentPrice);
+  const title    = generateMarketTitle(market);
+  const disabled = isPlacingBet || market.resolved || countdown.expired;
+  const defaultBet = usdcBalance >= 10 ? 10 : 1;
 
   const yesOdds = formatOddsDisplay({
-    useFixedOdds: market.useFixedOdds,
-    multiplier: market.yesMultiplier,
+    useFixedOdds:   market.useFixedOdds,
+    multiplier:     market.yesMultiplier,
     poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).upPercentage,
     choice: 1,
   });
   const noOdds = formatOddsDisplay({
-    useFixedOdds: market.useFixedOdds,
-    multiplier: market.noMultiplier,
+    useFixedOdds:   market.useFixedOdds,
+    multiplier:     market.noMultiplier,
     poolPercentage: calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).downPercentage,
     choice: 0,
   });
 
-  const rangePosition = market.marketType === 2 && market.ranges && currentPrice
-    ? calculateRangePosition(currentPrice, market.ranges)
-    : null;
-
-  // ── Bet click handlers ──────────────────────────────────────────────────
-  const defaultBet = usdcBalance >= 10 ? 10 : 1;
-
-  const handleYesClick = (e) => {
-    e.stopPropagation();
-    onBetClick?.(market, 1, 'Yes', yesOdds.multiplier, defaultBet);
-  };
-  const handleNoClick = (e) => {
-    e.stopPropagation();
-    onBetClick?.(market, 0, 'No', noOdds.multiplier, defaultBet);
-  };
-  const handleOptionClick = (e, idx, label) => {
-    e.stopPropagation();
-    const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-    onBetClick?.(market, idx, label, multiplier / 100, defaultBet);
-  };
-  const handleRangeClick = (e, idx, label) => {
-    e.stopPropagation();
-    const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-    onBetClick?.(market, idx, label, multiplier / 100, defaultBet);
-  };
-  const handleTimeframeClick = (e, idx, label) => {
-    e.stopPropagation();
-    const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-    onBetClick?.(market, idx, label, multiplier / 100, defaultBet);
-  };
-
   return (
-    // FIX: Migrated from gray-*/blue-* to dark-*/primary design tokens
     <div
       onClick={onClick}
-      className="bg-dark-800/80 border border-dark-700 rounded-xl p-4 hover:border-primary/40 transition-all cursor-pointer group relative overflow-hidden"
+      className="relative bg-dark-800 border border-dark-700 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer group transition-all duration-200 hover:border-dark-500 hover:bg-dark-800/90 overflow-hidden"
     >
-      {/* Urgency glow */}
+      {/* Type accent strip */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[2px] rounded-t-2xl"
+        style={{ background: `linear-gradient(90deg, transparent 0%, ${typeMeta.accent}99 40%, ${typeMeta.accent}99 60%, transparent 100%)` }}
+      />
+
+      {/* Urgency ambient glow */}
       {urgency.pulse && (
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/10 to-transparent animate-pulse pointer-events-none" />
+        <div
+          className="absolute inset-0 rounded-2xl pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(239,68,68,0.07) 0%, transparent 65%)' }}
+        />
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border font-bold text-sm ${assetInfo.color}`}>
-          <AssetIcon className="w-4 h-4" />
-          <span>{market.asset || 'Unknown'}</span>
-        </div>
-        <div className="px-2 py-1 rounded-md bg-dark-700/50 text-neutral-400 text-xs font-medium border border-dark-600">
-          {getMarketTypeLabel(market.marketType)}
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          {decayDisplay.showBadge && (
-            <div className={`px-2 py-1 rounded-md text-xs font-medium border flex items-center gap-1 ${decayDisplay.badgeColor}`}>
-              <DecayIcon className="w-3 h-3" />
-              {decayDisplay.label}
-            </div>
-          )}
-          <ActivityBadge totalBets={market.totalBets || 0} resolved={market.resolved} />
-          {onToggleFavorite && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
-              className={`p-1.5 rounded-lg transition-all duration-200 hover:scale-110 ${
-                isFavorite
-                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50'
-                  : 'bg-dark-700/50 text-neutral-400 border border-dark-600 hover:text-yellow-400 hover:border-yellow-500/30'
-              }`}
-              title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-            >
-              <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* ── Header ── */}
+      <CardHeader
+        market={market}
+        assetStyle={assetStyle}
+        typeMeta={typeMeta}
+        isFavorite={isFavorite}
+        onToggleFavorite={onToggleFavorite}
+        decayDisplay={decayDisplay}
+      />
 
-      {/* Title */}
-      <h3 className="font-bold text-white group-hover:text-primary transition-colors text-lg mb-1">
+      {/* ── Title ── */}
+      <h3 className="font-bold text-white text-sm leading-snug line-clamp-2 group-hover:text-[#CDFF00] transition-colors duration-200 -mt-1">
         {title}
       </h3>
 
-      {/* Description */}
-      <p className="text-neutral-400 text-sm mb-3">{description}</p>
+      {/* ── Stats bar ── */}
+      <StatsBar market={market} totalPool={totalPool} countdown={countdown} urgency={urgency} />
 
-      {/* Current Price */}
-      {currentPrice && (market.marketType === 0 || market.marketType === 2 || market.marketType === 3) && (
-        <div className="mb-3 p-2.5 bg-dark-900/50 rounded-lg border border-dark-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-yellow-400" />
-              <span className="text-xs text-neutral-500">Current Price</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-white font-bold">
-                ${safeToFixed(currentPrice, currentPrice >= 1000 ? 0 : 2)}
-              </span>
-              {priceChange && (
-                <>
-                  <MiniPriceChart startPrice={market.startPrice} currentPrice={currentPrice} isPositive={priceChange.isPositive} />
-                  <span className={`text-xs font-semibold ${priceChange.color} flex items-center gap-0.5`}>
-                    <span>{priceChange.icon}</span>
-                    <span>{priceChange.formatted}</span>
-                  </span>
-                </>
-              )}
-              {priceTrend && (
-                <span className={`text-[10px] font-medium ${priceTrend.color} px-1.5 py-0.5 rounded-full bg-dark-800`}>
-                  {priceTrend.label}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Range Position */}
-      {market.marketType === 2 && rangePosition && market.ranges && (
-        <div className="mb-3 p-2.5 bg-dark-900/50 rounded-lg border border-dark-700">
-          <div className="text-xs text-neutral-500 mb-2">Price Position</div>
-          <div className="relative h-2 bg-dark-800 rounded-full overflow-hidden">
-            {market.ranges.map((range, idx) => {
-              const min = range.min || 0;
-              const max = range.max || 0;
-              const allMin = Math.min(...market.ranges.map(r => r.min || min));
-              const allMax = Math.max(...market.ranges.map(r => r.max || max));
-              const totalRange = allMax - allMin || 1;
-              const left  = ((min - allMin) / totalRange) * 100;
-              const width = ((max - min)    / totalRange) * 100;
-              const isActive = rangePosition.rangeIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  className={`absolute h-full ${isActive ? 'bg-primary/60' : 'bg-dark-600/50'} border-r border-dark-800 last:border-r-0`}
-                  style={{ left: `${Math.max(0, left)}%`, width: `${Math.max(0, width)}%` }}
-                />
-              );
-            })}
-            {currentPrice && (
-              <div
-                className="absolute top-0 w-1 h-full bg-yellow-400 shadow-lg shadow-yellow-400/50"
-                style={{ left: `${rangePosition.percentThrough}%` }}
-              />
-            )}
-          </div>
-          <div className="flex justify-between items-center mt-1.5">
-            <span className="text-[10px] text-neutral-500">
-              ${safeToFixed(Math.min(...market.ranges.map(r => r.min || 0)), 0)}
-            </span>
-            {rangePosition.inRange && <span className="text-[10px] text-primary font-bold">● IN RANGE</span>}
-            <span className="text-[10px] text-neutral-500">
-              ${safeToFixed(Math.max(...market.ranges.map(r => r.max || 0)), 0)}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="bg-dark-900/50 rounded-lg p-2.5 border border-dark-700/50">
-          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
-            <PlayCircle className="w-3.5 h-3.5" /><span>Start</span>
-          </div>
-          <div className="text-white font-semibold text-sm">
-            ${market.startPrice ? safeToFixed(market.startPrice, 0) : '---'}
-          </div>
-        </div>
-
-        <div className="bg-dark-900/50 rounded-lg p-2.5 border border-dark-700/50">
-          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
-            <Users className="w-3.5 h-3.5" /><span>Pool</span>
-          </div>
-          <div className="text-white font-semibold text-sm">{safeToFixed(totalPool, 2)} USDC</div>
-        </div>
-
-        <div className="bg-dark-900/50 rounded-lg p-2.5 border border-dark-700/50">
-          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
-            <TrendingUp className="w-3.5 h-3.5" /><span>Bets</span>
-          </div>
-          <div className="text-white font-semibold text-sm">{market.totalBets || 0}</div>
-        </div>
-
-        <div className={`bg-dark-900/50 rounded-lg p-2.5 border ${urgency.pulse ? 'border-red-500/50 animate-pulse' : 'border-dark-700/50'}`}>
-          <div className="flex items-center gap-1.5 text-neutral-500 text-xs mb-1">
-            <Clock className="w-3.5 h-3.5" /><span>Ends</span>
-          </div>
-          <div className={`font-semibold text-sm ${urgency.color}`}>{countdown.formatted}</div>
-        </div>
-      </div>
-
-      {/* Urgency Warning */}
+      {/* ── Warnings ── */}
       {urgency.label && (
-        <div className={`mb-3 p-2 rounded-lg border flex items-center gap-2 ${urgency.bgColor} ${urgency.color.replace('text-', 'border-')}`}>
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span className="text-xs font-bold">{urgency.label}</span>
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${urgency.bgColor}`}>
+          <AlertCircle className={`w-3.5 h-3.5 flex-shrink-0 ${urgency.color}`} />
+          <span className={urgency.color}>{urgency.label}</span>
+        </div>
+      )}
+      {isLatePhase && !urgency.label && (
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+          Late Phase — Reduced Odds
         </div>
       )}
 
-      {/* Late Phase Warning */}
-      {isLatePhase && (
-        <div className="mb-3 p-2 rounded-lg border border-red-500/30 bg-red-500/10 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
-          <span className="text-xs text-red-400 font-bold">Late Phase: Reduced Odds</span>
-        </div>
-      )}
-
-      {/* ── Binary Market ─────────────────────────────────────────────────── */}
+      {/* ── Market-type hero ── */}
       {market.marketType === 0 && (
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {[
-            { label: 'UP',   color: 'green', odds: yesOdds, handler: handleYesClick, Icon: TrendingUp },
-            { label: 'DOWN', color: 'red',   odds: noOdds,  handler: handleNoClick,  Icon: TrendingDown },
-          ].map(({ label, color, odds, handler, Icon }) => (
-            <button
-              key={label}
-              onClick={handler}
-              disabled={isPlacingBet || market.resolved || countdown.expired}
-              className={`bg-${color}-500/20 hover:bg-${color}-500/30 border border-${color}-500/30 hover:border-${color}-500/50 rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative`}
-            >
-              {isDecaying && (
-                <div className="absolute -top-2 -right-2 px-1.5 py-0.5 bg-orange-500 text-white text-[9px] font-bold rounded-full">
-                  DECAY
-                </div>
-              )}
-              <div className="flex items-center justify-center gap-1 mb-1">
-                {isPlacingBet
-                  ? <Loader2 className={`w-4 h-4 text-${color}-400 animate-spin`} />
-                  : <Icon className={`w-4 h-4 text-${color}-400`} />
-                }
-                <span className={`text-${color}-400 font-bold text-sm`}>{label}</span>
-              </div>
-              <div className={`text-${color}-400 font-semibold text-lg mb-1`}>{odds.text}</div>
-              <WinProbability market={market} choice={label === 'UP' ? 'yes' : 'no'} />
-            </button>
-          ))}
-        </div>
+        <BinaryHero
+          market={market}
+          currentPrice={currentPrice}
+          priceChange={priceChange}
+          yesOdds={yesOdds}
+          noOdds={noOdds}
+          isPlacingBet={isPlacingBet}
+          disabled={disabled}
+          onYes={(e) => { e.stopPropagation(); onBetClick?.(market, 1, 'Yes', yesOdds.multiplier, defaultBet); }}
+          onNo={(e)  => { e.stopPropagation(); onBetClick?.(market, 0, 'No',  noOdds.multiplier,  defaultBet); }}
+        />
       )}
 
-      {/* ── Multi-Choice ───────────────────────────────────────────────────── */}
       {market.marketType === 1 && market.options && (
-        <div className="mt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-neutral-400">Select an option:</span>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {market.options.map((option, idx) => {
-              const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-              const oddsText = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
-              return (
-                <button
-                  key={idx}
-                  onClick={(e) => handleOptionClick(e, idx, option)}
-                  disabled={isPlacingBet || market.resolved || countdown.expired}
-                  className={`${getOptionColor(idx)} border rounded-lg p-2 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
-                >
-                  <div className="font-bold text-sm truncate">{option}</div>
-                  <div className="text-xs opacity-80 mb-1">{oddsText}</div>
-                  <WinProbability market={market} choice={idx} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <MultiHero
+          market={market}
+          disabled={disabled}
+          onOption={(e, idx, label) => {
+            const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
+            const mult = rawMult != null && !isNaN(Number(rawMult)) ? rawMult : 200;
+            onBetClick?.(market, idx, label, mult / 100, defaultBet);
+          }}
+        />
       )}
 
-      {/* ── Range ──────────────────────────────────────────────────────────── */}
       {market.marketType === 2 && market.ranges && (
-        <div className="mt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Target className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-neutral-400">Select a range:</span>
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            {market.ranges.map((range, idx) => {
-              const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-              const oddsText   = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
-              const rangeLabel = `$${range.min?.toLocaleString?.() || range.min} - $${range.max?.toLocaleString?.() || range.max}`;
-              const isActive   = rangePosition?.rangeIndex === idx;
-              const rangeStatus = currentPrice ? getRangeStatus(currentPrice, range) : null;
-              return (
-                <button
-                  key={idx}
-                  onClick={(e) => handleRangeClick(e, idx, rangeLabel)}
-                  disabled={isPlacingBet || market.resolved || countdown.expired}
-                  className={`${isActive ? 'bg-primary/20 border-primary/50' : getOptionColor(idx)} border rounded-lg p-3 transition-all duration-200 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 relative`}
-                >
-                  {isActive && (
-                    <div className="absolute -top-2 -right-2 px-2 py-0.5 bg-primary text-dark-950 text-[10px] font-bold rounded-full">
-                      HERE
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <div className="font-bold text-sm">{rangeLabel}</div>
-                    <div className="text-xs opacity-80">{oddsText}</div>
-                  </div>
-                  {rangeStatus && (
-                    <span className={`text-[10px] font-medium mt-1 block ${rangeStatus.textColor}`}>
-                      {rangeStatus.label}
-                    </span>
-                  )}
-                  <div className="mt-1"><WinProbability market={market} choice={idx} /></div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <RangeHero
+          market={market}
+          currentPrice={currentPrice}
+          disabled={disabled}
+          onRange={(e, idx, label) => {
+            const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
+            const mult = rawMult != null && !isNaN(Number(rawMult)) ? rawMult : 200;
+            onBetClick?.(market, idx, label, mult / 100, defaultBet);
+          }}
+        />
       )}
 
-      {/* ── Time-Based ─────────────────────────────────────────────────────── */}
       {market.marketType === 3 && market.timeframes && (
-        <div className="mt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Timer className="w-4 h-4 text-orange-400" />
-            <span className="text-sm text-neutral-400">Select timeframe:</span>
-          </div>
-          {market.targetPrice && currentPrice && (
-            <div className="mb-3 p-2 bg-dark-900/50 rounded-lg border border-dark-700">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-neutral-400">Target:</span>
-                <span className="text-white font-bold">
-                  ${safeToFixed(market.targetPrice, market.targetPrice >= 1000 ? 0 : 2)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs mt-1">
-                <span className="text-neutral-400">To go:</span>
-                <span className={`font-semibold ${currentPrice < market.targetPrice ? 'text-green-400' : 'text-red-400'}`}>
-                  {Math.abs(((market.targetPrice - currentPrice) / currentPrice) * 100).toFixed(2)}%
-                </span>
-              </div>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-2">
-            {market.timeframes.map((tf, idx) => {
-              const multiplier = market.useFixedOdds && market.multipliers ? market.multipliers[idx] : 200;
-              const oddsText   = market.useFixedOdds ? `${(multiplier / 100).toFixed(2)}x` : 'Dynamic';
-              return (
-                <button
-                  key={idx}
-                  onClick={(e) => handleTimeframeClick(e, idx, tf.label)}
-                  disabled={isPlacingBet || market.resolved || countdown.expired}
-                  className={`${getOptionColor(idx)} border rounded-lg p-3 transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100`}
-                >
-                  <div className="font-bold text-sm">{tf.label}</div>
-                  <div className="text-xs opacity-80 mb-1">{oddsText}</div>
-                  <WinProbability market={market} choice={idx} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <TimeHero
+          market={market}
+          currentPrice={currentPrice}
+          disabled={disabled}
+          onTimeframe={(e, idx, label) => {
+            const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
+            const mult = rawMult != null && !isNaN(Number(rawMult)) ? rawMult : 200;
+            onBetClick?.(market, idx, label, mult / 100, defaultBet);
+          }}
+        />
       )}
     </div>
   );
 };
 
-/**
- * FIX: React.memo custom comparator corrected.
- *
- * Previous issues:
- * 1. `market?.read` — 'read' is not a market field (always undefined === undefined = true,
- *    so it never triggered re-renders). Should be `market?.resolved`.
- * 2. Only checking `market.id` meant live data updates (yesPool, noPool, totalBets,
- *    resolved, priceWentUp) never caused the card to re-render.
- *
- * Now checks all fields that affect the card's visual output.
- */
-const MemoizedMarketCard = React.memo(MarketCardComponent, (prev, next) => {
-  return (
-    prev.market?.id          === next.market?.id          &&
-    prev.market?.resolved    === next.market?.resolved    && // FIX: was market.read
-    prev.market?.yesPool     === next.market?.yesPool     &&
-    prev.market?.noPool      === next.market?.noPool      &&
-    prev.market?.totalBets   === next.market?.totalBets   &&
-    prev.market?.priceWentUp === next.market?.priceWentUp &&
-    prev.isFavorite          === next.isFavorite          &&
-    prev.isLoading           === next.isLoading           &&
-    prev.isPlacingBet        === next.isPlacingBet        &&
-    prev.usdcBalance         === next.usdcBalance
-  );
-});
+// ── Memo ──────────────────────────────────────────────────────────────────────
+
+const MemoizedMarketCard = React.memo(MarketCardComponent, (prev, next) => (
+  prev.market?.id          === next.market?.id          &&
+  prev.market?.resolved    === next.market?.resolved    &&
+  prev.market?.yesPool     === next.market?.yesPool     &&
+  prev.market?.noPool      === next.market?.noPool      &&
+  prev.market?.totalBets   === next.market?.totalBets   &&
+  prev.market?.priceWentUp === next.market?.priceWentUp &&
+  prev.isFavorite          === next.isFavorite          &&
+  prev.isLoading           === next.isLoading           &&
+  prev.isPlacingBet        === next.isPlacingBet        &&
+  prev.usdcBalance         === next.usdcBalance
+));
 
 export { MemoizedMarketCard };
 export default MemoizedMarketCard;
