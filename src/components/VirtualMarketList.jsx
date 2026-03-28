@@ -129,7 +129,8 @@ const VirtualMarketList = ({
               itemSize={ROW_HEIGHT}   // FIX 2: correct height per row
               width={width}
               // FIX 1: layout defaults to "vertical" — removed "horizontal"
-              overscanCount={VIRTUAL_SCROLL.OVERSCAN}
+              overscanCount={8}
+
             >
               {RowRenderer}
             </List>

@@ -88,31 +88,19 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   }, [isOpen, initialChoice, market?.marketType]);
 
   
-  // Helper to get option color based on index
+  // Helper to get option color based on index (Brand-aligned)
   const getOptionColor = (index, isSelected) => {
     const baseColors = [
-      'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      'bg-pink-500/20 text-pink-400 border-pink-500/30',
-      'bg-teal-500/20 text-teal-400 border-teal-500/30',
-      'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
-      'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
-      'bg-lime-500/20 text-lime-400 border-lime-500/30',
-      'bg-rose-500/20 text-rose-400 border-rose-500/30',
+      'bg-primary/20 text-primary border-primary/30',
+      'bg-secondary/20 text-secondary border-secondary/30',
+      'bg-success/20 text-success border-success/30',
+      'bg-danger/20 text-danger border-danger/30',
     ];
     const selectedColors = [
-      'bg-blue-500/40 text-blue-300 border-blue-400 shadow-lg shadow-blue-500/20',
-      'bg-purple-500/40 text-purple-300 border-purple-400 shadow-lg shadow-purple-500/20',
-      'bg-orange-500/40 text-orange-300 border-orange-400 shadow-lg shadow-orange-500/20',
-      'bg-pink-500/40 text-pink-300 border-pink-400 shadow-lg shadow-pink-500/20',
-      'bg-teal-500/40 text-teal-300 border-teal-400 shadow-lg shadow-teal-500/20',
-      'bg-indigo-500/40 text-indigo-300 border-indigo-400 shadow-lg shadow-indigo-500/20',
-      'bg-yellow-500/40 text-yellow-300 border-yellow-400 shadow-lg shadow-yellow-500/20',
-      'bg-cyan-500/40 text-cyan-300 border-cyan-400 shadow-lg shadow-cyan-500/20',
-      'bg-lime-500/40 text-lime-300 border-lime-400 shadow-lg shadow-lime-500/20',
-      'bg-rose-500/40 text-rose-300 border-rose-400 shadow-lg shadow-rose-500/20',
+      'bg-primary/40 text-primary border-primary shadow-lg shadow-primary/20',
+      'bg-secondary/40 text-secondary border-secondary shadow-lg shadow-secondary/20',
+      'bg-success/40 text-success border-success shadow-lg shadow-success/20',
+      'bg-danger/40 text-danger border-danger shadow-lg shadow-danger/20',
     ];
     return isSelected ? selectedColors[index % selectedColors.length] : baseColors[index % baseColors.length];
   };
@@ -283,7 +271,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   // Determine balance status color
   const getBalanceStatusColor = () => {
     if (!usdcBalanceNum || usdcBalanceNum === 0) return 'text-red-400';
-    if (usdcBalanceNum < 10) return 'text-yellow-400';
+    if (usdcBalanceNum < 10) return 'text-secondary';
     return 'text-green-400';
   };
 
@@ -317,8 +305,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-shrink-0">
+<div className="relative w-full max-w-md bg-gradient-to-br from-dark-900/95 via-dark-800 to-dark-900 border border-primary/20 rounded-2xl shadow-2xl shadow-primary/10 hover:shadow-primary/20 hover:border-primary/40 overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300">
+<div className="flex items-center justify-between p-4 border-b border-primary/10 bg-gradient-to-r from-primary/5 to-transparent flex-shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-lg font-bold text-white">Place Bet</h2>
             {/* Asset Badge */}
@@ -367,10 +355,10 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 
           {/* Balance Display */}
 
-          <div className="bg-gradient-to-r from-blue-900/30 to-purple-900/30 border border-blue-500/30 rounded-xl p-3">
+<div className="bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10 border border-primary/30 rounded-xl p-3 hover:shadow-primary/20 transition-all hover:border-primary/40">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Wallet className="w-4 h-4 text-blue-400" />
+                <Wallet className="w-4 h-4 text-primary" />
                 <span className="text-sm text-gray-400">Your Balance</span>
               </div>
               <div className="flex items-center gap-2">
@@ -438,8 +426,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 onClick={() => setPosition('yes')}
                 className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
                   position === 'yes'
-                    ? 'bg-green-500/20 border-2 border-green-500 shadow-lg shadow-green-500/20'
-                    : 'bg-gray-800 border-2 border-transparent hover:bg-gray-750'
+                    ? 'bg-success/20 border-2 border-success shadow-lg shadow-success/20'
+                    : 'bg-dark-800 border-2 border-transparent hover:bg-dark-750'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -455,8 +443,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 onClick={() => setPosition('no')}
                 className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
                   position === 'no'
-                    ? 'bg-red-500/20 border-2 border-red-500 shadow-lg shadow-red-500/20'
-                    : 'bg-gray-800 border-2 border-transparent hover:bg-gray-750'
+                    ? 'bg-danger/20 border-2 border-danger shadow-lg shadow-danger/20'
+                    : 'bg-dark-800 border-2 border-transparent hover:bg-dark-750'
                 }`}
               >
                 <div className="flex items-center gap-2">
@@ -574,7 +562,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               <button
                 onClick={handleMaxClick}
                 disabled={!usdcBalanceNum || usdcBalanceNum <= 0}
-                className="text-xs text-blue-400 hover:text-blue-300 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors font-medium"
+                className="text-xs text-secondary hover:text-primary disabled:text-gray-600 disabled:cursor-not-allowed transition-colors font-semibold"
               >
                 MAX
               </button>
@@ -589,7 +577,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 min="0.01"
                 disabled={isPlacingBet}
                 className={`w-full bg-gray-800 border rounded-lg px-6 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors ${
-                  inputError ? 'border-red-500 focus:border-red-500' : 'border-gray-700 focus:border-blue-500'
+                  inputError ? 'border-red-500 focus:border-red-500' : 'border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/30'
                 } pr-16`}
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">

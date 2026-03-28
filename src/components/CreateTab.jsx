@@ -847,7 +847,7 @@ const CreateTab = ({
                   )}
                 </div>
               ))}
-              {timeForm.timeframes.length < 5 && (
+{timeForm.timeframes.length < 5 && (
                 <button 
                   onClick={() => {
                     setTimeForm('timeframes', [...timeForm.timeframes, { label: '', seconds: 0 }]);
@@ -859,6 +859,11 @@ const CreateTab = ({
                 </button>
               )}
             </div>
+
+            <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              Timeframes are auto-sorted shortest → longest. Market ends at the longest timeframe.
+            </p>
             
             {/* Time Decay Configuration */}
             <TimeDecayConfig 

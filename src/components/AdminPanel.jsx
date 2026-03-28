@@ -1348,14 +1348,22 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
       }
       
       const targetPriceBigInt = BigInt(Math.floor(timeForm.targetPrice * 1e8));
-      const timeframeSeconds = timeForm.timeframes.map((tf) => BigInt(tf.seconds));
+      // ADD this before building args:
+      const sortedTimeframes = [...timeForm.timeframes].sort((a, b) => a.seconds - b.seconds);
+      const sortedMultipliers = sortedTimeframes.map(tf => {
+        const origIdx = timeForm.timeframes.findIndex(t => t.seconds === tf.seconds);
+        return timeForm.multipliers[origIdx] || 200;
+      });
+
+      // THEN use sorted values in args:
+      const timeframeSeconds = sortedTimeframes.map(tf => BigInt(tf.seconds));
       
       console.log('🔧 Creating time market via PROXY with params:', {
         asset: timeForm.asset,
         targetPrice: targetPriceBigInt.toString(),
         timeframes: timeframeSeconds.map(b => b.toString()),
         useFixedOdds: timeForm.useFixedOdds,
-        multipliers: timeForm.multipliers,
+        multipliers: sortedMultipliers,
         useTimeDecay: timeForm.useTimeDecay,
         proxy: PROXY_ADDRESS
       });
@@ -1369,8 +1377,8 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
       const args = [
         sanitizeInput(timeForm.asset),
         targetPriceBigInt,
-        timeframeSeconds,
-timeForm.useFixedOdds ? timeForm.multipliers.map((m) => BigInt(m)) : [],
+        timeframeSeconds,                                          // ← sorted
+        timeForm.useFixedOdds ? sortedMultipliers.map(m => BigInt(m)) : [],
         timeForm.useTimeDecay,
         BigInt(timeForm.decayStartPercent),
         BigInt(timeForm.minMultiplier),

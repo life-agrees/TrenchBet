@@ -128,27 +128,28 @@ const MainLayout = ({
                   </div>
                 )}
 
-                {/* Add Funds — desktop */}
+                {/* Add Funds — unified style matching Points/Balance */}
                 {isConnected && (
-                  <button
-                    onClick={onAddFunds}
-                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-primary rounded-xl hover:bg-primary/90 transition-all text-white font-semibold text-sm"
-                    aria-label="Add funds to wallet"
-                  >
-                    <Plus size={15} />
-                    Add Funds
-                  </button>
-                )}
-
-                {/* Add Funds — mobile icon only */}
-                {isConnected && (
-                  <button
-                    onClick={onAddFunds}
-                    className="flex sm:hidden items-center justify-center p-2 bg-primary rounded-lg hover:bg-primary/90 transition-all text-white"
-                    aria-label="Add funds"
-                  >
-                    <Plus size={17} />
-                  </button>
+                  <>
+                    <div 
+                      onClick={onAddFunds}
+                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 rounded-xl border border-dark-700 hover:bg-dark-700 transition-all group cursor-pointer select-none" 
+                      role="button" 
+                      tabIndex={0}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onAddFunds(); }}
+                      aria-label="Add funds to wallet"
+                    >
+                      <Plus size={14} className="text-primary group-hover:scale-110 transition-transform flex-shrink-0" />
+                      <span className="text-sm font-bold text-white group-hover:text-primary transition-colors">Add Funds</span>
+                    </div>
+                    <button
+                      onClick={onAddFunds}
+                      className="flex sm:hidden items-center justify-center p-2.5 bg-dark-800 rounded-xl border border-dark-700 hover:bg-dark-700 transition-all group"
+                      aria-label="Add funds"
+                    >
+                      <Plus size={16} className="text-primary group-hover:scale-110 transition-transform" />
+                    </button>
+                  </>
                 )}
 
                 {/* Chain status — desktop */}

@@ -92,5 +92,32 @@ export default {
         }
       },
     },
-    plugins: [],
+    plugins: [
+      function({ addUtilities }) {
+        addUtilities({
+          '.scrollbar-thin': {
+            'scrollbar-width': 'thin',
+          },
+          '.scrollbar-thin::-webkit-scrollbar': {
+            width: '6px',
+            height: '6px',
+          },
+          '.scrollbar-thin::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '.scrollbar-thin::-webkit-scrollbar-thumb': {
+            background: 'rgba(107, 114, 128, 0.5)',
+            'border-radius': '3px',
+          },
+          '.scrollbar-thin::-webkit-scrollbar-thumb:hover': {
+            background: 'rgba(107, 114, 128, 0.7)',
+          },
+          '.scrollbar-track-dark-900': {
+            '&::-webkit-scrollbar-track': {
+              background: 'rgba(15, 20, 25, 0.8)',
+            },
+          },
+        });
+      },
+    ],
   }

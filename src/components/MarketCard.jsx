@@ -56,7 +56,8 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
   const AssetIcon = assetStyle.icon;
   const TypeIcon  = typeMeta.Icon;
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 min-w-0">
+
       <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${assetStyle.bg} ${assetStyle.border} ${assetStyle.color}`}>
         <AssetIcon className="w-3.5 h-3.5" />
         <span>{market.asset}</span>
@@ -71,8 +72,9 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
           {decayDisplay.label}
         </div>
       )}
-      <div className="ml-auto flex items-center gap-1.5">
+      <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
         <ActivityBadge totalBets={market.totalBets || 0} resolved={market.resolved} />
+
         {onToggleFavorite && (
           <button
             onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
@@ -181,7 +183,8 @@ const MultiHero = ({ market, disabled, onOption }) => (
       <BarChart3 className="w-3.5 h-3.5 text-blue-400" />
       <span className="text-xs text-neutral-400 font-medium">Pick one option</span>
     </div>
-    <div className="grid grid-cols-2 gap-1.5 max-h-[140px] overflow-y-auto">
+    <div className="grid grid-cols-2 gap-2 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-dark-600/50 scrollbar-track-dark-900 sm:overflow-visible sm:max-h-none scroll-smooth">
+
       {(market.options || []).map((opt, idx) => {
         const c = oc(idx);
         const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
@@ -257,7 +260,8 @@ const RangeHero = ({ market, currentPrice, disabled, onRange }) => {
       </div>
 
       {/* Range option buttons */}
-      <div className="space-y-1.5 max-h-[120px] overflow-y-auto">
+      <div className="space-y-2 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-dark-600/50 scrollbar-track-dark-900 scroll-smooth sm:overflow-visible sm:max-h-none">
+
         {ranges.map((range, idx) => {
           const c = oc(idx);
           const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
@@ -330,7 +334,8 @@ const TimeHero = ({ market, currentPrice, disabled, onTimeframe }) => {
         <Timer className="w-3.5 h-3.5 text-orange-400" />
         <span className="text-xs text-neutral-400 font-medium">When will it hit?</span>
       </div>
-      <div className="grid grid-cols-2 gap-1.5 max-h-[110px] overflow-y-auto">
+        <div className="grid grid-cols-2 gap-2 max-h-[240px] overflow-y-auto scrollbar-thin scrollbar-thumb-dark-600/50 scrollbar-track-dark-900 sm:overflow-visible sm:max-h-none scroll-smooth">
+
         {(market.timeframes || []).map((tf, idx) => {
           const c = oc(idx);
           const rawMult = market.useFixedOdds ? market.multipliers?.[idx] : null;
@@ -402,7 +407,8 @@ const MarketCardComponent = ({
   return (
     <div
       onClick={onClick}
-      className="relative bg-dark-800 border border-dark-700 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer group transition-all duration-200 hover:border-dark-500 hover:bg-dark-800/90 overflow-hidden"
+      className="relative bg-dark-800 border border-dark-700/50 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer group transition-all duration-200 hover:border-dark-600 hover:bg-dark-800/90 overflow-hidden will-change-transform [backface-visibility:hidden]"
+
     >
       {/* Type accent strip */}
       <div
@@ -509,16 +515,19 @@ const MarketCardComponent = ({
 // ── Memo ──────────────────────────────────────────────────────────────────────
 
 const MemoizedMarketCard = React.memo(MarketCardComponent, (prev, next) => (
-  prev.market?.id          === next.market?.id          &&
-  prev.market?.resolved    === next.market?.resolved    &&
-  prev.market?.yesPool     === next.market?.yesPool     &&
-  prev.market?.noPool      === next.market?.noPool      &&
-  prev.market?.totalBets   === next.market?.totalBets   &&
-  prev.market?.priceWentUp === next.market?.priceWentUp &&
-  prev.isFavorite          === next.isFavorite          &&
-  prev.isLoading           === next.isLoading           &&
-  prev.isPlacingBet        === next.isPlacingBet        &&
-  prev.usdcBalance         === next.usdcBalance
+  prev.market?.id                === next.market?.id              &&
+  prev.market?.resolved          === next.market?.resolved        &&
+  prev.market?.yesPool           === next.market?.yesPool         &&
+  prev.market?.noPool            === next.market?.noPool          &&
+  prev.market?.totalBets         === next.market?.totalBets        &&
+  prev.market?.priceWentUp       === next.market?.priceWentUp     &&
+  prev.market?.options?.length   === next.market?.options?.length &&
+  prev.market?.ranges?.length    === next.market?.ranges?.length  &&
+  prev.market?.timeframes?.length=== next.market?.timeframes?.length &&
+  prev.isFavorite                === next.isFavorite              &&
+  prev.isLoading                 === next.isLoading               &&
+  prev.isPlacingBet              === next.isPlacingBet            &&
+  prev.usdcBalance               === next.usdcBalance
 ));
 
 export { MemoizedMarketCard };
