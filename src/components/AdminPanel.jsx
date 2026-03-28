@@ -258,16 +258,17 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
 
     if (currentAsset) {
       fetchCurrentPrice(currentAsset).then(price => {
-        if (price && marketType === 'range') {
-          const defaultBand = price > 10000 ? 1000 : 100;
-          const fmt = (p) => p.toFixed(price > 1000 ? 0 : 2);
+          if (price && marketType === 'range') {
+          const band = price * 0.1; // 10% of current price
+          const decimals = price >= 1000 ? 0 : price >= 1 ? 2 : 4;
+          const fmt = (p) => parseFloat(p.toFixed(decimals));
 
           setRangeForm(prev => ({
             ...prev,
             ranges: [
-              { min: parseFloat(fmt(price - defaultBand*2)), max: parseFloat(fmt(price - defaultBand)) },
-              { min: parseFloat(fmt(price - defaultBand)), max: parseFloat(fmt(price + defaultBand)) },
-              { min: parseFloat(fmt(price + defaultBand)), max: parseFloat(fmt(price + defaultBand*2)) }
+              { min: fmt(price - band * 2), max: fmt(price - band) },
+              { min: fmt(price - band),     max: fmt(price + band) },
+              { min: fmt(price + band),     max: fmt(price + band * 2) }
             ]
           }));
         }
