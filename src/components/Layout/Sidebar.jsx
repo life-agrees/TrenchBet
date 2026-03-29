@@ -7,6 +7,7 @@ import {
   Home, BarChart3, Target, Users, Trophy, Zap, Settings
 } from 'lucide-react';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
+import { TrenchyBetLogo } from '../TrenchyBetLogo.jsx';
 
 /**
  * NavItem — defined OUTSIDE Sidebar so it isn't re-created on every render.
@@ -189,10 +190,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
         <div className="h-14 px-3 border-b border-dark-700 flex items-center justify-between flex-shrink-0">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center">
-                <span className="text-primary font-black text-base leading-none">T</span>
-              </div>
-              <span className="font-black text-white text-sm tracking-widest uppercase">Trenchy</span>
+              <TrenchyBetLogo className="w-7 h-7" />
             </div>
           )}
           <button

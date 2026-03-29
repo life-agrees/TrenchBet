@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, ArrowRight, Sparkles } from 'lucide-react';
+import { Menu, X, ArrowRight } from 'lucide-react';
+import { TrenchyBetLogo } from '../TrenchyBetLogo.jsx';
 
 const LandingHeader = ({ onLaunchApp }) => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -52,12 +53,7 @@ const LandingHeader = ({ onLaunchApp }) => {
         <div className="flex items-center justify-between h-16 sm:h-20">
           {/* Logo */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-[#c0ff00]" />
-              <span className="text-xl sm:text-2xl font-bold text-white">
-                TrenchyBet
-              </span>
-            </div>
+<TrenchyBetLogo className="w-10 h-10 flex-shrink-0" />
             <span className="px-2 py-1 bg-[#c0ff00]/10 border border-[#c0ff00]/30 text-[#c0ff00] text-xs font-bold rounded-full">
               BETA
             </span>

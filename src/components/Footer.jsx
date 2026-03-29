@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Twitter, Send, FileText, Shield, Mail, ArrowRight, ExternalLink, ChevronUp } from 'lucide-react';
+import { TrenchyBetLogo } from "./TrenchyBetLogo.jsx";
 
 
 const Footer = () => {
@@ -40,9 +41,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="lg:col-span-1">
             <div className="flex items-center mb-3">
-              <div className="bg-[#c0ff00] p-2 rounded-xl">
-                <TrendingUp className="w-6 h-6 text-gray-900" />
-              </div>
+              <TrenchyBetLogo className="w-8 h-8" />
               <span className="ml-2 text-xl font-black text-white">
                 Trenchy<span className="text-[#c0ff00]">Bet</span>
               </span>
