@@ -83,7 +83,7 @@ export const DURATIONS = {
 
   OPTIMISTIC_UPDATE: 2000,          // Optimistic update revert delay
   NOTIFICATION_AUTO_CLOSE: 5000,    // Notification auto-close time
-  REFRESH_INTERVAL: 30000,          // Auto-refresh interval (30 seconds)
+  REFRESH_INTERVAL: 10000,          // Auto-refresh interval (10 seconds)
   TIMEOUT: 60000,                   // Request timeout
   RETRY_DELAY_BASE: 1000,           // Base retry delay (1 second)
   ANIMATION_DELAY_1: 2000,          // Animation delay 1 (2 seconds)
