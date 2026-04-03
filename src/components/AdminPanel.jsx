@@ -455,7 +455,11 @@ event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed pla
     if (months >= 1) return `${Math.round(months)} month${Math.round(months) > 1 ? 's' : ''}`;
     if (weeks >= 1) return `${Math.round(weeks)} week${Math.round(weeks) > 1 ? 's' : ''}`;
     if (days >= 1) return `${Math.round(days)} day${Math.round(days) > 1 ? 's' : ''}`;
-    return `${Math.round(hours)} hour${Math.round(hours) > 1 ? 's' : ''}`;
+    
+    // Handle decimal hours (e.g., 1.5h, 0.5h)
+    if (hours < 1) return `${Math.round(hours * 60)}min`;
+    if (hours % 1 !== 0) return `${hours.toFixed(1)}h`;  // Show decimals for .5 hours
+    return `${Math.round(hours)}h`;
   };
 
   /**
