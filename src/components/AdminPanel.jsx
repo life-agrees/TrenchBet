@@ -7,6 +7,7 @@ import { toast } from 'react-hot-toast';
 import DashboardTabV2 from './DashboardTabV2';
 import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
+import BotControlPanel from './BotControlPanel.jsx';
 import { CONTRACTS, PROXY_ADDRESS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
 
 
@@ -1544,7 +1545,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
 
             {/* Tabs */}
             <div className="flex border-b border-[#c0ff00]/20 px-6">
-              {['dashboard', 'create', 'manage'].map((tab) => (
+              {['dashboard', 'create', 'manage', 'bot'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1594,7 +1595,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
                   isConfirming={isConfirmingCreation}
                 />
               )}
-
+              
               {activeTab === 'manage' && (
                 <ManageTab
                   markets={markets}
@@ -1607,6 +1608,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
                   isConfirming={isConfirming}
                 />
               )}
+              {activeTab === 'bot' && <BotControlPanel />}
             </div>
           </div>
         </div>
