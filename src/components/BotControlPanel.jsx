@@ -20,10 +20,12 @@ const api = async (method, path, body) => {
 
 const ASSETS = ['BTC', 'ETH', 'LINK'];
 const CYCLES = [
-  { key: 'short',   label: '15m Binary',    color: 'text-[#CDFF00]' },
-  { key: 'medium',  label: '1h Binary+Range', color: 'text-blue-400'   },
-  { key: 'long',    label: '6h Time-Based',  color: 'text-orange-400' },
-  { key: 'resolve', label: 'Resolve Expired',color: 'text-purple-400' },
+  { key: 'binary',   label: '15m Binary',     color: 'text-[#CDFF00]' },
+  { key: 'range30',  label: '30m Range',      color: 'text-blue-400'   },
+  { key: 'range45',  label: '45m Range',      color: 'text-cyan-400'   },
+  { key: 'range60',  label: '60m Range',      color: 'text-indigo-400' },
+  { key: 'time',     label: '2h Time-Based',  color: 'text-orange-400' },
+  { key: 'resolve',  label: 'Resolve Expired',color: 'text-purple-400' },
 ];
 
 export default function BotControlPanel() {
@@ -37,10 +39,14 @@ export default function BotControlPanel() {
   // Local config state
   const [cfg, setCfg] = useState({
     assets: ['BTC', 'ETH', 'LINK'],
-    durations: { short: 900, medium: 3600, long: 21600 },
+    durations: { binary: 900, range30: 1800, range45: 2700, range60: 3600, time: 7200 },
     rangeBandPercent: 10,
     timePriceTargetPct: 5,
-    schedules: { short: '*/15 * * * *', medium: '0 * * * *', long: '0 */6 * * *', resolve: '*/5 * * * *' },
+    schedules: { binary: '*/15 * * * *', range30: '*/30 * * * *', range45: '*/45 * * * *', range60: '0 * * * *', time: '0 */2 * * *', resolve: '*/2 * * * *' },
+    useFixedOdds: false,
+    useTimeDecay: false,
+    decayStartPercent: 50,
+    minMultiplier: 120,
   });
 
   const fetchStatus = useCallback(async () => {
@@ -227,11 +233,13 @@ export default function BotControlPanel() {
             {/* Durations */}
             <div>
               <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Durations (minutes)</label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 {[
-                  { key: 'short', label: 'Short' },
-                  { key: 'medium', label: 'Medium' },
-                  { key: 'long', label: 'Long' },
+                  { key: 'binary', label: 'Binary' },
+                  { key: 'range30', label: 'Range 30' },
+                  { key: 'range45', label: 'Range 45' },
+                  { key: 'range60', label: 'Range 60' },
+                  { key: 'time', label: 'Time' },
                 ].map(({ key, label }) => (
                   <div key={key}>
                     <p className="text-xs text-neutral-500 mb-1">{label}</p>
@@ -277,9 +285,9 @@ export default function BotControlPanel() {
             <div>
               <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Cron Schedules</label>
               <div className="space-y-2">
-                {['short', 'medium', 'long', 'resolve'].map(k => (
+                {['binary', 'range30', 'range45', 'range60', 'time', 'resolve'].map(k => (
                   <div key={k} className="flex items-center gap-3">
-                    <span className="text-xs text-neutral-500 w-16 capitalize">{k}</span>
+                    <span className="text-xs text-neutral-500 w-20 capitalize">{k}</span>
                     <input
                       type="text"
                       value={cfg.schedules[k]}
@@ -288,6 +296,73 @@ export default function BotControlPanel() {
                     />
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Market Strategy Section */}
+            <div>
+              <label className="text-xs font-bold text-[#CDFF00] uppercase tracking-wide block mb-3">🎮 Market Strategy</label>
+              <div className="space-y-4 bg-dark-900/60 border border-dark-700 rounded-lg p-4">
+                
+                {/* Fixed Odds Toggle */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="useFixedOdds"
+                    checked={cfg.useFixedOdds}
+                    onChange={e => setCfg(c => ({ ...c, useFixedOdds: e.target.checked }))}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="useFixedOdds" className="text-sm text-neutral-300 cursor-pointer">
+                    Use Fixed Odds (Casino Mode)
+                  </label>
+                </div>
+
+                {/* Time Decay Toggle */}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="useTimeDecay"
+                    checked={cfg.useTimeDecay}
+                    onChange={e => setCfg(c => ({ ...c, useTimeDecay: e.target.checked }))}
+                    className="w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="useTimeDecay" className="text-sm text-neutral-300 cursor-pointer">
+                    Enable Time-Decaying Odds
+                  </label>
+                </div>
+
+                {/* Decay Percent */}
+                {cfg.useTimeDecay && (
+                  <div className="ml-7 space-y-2 pt-2 border-t border-dark-700">
+                    <label className="text-xs text-neutral-400 font-semibold">Decay Starts At (%)</label>
+                    <input
+                      type="number"
+                      value={cfg.decayStartPercent}
+                      onChange={e => setCfg(c => ({ ...c, decayStartPercent: parseInt(e.target.value) || 0 }))}
+                      className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                      min="0"
+                      max="100"
+                    />
+                    <p className="text-[10px] text-neutral-600">Market must complete this % before decay starts</p>
+                  </div>
+                )}
+
+                {/* Min Multiplier */}
+                <div className="space-y-2 pt-2 border-t border-dark-700">
+                  <label className="text-xs text-neutral-400 font-semibold">Min Multiplier (x)</label>
+                  <input
+                    type="number"
+                    value={cfg.minMultiplier / 100}
+                    onChange={e => setCfg(c => ({ ...c, minMultiplier: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
+                    className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                    min="1"
+                    max="2"
+                    step="0.05"
+                  />
+                  <p className="text-[10px] text-neutral-600">Minimum odds floor (1.0x = even, 2.0x = double)</p>
+                </div>
+
               </div>
             </div>
 
