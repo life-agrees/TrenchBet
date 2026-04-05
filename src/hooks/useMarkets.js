@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePublicClient } from 'wagmi';
 import { formatUnits, parseAbiItem } from 'viem';
-import { PROXY_ADDRESS, CONTRACTS, DURATIONS, BATCH } from '../utils/constants';
+import { PROXY_ADDRESS, DURATIONS, BATCH } from '../utils/constants';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { createLogger } from '../utils/logger';
 import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../marketUtils';

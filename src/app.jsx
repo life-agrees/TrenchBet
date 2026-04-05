@@ -26,7 +26,6 @@ import AirdropClaimModal from './components/AirdropClaimModal';
 import MarketCard from './components/MarketCard';
 import BetModal from './components/BetModal';
 import VirtualMarketList from './components/VirtualMarketList';
-import { PREDICTION_MARKET_ABI } from './contracts/abis';
 import { PREDICTION_MARKET_PROXY_ABI } from './contracts/proxyAbi';
 import { sdk } from '@farcaster/miniapp-sdk';
 import LandingPage from './LandingPage';
@@ -45,14 +44,11 @@ import { useRealtimeNotifications } from './hooks/useRealtimeNotifications.jsx';
 import { useUserStats } from './hooks/useUserStats';
 import { useReferrals } from './hooks/useReferrals';
 import { useAchievements } from './hooks/useAchievements';
-import { useBetCredits } from './hooks/useBetCredits';
-import { useFirstBetInsurance } from './hooks/useFirstBetInsurance';
 import { useBetPlacement } from './hooks/useBetPlacement';
 import { useAdminOwner } from './hooks/useAdminOwner';
 import { useBalance } from './hooks/useBalance';
 import { usePointsData } from './hooks/usePointsData';
 import { useDebounce } from './hooks/useDebounce';
-import { usePrefetchMarket } from './hooks/usePrefetchMarket';
 import { useCurrentPrices } from './hooks/useCurrentPrice';
 import { useFavorites } from './hooks/useFavorites';
 import { useUserPreferences } from './hooks/useUserPreferences';
@@ -130,17 +126,14 @@ const {
 
   const { stats: referralStats, shareReferral } = useReferrals();
   const { achievements, shareAchievement } = useAchievements();
-  const { creditsBalance: betCredits } = useBetCredits();
-  const { status: insuranceStatus } = useFirstBetInsurance();
 
   const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
-  const { leaderboard, isLoading: isLoadingLeaderboard, refresh: refreshLeaderboard } = useLeaderboard(10);
+  const { leaderboard, isLoading: isLoadingLeaderboard } = useLeaderboard(10);
   const { isOwner } = useAdminOwner();
 
 const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
   const { pointsData } = usePointsData(address);
 
-  const { handleMouseEnter, handleMouseLeave } = usePrefetchMarket();
   const { toggleFavorite, isFavorite } = useFavorites();
 
   const { prices: currentPrices } = useCurrentPrices(['BTC', 'ETH', 'SOL']);
@@ -164,7 +157,6 @@ const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
   const [selectedBet, setSelectedBet]               = useState(null);
   const [selectedAssetFilter, setSelectedAssetFilter] = useState('ALL');
   const [shareModalData, setShareModalData]         = useState(null);
-  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [showPointsHistory, setShowPointsHistory]   = useState(false);
   const [showLanding, setShowLanding]               = useState(true);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -609,7 +601,7 @@ if (market?.resolved) {
 
       case 'admin':
         return isOwner
-          ? <AdminPanel isOpen onClose={() => setCurrentView('markets')} onMarketCreated={forceRefresh} />
+          ? <AdminPanel isOpen onClose={() => setCurrentView('markets')} onMarketCreated={handleMarketCreated} />
           : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'settings':
