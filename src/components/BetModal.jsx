@@ -3,6 +3,7 @@ import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, La
 
 import { useBetPlacement } from '../hooks/useBetPlacement';
 import { useTimeDecay } from '../hooks/useTimeDecay';
+import { VoucherBalance } from './VoucherBalance';
 import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout, getEffectiveMultiplierDisplay } from '../marketUtils';
 import { createLogger } from '../utils/logger';
 
@@ -35,7 +36,7 @@ const getMarketTypeLabel = (type) => {
 };
 
 export const BetModal = ({ isOpen, onClose, market, usdcBalance, 
-  formattedUsdcBalance, usdcBalanceNum, onBetPlaced, initialChoice }) => {
+  formattedUsdcBalance, usdcBalanceNum, onBetPlaced, initialChoice, userAddress }) => {
   const [position, setPosition] = useState('yes');
   const [selectedChoice, setSelectedChoice] = useState(0);
   const [amount, setAmount] = useState('');
@@ -375,6 +376,9 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               </div>
             )}
           </div>
+
+          {/* Voucher Balance Display (if available) */}
+          <VoucherBalance userAddress={userAddress} />
 
           {/* Market Stats Grid */}
           <div className="grid grid-cols-2 gap-2 bg-gray-800/50 rounded-lg p-3 border border-gray-700">

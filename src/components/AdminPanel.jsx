@@ -8,6 +8,7 @@ import DashboardTabV2 from './DashboardTabV2';
 import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
 import BotControlPanel from './BotControlPanel.jsx';
+import VouchersTab from './VouchersTab';
 import { CONTRACTS, PROXY_ADDRESS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
 
 
@@ -55,7 +56,14 @@ function getContractForMarketType(marketType) {
 
 
 
-export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreated, markets: parentMarkets, isLoadingMarkets: parentIsLoadingMarkets }) {
+export default function AdminPanel({ 
+  isOpen: propIsOpen, 
+  onClose, 
+  onMarketCreated, 
+  markets: parentMarkets, 
+  isLoadingMarkets: parentIsLoadingMarkets,
+  vouchersContractAddress 
+}) {
 
 
   const [internalIsOpen, setInternalIsOpen] = useState(false);
@@ -144,6 +152,7 @@ export default function AdminPanel({ isOpen: propIsOpen, onClose, onMarketCreate
     minMultiplier: 120,
   });
 
+  const [vouchersContractAddress] = useState(null);
   const [timeForm, setTimeForm] = useState({
     asset: 'LINK',
     targetPrice: 200,
@@ -1549,7 +1558,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
 
             {/* Tabs */}
             <div className="flex border-b border-[#c0ff00]/20 px-6">
-              {['dashboard', 'create', 'manage', 'bot'].map((tab) => (
+              {['dashboard', 'create', 'manage', 'bot', 'vouchers'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -1613,6 +1622,9 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
                 />
               )}
               {activeTab === 'bot' && <BotControlPanel />}
+              {activeTab === 'vouchers' && vouchersContractAddress && (
+                <VouchersTab vouchersContractAddress={vouchersContractAddress} />
+              )}
             </div>
           </div>
         </div>

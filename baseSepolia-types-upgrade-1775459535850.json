@@ -1,0 +1,23 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x702a03CfF31A44BCc921A57d990aDb1100a5296C",
+  "admin": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "proxy": "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581",
+  "betvouchers": "0xC6989A4D70560413C7Db582352C3fCb0D440D915",
+  "types": {
+    "address": "0x85e680ca2786388DC87C2a905cb30c46dEE8413d",
+    "tx": "0x6549df2527069f20790cf786ab7cfa9c1ec77af2b7f8c1613d30cfd85106b7b7"
+  },
+  "proxyUpgrade": {
+    "address": "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581",
+    "oldImplementation": "0x4bf892822b0845CE06B66596f70123849F267866",
+    "newImplementation": "0x85e680ca2786388DC87C2a905cb30c46dEE8413d",
+    "tx": "0xd801085e5526dbef2084f5df67ecae4b5fbdf45388c20f6de4e374e00d7dd7e3",
+    "block": 39845624,
+    "verified": false
+  },
+  "timestamp": "2026-04-06T07:12:15.850Z",
+  "version": "1.0.0"
+}

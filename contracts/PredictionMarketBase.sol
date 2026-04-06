@@ -5,6 +5,11 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "./PredictionMarketStorage.sol";
 
+// ============ BetVouchers Interface (Minimal) ============
+interface IBetVouchers {
+    function spendVoucher(address user, uint256 amount, uint256 marketId) external returns (uint256 amountSpent);
+}
+
 /**
  * @title PredictionMarketBase
  * @notice Abstract base contract with shared logic
@@ -95,6 +100,15 @@ abstract contract PredictionMarketBase is PredictionMarketStorage, ReentrancyGua
         priceFeeds[asset] = AggregatorV3Interface(feedAddress);
     }
 
+    /**
+     * @notice Set the BetVouchers contract address
+     * @param _vouchersContract Address of the deployed BetVouchers contract
+     */
+    function setVouchersContract(address _vouchersContract) external onlyOwner {
+        require(_vouchersContract != address(0), "Invalid vouchers contract");
+        vouchersContract = _vouchersContract;
+    }
+
     function getCurrentPrice(string memory asset) public view returns (int256) {
         AggregatorV3Interface priceFeed = priceFeeds[asset];
         require(address(priceFeed) != address(0), "Price feed not set");
@@ -133,6 +147,45 @@ abstract contract PredictionMarketBase is PredictionMarketStorage, ReentrancyGua
             } else {
                 break;
             }
+        }
+    }
+
+    /**
+     * @notice Internal helper to deduct bet amount from multiple sources
+     * @dev CRITICAL: Spending order is: Vouchers → BetCredits → USDC
+     * @param user User placing the bet
+     * @param amount Total bet amount (should already be validated)
+     * @param marketId Market ID (used for voucher tracking)
+     * 
+     * This ensures users burn through vouchers first (non-withdrawable)
+     * before using paid bet credits and USDC
+     */
+    function _deductBetAmount(address user, uint256 amount, uint256 marketId) internal {
+        uint256 remaining = amount;
+        
+        // Step 1: Try to spend from vouchers (if contract set)
+        if (vouchersContract != address(0)) {
+            try IBetVouchers(vouchersContract).spendVoucher(user, remaining, marketId) returns (uint256 voucherSpent) {
+                if (voucherSpent > 0) {
+                    remaining -= voucherSpent;
+                }
+            } catch {
+                // If vouchers contract call fails, just continue without vouchers
+                // This is safe - the bet will proceed with credits/USDC
+            }
+        }
+        
+        // Step 2: Deduct from bet credits
+        if (remaining > 0 && betCredits[user] > 0) {
+            uint256 creditSpent = remaining <= betCredits[user] ? remaining : betCredits[user];
+            betCredits[user] -= creditSpent;
+            emit BetCreditUsed(user, creditSpent);
+            remaining -= creditSpent;
+        }
+        
+        // Step 3: Deduct from USDC (final amount)
+        if (remaining > 0) {
+            require(usdc.transferFrom(user, address(this), remaining), "USDC transfer failed");
         }
     }
 }

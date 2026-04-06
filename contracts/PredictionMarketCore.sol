@@ -78,7 +78,8 @@ contract PredictionMarketCore is PredictionMarketStorage, PredictionMarketBase {
         require(core.marketType == MarketType.BINARY, "Not a binary market");
         require(choice <= 1, "Invalid binary choice");
         
-        require(usdc.transferFrom(msg.sender, address(this), amount), "USDC transfer failed");
+        // UPDATED: Use helper to deduct from vouchers → betCredits → USDC
+        _deductBetAmount(msg.sender, amount, marketId);
         
         MarketPools storage pools = marketPools[marketId];
         if (choice == 1) {

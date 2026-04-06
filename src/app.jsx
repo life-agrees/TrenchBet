@@ -64,6 +64,8 @@ import { createLogger } from './utils/logger';
 
 const logger = createLogger('App');
 
+const VOUCHERS_CONTRACT_ADDRESS = "0xC6989A4D70560413C7Db582352C3fCb0D440D915";
+
 // ── Utility functions ──────────────────────────────────────────────────────
 
 const getMarketLabel = (marketType, asset) => {
@@ -601,7 +603,12 @@ if (market?.resolved) {
 
       case 'admin':
         return isOwner
-          ? <AdminPanel isOpen onClose={() => setCurrentView('markets')} onMarketCreated={handleMarketCreated} />
+? <AdminPanel 
+  isOpen={true}
+  onClose={() => setCurrentView('markets')}
+  onMarketCreated={handleMarketCreated}
+  vouchersContractAddress={VOUCHERS_CONTRACT_ADDRESS}
+/>
           : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'settings':
@@ -832,6 +839,7 @@ if (market?.resolved) {
             usdcBalance={usdcBalanceNum}
             formattedUsdcBalance={formattedUsdcBalance}
             usdcBalanceNum={usdcBalanceNum}
+            userAddress={address}
             onBetPlaced={handleBetPlaced}
           />
         )}
@@ -839,7 +847,7 @@ if (market?.resolved) {
         <NotificationCenter
           isOpen={showNotificationCenter}
           onClose={() => setShowNotificationCenter(false)}
-notifications={notificationHistory}
+          notifications={notificationHistory}
           unreadCount={unreadCount}
           onMarkAsRead={markAsRead}
           onMarkAllAsRead={markAllAsRead}

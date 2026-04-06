@@ -154,6 +154,9 @@ contract PredictionMarketStorage {
     mapping(address => uint256[]) public userPositionsList;
     mapping(address => uint256) public betCredits;
     
+    // Vouchers contract integration
+    address public vouchersContract;
+    
     uint256 public accumulatedFees;
     uint256 public lastFeeWithdrawal;
 

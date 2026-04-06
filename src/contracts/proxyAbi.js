@@ -14,6 +14,15 @@ export const PREDICTION_MARKET_PROXY_ABI = [
     "type": "function"
   },
   
+  // vouchersContract - getter for the BetVouchers contract address
+  {
+    "inputs": [],
+    "name": "vouchersContract",
+    "outputs": [{"internalType": "address","name": "","type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  
   // markets mapping - public getter for Market struct
   {
     "inputs": [{"internalType": "uint256","name": "marketId","type": "uint256"}],
@@ -351,6 +360,14 @@ export const PREDICTION_MARKET_PROXY_ABI = [
   {
     "inputs": [],
     "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  
+  {
+    "inputs": [{"internalType": "address","name": "_vouchersContract","type": "address"}],
+    "name": "setVouchersContract",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

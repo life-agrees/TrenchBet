@@ -1,0 +1,15 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x702a03CfF31A44BCc921A57d990aDb1100a5296C",
+  "admin": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "proxy": "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581",
+  "betvouchers": "0xC6989A4D70560413C7Db582352C3fCb0D440D915",
+  "error": {
+    "message": "Current owner 0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d is not the deployer 0x702a03CfF31A44BCc921A57d990aDb1100a5296C",
+    "stack": "Error: Current owner 0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d is not the deployer 0x702a03CfF31A44BCc921A57d990aDb1100a5296C\n    at transferOwnership (C:\\Users\\DELL\\OneDrive\\Desktop\\trenchybet-miniapp\\scripts\\setup-vouchers-complete.cjs:110:11)\n    at processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at main (C:\\Users\\DELL\\OneDrive\\Desktop\\trenchybet-miniapp\\scripts\\setup-vouchers-complete.cjs:252:31)"
+  },
+  "timestamp": "2026-04-05T17:47:15.757Z",
+  "version": "1.0.0"
+}

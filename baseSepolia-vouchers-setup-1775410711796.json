@@ -1,0 +1,28 @@
+{
+  "network": "baseSepolia",
+  "chainId": "84532",
+  "deployer": "0x702a03CfF31A44BCc921A57d990aDb1100a5296C",
+  "admin": "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "proxy": "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581",
+  "betvouchers": "0xC6989A4D70560413C7Db582352C3fCb0D440D915",
+  "ownershipTransfer": {
+    "address": "0xC6989A4D70560413C7Db582352C3fCb0D440D915",
+    "previousOwner": "0x702a03CfF31A44BCc921A57d990aDb1100a5296C",
+    "newOwner": "0x52ceb1cc4fe3cfacc5f0cd12ea7215734cb0aa3d",
+    "tx": "0x6708d5dc86586e9cafd1676ec171c021d9de2a6c3b04b1526b4b6e68a69f58a1",
+    "block": 39821207
+  },
+  "types": {
+    "address": "0x9e15D320dB3f692F700897Ea6a9fb32bB4e393b8",
+    "tx": "0x1696fdc7cef824743e0c3408bd9a4743de61c67b01099ca2414a4f5aa903cce3"
+  },
+  "proxyUpdate": {
+    "address": "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581",
+    "newTypesImplementation": "0x9e15D320dB3f692F700897Ea6a9fb32bB4e393b8",
+    "tx": "0xee6539b17664617dc34c4f3f3d03f0213989c7f1c1983011676b459526b7f35d",
+    "block": 39821212
+  },
+  "timestamp": "2026-04-05T17:38:31.796Z",
+  "version": "1.0.0"
+}

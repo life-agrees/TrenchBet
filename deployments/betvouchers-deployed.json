@@ -1,0 +1,13 @@
+{
+  "contract": "BetVouchers",
+  "address": "0xC6989A4D70560413C7Db582352C3fCb0D440D915",
+  "network": "Base Sepolia",
+  "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+  "deployedAt": "2025-04-05",
+  "status": "🟢 DEPLOYED",
+  "nextSteps": [
+    "Call setVouchersContract(0xC6989A4D70560413C7Db582352C3fCb0D440D915) on PredictionMarketProxy",
+    "Upload 2000 waitlist wallets via AdminPanel Vouchers tab",
+    "Launch campaign and monitor"
+  ]
+}

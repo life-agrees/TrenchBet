@@ -100,7 +100,7 @@ export const CACHE = {
 
 // Batch processing
 export const BATCH = {
-  MARKET_BATCH_SIZE: 2,             // Number of markets to fetch per batch (reduced for rate limiting)
+  MARKET_BATCH_SIZE: 10,            // fetch 10 at a time instead of default
 };
 
 

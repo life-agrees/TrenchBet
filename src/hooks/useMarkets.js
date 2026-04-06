@@ -65,8 +65,9 @@ export function useMarkets() {
       const proxyTotal = Number(proxyCounter);
       logger.info(`Market counter: ${proxyTotal} from Proxy`);
 
-      const proxyMarkets = await fetchMarketsFromProxy(publicClient, 0, proxyTotal);
-      const allMarkets = proxyMarkets.sort((a, b) => b.endTime - a.endTime);
+      const startIndex = Math.max(0, proxyTotal - 50);
+      const proxyMarkets = await fetchMarketsFromProxy(publicClient, startIndex, proxyTotal);
+      const allMarkets = proxyMarkets.sort((a, b) => b.id - a.id); // newest first by ID
 
       hasLoadedOnce.current = true;
       setMarkets(allMarkets);

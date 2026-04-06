@@ -342,7 +342,8 @@ contract PredictionMarketTypes is PredictionMarketStorage, PredictionMarketBase 
             revert("Use PredictionMarketCore for binary markets");
         }
         
-        require(usdc.transferFrom(msg.sender, address(this), amount), "USDC transfer failed");
+        // UPDATED: Use helper to deduct from vouchers → betCredits → USDC
+        _deductBetAmount(msg.sender, amount, marketId);
         
         if (core.marketType == MarketType.MULTI_CHOICE) {
             multiChoiceMarkets[marketId].optionPools[choice] += amount;
