@@ -152,8 +152,7 @@ export default function AdminPanel({
     minMultiplier: 120,
   });
 
-  const [vouchersContractAddress] = useState(null);
-  const [timeForm, setTimeForm] = useState({
+  const [timeForm, setTimeForm] = useState({    
     asset: 'LINK',
     targetPrice: 200,
     timeframes: [
@@ -167,6 +166,7 @@ export default function AdminPanel({
     decayStartPercent: 50,
     minMultiplier: 120,
   });
+
 
 
 

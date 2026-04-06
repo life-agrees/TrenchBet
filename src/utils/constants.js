@@ -231,6 +231,10 @@ export const CONTRACTS = {
 // Export individual addresses for convenience
 // Note: CHAINLINK_RESOLVER_ADDRESS and TRENCHY_STAKING_ADDRESS are defined at the top of this file
 
+// Alias for useVouchers.js compatibility
+export const PROXY_CONTRACT_ADDRESS = PROXY_ADDRESS;
+
+
 // Referral System Configuration
 
 export const REFERRAL = {

@@ -828,8 +828,8 @@ if (market?.resolved) {
         />
 
         {renderContent()}
-
-{selectedBet && (
+        
+        {selectedBet && (
           <BetModal
             isOpen={!!selectedBet}
             onClose={() => setSelectedBet(null)}
@@ -865,7 +865,7 @@ if (market?.resolved) {
         />
 
         <ShareModal market={shareModalData} isOpen={!!shareModalData} onClose={() => setShareModalData(null)} />
-<PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} walletAddress={address} />
+        <PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} walletAddress={address} />
       </MainLayout>
 
       <Footer />
