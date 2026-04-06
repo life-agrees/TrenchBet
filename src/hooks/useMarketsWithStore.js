@@ -50,24 +50,33 @@ export const useMarketsWithStore = (options = {}) => {
   }, [error, setMarketsError]);
 
   // Smart refetch that respects cache
+  // Smart refetch that respects cache (reduced to 5s)
   const smartRefetch = useCallback(() => {
-    if (shouldRefetch('markets', 30000)) { // 30 second cache
+    if (shouldRefetch('markets', 5000)) { // 5 second cache
       logger.info('Cache expired, refetching markets');
       refetch();
     } else {
-      logger.info('Using cached markets');
+      logger.info('Using cached markets (5s)');
     }
   }, [refetch, shouldRefetch]);
+
+  // Force refresh bypassing cache
+  const forceRefreshMarkets = useCallback(() => {
+    logger.info('Force refresh triggered - bypassing cache');
+    refetch();
+  }, [refetch]);
 
   return {
     markets: storeMarkets.length > 0 ? storeMarkets : fetchedMarkets,
     isLoading,
     error,
     refetch: smartRefetch,
+    refresh: forceRefreshMarkets, // Now bypasses cache
+    forceRefresh: forceRefreshMarkets,
     selectedMarket,
     setSelectedMarket,
-    refresh: refetch, // Force refresh bypassing cache
   };
+
 };
 
 export default useMarketsWithStore;

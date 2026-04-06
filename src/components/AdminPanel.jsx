@@ -325,6 +325,12 @@ export default function AdminPanel({
             onMarketCreated();
           }
 
+          // Force refresh markets in store (bypasses cache)
+          const appStore = useAppStore.getState();
+          appStore.setLastFetch('markets', 0); // Invalidate cache
+          const { refresh: forceRefreshMarkets } = useMarketsWithStore();
+          forceRefreshMarkets();
+
         } else {
           toast.error('Market creation failed on-chain', { id: 'create-market' });
           setCreateStatus({ 

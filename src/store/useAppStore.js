@@ -248,10 +248,19 @@ export const useAppStore = create(
         }));
       },
       
-      shouldRefetch: (key, cacheTime = 60000) => {
+      shouldRefetch: (key, cacheTime) => {
+        // Per-key default cache times (ms)
+        const defaults = {
+          markets: 5000,  // 5s for markets (fast refresh)
+          userBets: 30000,
+          leaderboard: 60000,
+          default: 60000,
+        };
+        const effectiveCacheTime = cacheTime ?? defaults[key] ?? defaults.default;
+        
         const lastFetch = get().lastFetch[key];
         if (!lastFetch) return true;
-        return Date.now() - lastFetch > cacheTime;
+        return Date.now() - lastFetch > effectiveCacheTime;
       },
 
       // ==================== RESET ====================

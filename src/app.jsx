@@ -3,7 +3,7 @@ import { useAccount, useWriteContract } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { formatUnits } from 'viem';
 import {
-  TrendingUp, Clock, DollarSign, Wallet, Trophy,
+  TrendingUp, Clock, DollarSign, Wallet, Trophy, Star,
   Target, BarChart3, Settings, AlertTriangle, CheckCircle,
   XCircle, RefreshCw, Loader2,
   Zap  // FIX 1: Added missing Zap import (was crashing the Streaks view)
@@ -738,10 +738,9 @@ if (market?.resolved) {
               </div>
             )}
 
-            {(() => {
+{(() => {
               const now = Date.now();
               const safeMarkets = markets || [];
-              // FIX 3: endTime already in ms from useMarkets
               const currentLiveMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) > now);
               let filteredMarkets = selectedAssetFilter === 'ALL'
                 ? currentLiveMarkets
@@ -756,6 +755,8 @@ if (market?.resolved) {
               }
 
               const sortedMarkets = sortMarkets(filteredMarkets);
+              const pinned = sortedMarkets.filter(m => isFavorite(m.id));
+              const rest = sortedMarkets.filter(m => !isFavorite(m.id));
 
               if (!isLoadingMarkets && currentLiveMarkets.length === 0) return <EmptyState isConnected={isConnected} variant="empty" />;
               if (!isLoadingMarkets && sortedMarkets.length === 0) return (
@@ -765,9 +766,34 @@ if (market?.resolved) {
                 </div>
               );
 
-              return sortedMarkets.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
+{pinned.length > 0 && (
+                <div className="mb-8 p-6 bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border border-yellow-400/20 rounded-3xl">
+                  <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                    ⭐ Pinned ({pinned.length})
+                    <button onClick={() => {/* clear all? */}} className="ml-auto text-xs text-yellow-300 hover:text-yellow-200">Clear</button>
+                  </h3>
+                  {pinned.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
+                    <VirtualMarketList markets={pinned} currentPrices={currentPrices} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} pinned />
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {pinned.map(market => (
+                        <MarketCard key={Number(market.id)} market={market} currentPrice={currentPrices[market.asset]} onClick={() => handleOpenShareModal(market)} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite(market.id)} onToggleFavorite={() => toggleFavorite(market.id)} pinned />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {pinned.length > 0 && rest.length > 0 && (
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-dark-600 to-transparent my-8"></div>
+              )}
+              {rest.length === 0 ? (
+                <div className="text-center py-12 text-neutral-500">
+                  <Star size={48} className="mx-auto mb-4 opacity-30 text-yellow-400" />
+                  <p>No pinned markets. ⭐ Favorite some to keep them at top!</p>
+                </div>
+              ) : rest.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
                 <VirtualMarketList
-                  markets={sortedMarkets}
+                  markets={rest}
                   currentPrices={currentPrices}
                   onBetClick={handleBetClick}
                   usdcBalance={usdcBalanceNum}
@@ -776,7 +802,7 @@ if (market?.resolved) {
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
-                  {sortedMarkets.map((market) => (
+                  {rest.map((market) => (
                     <MarketCard
                       key={Number(market.id)}
                       market={market}
@@ -791,7 +817,7 @@ if (market?.resolved) {
                     />
                   ))}
                 </div>
-              );
+              )}
             })()}
           </section>
         );
