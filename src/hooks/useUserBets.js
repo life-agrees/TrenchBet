@@ -22,7 +22,9 @@ export const useUserBets = (address, markets) => {
   const [error, setError]                 = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [refreshTrigger, setRefreshTrigger]   = useState(0);
-  const [rawBets, setRawBets]             = useState([]);
+const [rawBets, setRawBets]             = useState([]);
+  const [hasMoreBets, setHasMoreBets]       = useState(true);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
   // FIX 1: Track rawBets length in a ref instead of putting it in fetchRawBets'
   // dependency array. Previously rawBets.length was a dep of fetchRawBets, which
@@ -64,7 +66,7 @@ export const useUserBets = (address, markets) => {
     try {
       const currentBlock = await publicClient.getBlockNumber();
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 490000n;
+      const totalBlocks = 3000000n; // ~17 days on Base Sepolia (2 blocks/sec)
       const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
 
       logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 490k blocks)...`);
@@ -107,9 +109,15 @@ export const useUserBets = (address, markets) => {
       });
 
       // FIX 1: update ref before state so next render's ref is already correct
+const previousLength = rawBetsLengthRef.current;
       rawBetsLengthRef.current = rawBetData.length;
+      
+      // Detect if we found new older bets (for pagination)
+      const foundNewBets = rawBetData.length > previousLength;
+      setHasMoreBets(foundNewBets);
+      
       setRawBets(rawBetData);
-      logger.info(`[useUserBets] Stored ${rawBetData.length} raw bet events`);
+      logger.info(`[useUserBets] Stored ${rawBetData.length} raw bet events${foundNewBets ? ' (new older bets found)' : ''}`);
     } catch (err) {
       logger.error('[useUserBets] Error fetching user bets:', err);
       setError(err.message || 'Failed to fetch user bets');
@@ -169,7 +177,7 @@ export const useUserBets = (address, markets) => {
           // Chunk fallback
           const currentBlock = await publicClient.getBlockNumber();
           const CHUNK_SIZE = 49999n;
-          const totalBlocks = 490000n;
+          const totalBlocks = 3000000n; // ~17 days on Base Sepolia (2 blocks/sec)
           const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
           for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
             const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
@@ -265,11 +273,78 @@ export const useUserBets = (address, markets) => {
     return () => clearInterval(interval);
   }, [effectiveAddress, fetchRawBets]);
 
-  const forceRefresh = useCallback(() => {
+const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
+    setHasMoreBets(true);
     setLastRefreshTime(0);
     fetchRawBets(true);
   }, [fetchRawBets]);
+
+  const loadOlderBets = useCallback(async () => {
+    if (!effectiveAddress || !publicClient || !hasMoreBets || rawBets.length === 0) {
+      return;
+    }
+
+    setIsLoadingOlder(true);
+    try {
+      const oldestBetBlock = rawBets[rawBets.length - 1]?.blockNumber || 0n;
+      const currentBlock = await publicClient.getBlockNumber();
+      
+      if (oldestBetBlock >= currentBlock) {
+        setHasMoreBets(false);
+        return;
+      }
+
+      logger.info(`[useUserBets] Loading older bets before block ${oldestBetBlock}`);
+      
+      const CHUNK_SIZE = 49999n;
+      const totalBlocks = 3000000n;
+      const fromBlock = oldestBetBlock > totalBlocks ? oldestBetBlock - totalBlocks : 0n;
+      
+      let olderLogs = [];
+      for (let from = fromBlock; from < oldestBetBlock; from += CHUNK_SIZE) {
+        const to = from + CHUNK_SIZE > oldestBetBlock ? oldestBetBlock : from + CHUNK_SIZE;
+        try {
+          const chunk = await publicClient.getLogs({
+            address: CONTRACTS.PROXY,
+            event: parseAbiItem(
+              'event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'
+            ),
+            args: { user: effectiveAddress },
+            fromBlock: from,
+            toBlock: to,
+          });
+          olderLogs.push(...chunk);
+        } catch (chunkErr) {
+          logger.warn(`Chunk from ${from} failed:`, chunkErr.message);
+        }
+      }
+
+      if (olderLogs.length > 0) {
+        const olderBetData = olderLogs.map(log => ({
+          txHash: log.transactionHash,
+          marketId: Number(log.args.marketId),
+          choice: Number(log.args.choice),
+          amount: log.args.amount,
+          multiplier: Number(log.args.effectiveMultiplier),
+          blockNumber: log.blockNumber,
+          logIndex: log.logIndex,
+        }));
+
+        // Prepend older bets (they're already newest-first sorted)
+        const updatedBets = [...rawBets, ...olderBetData];
+        rawBetsLengthRef.current = updatedBets.length;
+        setRawBets(updatedBets);
+        logger.info(`Loaded ${olderBetData.length} older bets. Total: ${updatedBets.length}`);
+      } else {
+        setHasMoreBets(false);
+      }
+    } catch (err) {
+      logger.error('Error loading older bets:', err);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [effectiveAddress, publicClient, hasMoreBets, rawBets]);
 
   // NOTE: logger.info calls removed from useMemo — side effects inside memo
   // are a React anti-pattern and fire twice in Strict Mode.
@@ -316,15 +391,18 @@ export const useUserBets = (address, markets) => {
     }),
   [userBets]);
 
-  return {
+return {
     userBets,
     ongoingBets,
     pendingBets,
     wonBets,
     lostBets,
     isLoading,
+    isLoadingOlder,
+    hasMoreBets,
     error,
     refresh: forceRefresh,
+    loadOlderBets,
   };
 };
 

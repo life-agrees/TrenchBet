@@ -65,7 +65,8 @@ export function useMarkets() {
       const proxyTotal = Number(proxyCounter);
       logger.info(`Market counter: ${proxyTotal} from Proxy`);
 
-      const startIndex = Math.max(0, proxyTotal - 50);
+const startIndex = Math.max(0, proxyTotal - 200);
+      logger.info(`📋 Fetching markets: counter=${proxyTotal}, fetching ${startIndex}-${proxyTotal}`);
       const proxyMarkets = await fetchMarketsFromProxy(publicClient, startIndex, proxyTotal);
       const allMarkets = proxyMarkets.sort((a, b) => b.id - a.id); // newest first by ID
 
@@ -73,7 +74,7 @@ export function useMarkets() {
       setMarkets(allMarkets);
       setIsLoading(false);
 
-      logger.info(`Successfully fetched ${allMarkets.length} markets from proxy`);
+    logger.info(`✅ Loaded ${allMarkets.length} valid markets (skipped ${proxyTotal - startIndex - allMarkets.length})`);
     } catch (err) {
       logger.error('Failed to fetch markets:', err);
       setError(err.message || 'Failed to fetch markets');
@@ -116,9 +117,9 @@ export function useMarkets() {
     };
   }, [markets]);
 
-  const forceRefresh = useCallback(() => {
-    logger.info('Force refresh triggered');
-    fetchMarkets(true);
+  const immediateRefresh = useCallback(async () => {
+    logger.info('🚀 IMMEDIATE REFRESH - prioritizing newest markets');
+    await fetchMarkets(true);
   }, [fetchMarkets]);
 
   return {
@@ -129,7 +130,8 @@ export function useMarkets() {
     error,
     refresh: fetchMarkets,
     refreshMarkets: fetchMarkets,
-    forceRefresh,
+    immediateRefresh,
+    forceRefresh: immediateRefresh,
   };
 }
 
@@ -158,7 +160,7 @@ async function fetchMarketsFromProxy(publicClient, startIndex, totalCount) {
       validMarkets.push(...batchResults.filter(m => m !== null));
 
       if (batchEnd < totalCount) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+await new Promise(resolve => setTimeout(resolve, 50));
       }
     } catch (err) {
       logger.error(`Error fetching proxy batch ${batchStart}-${batchEnd}:`, err);

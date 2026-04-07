@@ -100,13 +100,29 @@ const App = () => {
   const { writeContractAsync } = useWriteContract();
 
   // ── All hooks — must be called before any conditional returns ──
-  const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets, forceRefresh } = useMarkets();
+  const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets, immediateRefresh, forceRefresh } = useMarkets();
 
-const handleMarketCreated = useCallback(() => {
-  forceRefresh();
-  setTimeout(() => forceRefresh(), 3000);
-  setTimeout(() => forceRefresh(), 8000);
-}, [forceRefresh]);
+const handleMarketCreated = useCallback(async () => {
+  logger.info('🎉 handleMarketCreated triggered');
+  // Immediate refresh
+  await immediateRefresh?.();
+  
+  // Follow-up refreshes for blockchain sync
+  setTimeout(async () => {
+    logger.info('🔄 MarketCreated refresh +2s');
+    await immediateRefresh?.();
+  }, 2000);
+  
+  setTimeout(async () => {
+    logger.info('🔄 MarketCreated refresh +5s');
+    await immediateRefresh?.();
+  }, 5000);
+  
+  setTimeout(async () => {
+    logger.info('🔄 MarketCreated refresh +10s');
+    await refreshMarkets();
+  }, 10000);
+}, [immediateRefresh, refreshMarkets]);
 
   const {
     userBets, ongoingBets, pendingBets, wonBets, lostBets,

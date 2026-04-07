@@ -21,8 +21,18 @@ import {
 
 import { sanitizeInput } from '../utils/inputSanitization';
 import { createLogger } from '../utils/logger';
+import { useAppStore } from '../store/useAppStore';
 
 const logger = createLogger('AdminPanel');
+
+export default function AdminPanel({ 
+  isOpen: propIsOpen, 
+  onClose, 
+  onMarketCreated, 
+  markets: parentMarkets, 
+  isLoadingMarkets: parentIsLoadingMarkets,
+  vouchersContractAddress 
+}) {
 
 
 /**
@@ -56,15 +66,7 @@ function getContractForMarketType(marketType) {
 
 
 
-export default function AdminPanel({ 
-  isOpen: propIsOpen, 
-  onClose, 
-  onMarketCreated, 
-  markets: parentMarkets, 
-  isLoadingMarkets: parentIsLoadingMarkets,
-  vouchersContractAddress 
-}) {
-
+/** REMOVED DUPLICATE EXPORT - keep only top-level export **/
 
   const [internalIsOpen, setInternalIsOpen] = useState(false);
   const isOpen = propIsOpen !== undefined ? propIsOpen : internalIsOpen;
@@ -173,6 +175,9 @@ export default function AdminPanel({
   // Transaction states
   const [isPending, setIsPending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+
+  // ✅ FIXED: Global app store access (moved to top-level)
+  const appStore = useAppStore();
 
   // Admin check - fetch contract owner from PROXY (shared storage)
   const { data: proxyOwner, isLoading: isLoadingProxyOwner } = useReadContract({
@@ -328,8 +333,8 @@ export default function AdminPanel({
           // Force refresh markets in store (bypasses cache)
           const appStore = useAppStore.getState();
           appStore.setLastFetch('markets', 0); // Invalidate cache
-          const { refresh: forceRefreshMarkets } = useMarketsWithStore();
-          forceRefreshMarkets();
+        // Note: Removed useMarketsWithStore() call - can't call hooks inside useEffect
+        // Parent onMarketCreated will handle global refresh
 
         } else {
           toast.error('Market creation failed on-chain', { id: 'create-market' });
