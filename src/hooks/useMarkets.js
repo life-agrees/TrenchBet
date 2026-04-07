@@ -270,7 +270,28 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       contractAddress: PROXY_CONTRACT_ADDRESS,
     };
 
-
+    if (baseMarket.resolved) {
+      try {
+        const currentBlock = await publicClient.getBlockNumber();
+        const CHUNK_SIZE = 49999n;
+        const fromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
+        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+          try {
+            const chunk = await publicClient.getLogs({
+              address: PROXY_CONTRACT_ADDRESS,
+              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+              args: { marketId: BigInt(marketId) },
+              fromBlock: from, toBlock: to,
+            });
+            if (chunk.length > 0) {
+              baseMarket.winningChoice = Number(chunk[0].args.winningChoice);
+              break;
+            }
+          } catch { /* skip */ }
+        }
+      } catch (e) { /* skip */ }
+    }
 
     const contract = { address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI };
 
