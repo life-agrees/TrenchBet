@@ -270,45 +270,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       contractAddress: PROXY_CONTRACT_ADDRESS,
     };
 
-    if (baseMarket.resolved) {
-      try {
-        // Try single call first
-        let resolvedLogs = [];
-        try {
-          resolvedLogs = await publicClient.getLogs({
-            address: PROXY_CONTRACT_ADDRESS,
-            event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-            args: { marketId: BigInt(marketId) },
-            fromBlock: 'earliest',
-            toBlock: 'latest',
-          });
-        } catch (rangeErr) {
-          // RPC block range limit — fall back to chunks
-          const currentBlock = await publicClient.getBlockNumber();
-          const CHUNK_SIZE = 49999n;
-          const totalBlocks = 490000n;
-          const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
-          for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-            const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-            try {
-              const chunk = await publicClient.getLogs({
-                address: PROXY_CONTRACT_ADDRESS,
-                event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-                args: { marketId: BigInt(marketId) },
-                fromBlock: from,
-                toBlock: to,
-              });
-              if (chunk.length > 0) { resolvedLogs = chunk; break; }
-            } catch { /* skip chunk */ }
-          }
-        }
-        if (resolvedLogs.length > 0) {
-          baseMarket.winningChoice = Number(resolvedLogs[0].args.winningChoice);
-        }
-      } catch (e) {
-        logger.warn(`Failed to fetch MarketResolved for market ${marketId}:`, e.message);
-      }
-    }
+
 
     const contract = { address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI };
 
@@ -343,18 +305,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
         logger.warn(`Failed to fetch total pool for market ${marketId}:`, e.message);
       }
     }
-    if (marketType !== 0) {
-      try {
-        const totalPool = await publicClient.readContract({
-          address: PROXY_CONTRACT_ADDRESS,
-          abi: [{ name: 'getTotalPool', type: 'function', stateMutability: 'view', inputs: [{ name: 'marketId', type: 'uint256' }], outputs: [{ name: '', type: 'uint256' }] }],
-          functionName: 'getTotalPool',
-          args: [BigInt(marketId)]
-        });
-        baseMarket.yesPool = Number(formatUnits(totalPool, 6));
-        baseMarket.noPool  = 0;
-      } catch { /* leave as 0 */ }
-    }
+
 
     return baseMarket;
   } catch (error) {
