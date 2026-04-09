@@ -522,7 +522,7 @@ const DashboardTab = ({
                 <div className="flex items-center gap-2 bg-dark-900 p-3 rounded-lg border border-dark-700">
                   <p className="font-mono text-sm text-white flex-1 break-all">{contractAddress || 'Not connected'}</p>
                   {contractAddress && (
-                    <a href={`https://basescan.org/address/${contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-400">
+                    <a href={`https://sepolia.basescan.org/address/${contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-400">
                       <ExternalLink size={16} />
                     </a>
                   )}
