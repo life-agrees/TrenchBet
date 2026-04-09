@@ -24,18 +24,6 @@ export function useMarkets() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]       = useState(null);
 
-  /**
-   * FIX 1: `markets.length` removed from `fetchMarkets` dependency array.
-   *
-   * Previously: fetchMarkets read markets.length from its closure to decide
-   * whether to show the loading spinner. That put markets.length in the deps
-   * array, which meant every setMarkets() call created a new fetchMarkets
-   * callback, which triggered the useEffect, which tore down and rebuilt the
-   * 30-second polling interval. The interval never fired reliably.
-   *
-   * Fix: track "has loaded at least once" in a ref. fetchMarkets no longer
-   * needs to read markets state at all, so markets.length leaves the deps.
-   */
   const hasLoadedOnce = useRef(false);
 
   const fetchMarkets = useCallback(async (force = false) => {
@@ -48,13 +36,11 @@ export function useMarkets() {
     try {
       setError(null);
 
-      // Show spinner on first load or forced refresh
-      // FIX 1: use ref instead of markets.length
       if (!hasLoadedOnce.current || force) {
         setIsLoading(true);
       }
 
-      logger.info(`Fetching markets from proxy contract... (force: ${force})`);
+      logger.info(`Fetching recent ACTIVE markets via MarketCreated events... (force: ${force})`);
 
       const proxyCounter = await publicClient.readContract({
         address: PROXY_CONTRACT_ADDRESS,
@@ -65,31 +51,68 @@ export function useMarkets() {
       const proxyTotal = Number(proxyCounter);
       logger.info(`Market counter: ${proxyTotal} from Proxy`);
 
-const startIndex = Math.max(0, proxyTotal - 200);
-      logger.info(`📋 Fetching markets: counter=${proxyTotal}, fetching ${startIndex}-${proxyTotal}`);
-      const proxyMarkets = await fetchMarketsFromProxy(publicClient, startIndex, proxyTotal);
-      const allMarkets = proxyMarkets.sort((a, b) => b.id - a.id); // newest first by ID
+      // Get recent MarketCreated events — much faster than scanning by index
+      const currentBlock = await publicClient.getBlockNumber();
+      const fromBlock = currentBlock > 49999n ? currentBlock - 49999n : 0n;
+
+      let recentIds = [];
+      try {
+        const logs = await publicClient.getLogs({
+          address: PROXY_CONTRACT_ADDRESS,
+          event: parseAbiItem('event MarketCreated(uint256 indexed marketId, uint8 marketType, string asset, bool useFixedOdds, bool useTimeDecay)'),
+          fromBlock,
+          toBlock: currentBlock,
+        });
+        recentIds = [...new Set(logs.map(l => Number(l.args.marketId)))];
+        logger.info(`Found ${recentIds.length} recent market IDs from events`);
+      } catch (err) {
+        logger.warn('Event fetching failed, using fallback:', err.message);
+      }
+
+      // Fallback to last 30 if events fail or no recent markets
+      if (recentIds.length === 0) {
+        recentIds = Array.from({ length: Math.min(30, proxyTotal) }, (_, i) => proxyTotal - 1 - i);
+        logger.info(`Using fallback: last ${recentIds.length} market IDs`);
+      }
+
+      // Fetch resolvedMap for recent markets
+      const resolvedMap = {};
+      try {
+        const CHUNK_SIZE = 99999n;
+        const eventFromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
+        for (let from = eventFromBlock; from < currentBlock; from += CHUNK_SIZE) {
+          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+          try {
+            const chunks = await publicClient.getLogs({
+              address: PROXY_CONTRACT_ADDRESS,
+              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+              fromBlock: from, toBlock: to,
+            });
+            chunks.forEach(log => {
+              resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
+            });
+          } catch { /* skip */ }
+        }
+      } catch { /* skip */ }
+
+      logger.info(`Fetching ${recentIds.length} specific markets`);
+      const proxyMarkets = await Promise.all(
+        recentIds.map(id => fetchSingleMarketFromProxy(publicClient, id, 0, resolvedMap))
+      );
+      const allMarkets = proxyMarkets.filter(m => m !== null).sort((a, b) => b.id - a.id);
 
       hasLoadedOnce.current = true;
       setMarkets(allMarkets);
       setIsLoading(false);
 
-    logger.info(`✅ Loaded ${allMarkets.length} valid markets (skipped ${proxyTotal - startIndex - allMarkets.length})`);
+      logger.info(`✅ Loaded ${allMarkets.length} valid recent markets from ${recentIds.length} IDs`);
     } catch (err) {
       logger.error('Failed to fetch markets:', err);
       setError(err.message || 'Failed to fetch markets');
       setIsLoading(false);
     }
-  // FIX 1: markets.length removed — only stable deps remain
   }, [publicClient]);
 
-  // FIX 3: fetchMarketsFromProxy moved outside the hook body (below) so it
-  // isn't recreated on every render. It only uses module-level constants.
-
-  // Fetch on mount; poll every REFRESH_INTERVAL
-  // FIX 1: because fetchMarkets is now stable (no markets.length dep), this
-  // effect only runs once on mount. The interval fires reliably without being
-  // torn down and rebuilt on every successful fetch.
   useEffect(() => {
     fetchMarkets();
     const interval = setInterval(fetchMarkets, DURATIONS.REFRESH_INTERVAL);
@@ -102,7 +125,6 @@ const startIndex = Math.max(0, proxyTotal - 200);
     const expired = [];
 
     for (const market of markets) {
-      // endTime is stored in ms (see fetchSingleMarketFromProxy: validEndTime * 1000)
       const endTime = Number(market.endTime);
       if (market.resolved || endTime <= now) {
         expired.push(market);
@@ -135,42 +157,49 @@ const startIndex = Math.max(0, proxyTotal - 200);
   };
 }
 
-// ── Module-level helpers (not recreated on render) ────────────────────────
-
-/**
- * FIX 3: Moved outside the hook — was previously defined inside useMarkets,
- * meaning a new function reference was created on every render.
- */
 async function fetchMarketsFromProxy(publicClient, startIndex, totalCount) {
   if (totalCount === 0) return [];
 
-  logger.info(`Fetching ${totalCount} markets from proxy at ${PROXY_CONTRACT_ADDRESS}`);
+  // Fetch ALL MarketResolved events once — much faster than per-market
+  const resolvedMap = {};
+  try {
+    const currentBlock = await publicClient.getBlockNumber();
+    const CHUNK_SIZE = 99999n;  // Optimized for Infura (2x faster)
+    const fromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
+    for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+      const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+      try {
+        const chunks = await publicClient.getLogs({
+          address: PROXY_CONTRACT_ADDRESS,
+          event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+          fromBlock: from, toBlock: to,
+        });
+        chunks.forEach(log => {
+          resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
+        });
+      } catch { /* skip */ }
+    }
+  } catch { /* skip */ }
 
+  // Pass resolvedMap to each market fetch
   const validMarkets = [];
   const batchSize = BATCH.MARKET_BATCH_SIZE;
-
   for (let batchStart = startIndex; batchStart < totalCount; batchStart += batchSize) {
-    const batchEnd     = Math.min(batchStart + batchSize, totalCount);
+    const batchEnd = Math.min(batchStart + batchSize, totalCount);
     const batchIndices = Array.from({ length: batchEnd - batchStart }, (_, i) => batchStart + i);
-
     try {
       const batchResults = await Promise.all(
-        batchIndices.map(i => fetchSingleMarketFromProxy(publicClient, i))
+        batchIndices.map(i => fetchSingleMarketFromProxy(publicClient, i, 0, resolvedMap))
       );
       validMarkets.push(...batchResults.filter(m => m !== null));
-
-      if (batchEnd < totalCount) {
-await new Promise(resolve => setTimeout(resolve, 50));
-      }
     } catch (err) {
-      logger.error(`Error fetching proxy batch ${batchStart}-${batchEnd}:`, err);
+      logger.error(`Batch error:`, err);
     }
   }
-
   return validMarkets;
 }
 
-async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0) {
+async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0, resolvedMap = {}) {
   const MAX_RETRIES = 2;
 
   try {
@@ -185,14 +214,17 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
         args: [BigInt(marketId)]
       });
     } catch (readError) {
-      if (
-        readError.message?.includes('out of bounds') ||
-        readError.message?.includes('Position') ||
-        readError.message?.includes('decoding') ||
-        readError.message?.includes('overflow') ||
-        readError.message?.includes('invalid')
-      ) {
-        logger.warn(`Market ${marketId} has corrupted/invalid data, skipping: ${readError.message}`);
+        if (
+          readError.message?.includes('Cannot decode zero data') ||
+          readError.message?.includes('zero data') ||
+          readError.message?.includes('AbiDecoding') ||
+          readError.message?.includes('out of bounds') ||
+          readError.message?.includes('Position') ||
+          readError.message?.includes('decoding') ||
+          readError.message?.includes('overflow') ||
+          readError.message?.includes('invalid')
+        ) {
+        logger.debug(`Market ${marketId} slot empty (normal), skipping silently`);
         return null;
       }
       throw readError;
@@ -272,27 +304,15 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       contractAddress: PROXY_CONTRACT_ADDRESS,
     };
 
+    // REPLACE the entire if (baseMarket.resolved) block with:
     if (baseMarket.resolved) {
-      try {
-        const currentBlock = await publicClient.getBlockNumber();
-        const CHUNK_SIZE = 49999n;
-        const fromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
-        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-          try {
-            const chunk = await publicClient.getLogs({
-              address: PROXY_CONTRACT_ADDRESS,
-              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-              args: { marketId: BigInt(marketId) },
-              fromBlock: from, toBlock: to,
-            });
-            if (chunk.length > 0) {
-              baseMarket.winningChoice = Number(chunk[0].args.winningChoice);
-              break;
-            }
-          } catch { /* skip */ }
-        }
-      } catch (e) { /* skip */ }
+      if (resolvedMap[marketId] !== undefined) {
+        baseMarket.winningChoice = resolvedMap[marketId];
+      }
+      // binary fallback
+      if (marketType === 0) {
+        baseMarket.winningChoice = baseMarket.priceWentUp ? 1 : 0;
+      }
     }
 
     const contract = { address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI };
@@ -329,12 +349,12 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       }
     }
 
-
     return baseMarket;
   } catch (error) {
-    logger.error(`Error reading market ${marketId}:`, error);
+      logger.error(`Error reading market ${marketId}:`, error);
 
     if (
+      error.message?.includes('Cannot decode zero data') ||
       error.message?.includes('out of bounds') ||
       error.message?.includes('Position') ||
       error.message?.includes('decoding') ||
@@ -355,7 +375,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
     )) {
       logger.info(`Retrying market ${marketId} (attempt ${retryCount + 1})`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      return fetchSingleMarketFromProxy(publicClient, marketId, retryCount + 1);
+      return fetchSingleMarketFromProxy(publicClient, marketId, retryCount + 1, resolvedMap);
     }
 
     return null;

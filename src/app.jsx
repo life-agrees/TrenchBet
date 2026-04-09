@@ -64,7 +64,7 @@ import { createLogger } from './utils/logger';
 
 const logger = createLogger('App');
 
-const VOUCHERS_CONTRACT_ADDRESS = "0xC6989A4D70560413C7Db582352C3fCb0D440D915";
+const VOUCHERS_CONTRACT_ADDRESS = "0x0FcdB56b713a12a6C11Efa33d6DE1CAA1947294c";
 
 // ── Utility functions ──────────────────────────────────────────────────────
 

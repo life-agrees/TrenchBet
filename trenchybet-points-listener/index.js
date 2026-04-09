@@ -151,9 +151,9 @@ async function startListener() {
   console.log('🚀 TrenchyBet Points Listener Starting...');
   console.log(`📍 Watching Proxy: ${PROXY_CONTRACT_ADDRESS}`);
   const currentBlock = await publicClient.getBlockNumber();
-  const LOOK_BACK = 500000n;
+  const LOOK_BACK = 3000000n; // ~17 days Base Sepolia, aligned with useUserBets.js
   let lastProcessedBlock = currentBlock > LOOK_BACK ? currentBlock - LOOK_BACK : 0n;
-  console.log(`📦 Starting from block: ${lastProcessedBlock} (scanning back 500k blocks)`);
+  console.log(`📦 Starting from block: ${lastProcessedBlock} (scanning back 3M blocks ~17 days)`);
   console.log('✅ Listening for events...\n');
 
   setInterval(async () => {

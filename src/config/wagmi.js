@@ -9,8 +9,8 @@ export const CONTRACTS = CONTRACT_ADDRESSES;
 const baseSepoliaWithRPC = {
   ...baseSepolia,
   rpcUrls: {
-    default: { http: ['https://sepolia.base.org'] },
-    public:  { http: ['https://sepolia.base.org'] },
+    default: { http: ['https://base-sepolia.infura.io/v3/cbab4b63ab6743aa8c1922a7e97a1e50', 'https://base-sepolia-rpc.publicnode.com'] },
+    public:  { http: ['https://base-sepolia.infura.io/v3/cbab4b63ab6743aa8c1922a7e97a1e50', 'https://base-sepolia-rpc.publicnode.com'] },
   },
 };
 
@@ -36,8 +36,7 @@ const createTransport = (publicUrls) => {
 
 const FREE_RPC_PROVIDERS = {
   baseSepolia: [
-    'https://sepolia.base.org',
-    'https://base-sepolia-rpc.publicnode.com',
+    'https://base-sepolia.infura.io/v3/cbab4b63ab6743aa8c1922a7e97a1e50'
   ],
   base: [
     'https://mainnet.base.org',

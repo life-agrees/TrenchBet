@@ -54,13 +54,13 @@
 // This proxy delegates to Core and Types implementations with shared storage
 // Deployed: 2026-02-25 - NEW FIXED PROXY (no storage collision)
 // IMPORTANT: New proxy has correct storage layout without Ownable collision
-export const PROXY_ADDRESS = "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581";
+export const PROXY_ADDRESS = "0x2d1d11Fb8A0C899c681C2D66b555eF37650fdFC8";
 
 // Implementation contracts (behind proxy - do not use directly)
 // UPDATED: New fixed implementations deployed on 2025-01-25
 // Fixed storage collision issue - now reads owner from EIP-1967 admin slot
-export const PREDICTION_MARKET_CORE_ADDRESS = "0xeD7E731289980D206a62cB3dca145BdA003A4177";
-export const PREDICTION_MARKET_TYPES_ADDRESS = "0x3281167bF88D2BE1FD2a96E42366C3b1e72A5e75";
+export const PREDICTION_MARKET_CORE_ADDRESS = "0x49E8CBe89934FD2b53aCEcaA05c1DCfE747BB8f8";
+export const PREDICTION_MARKET_TYPES_ADDRESS = "0xC58A97aA13103474401A83c9DD2739c6e2788E16";
 
 
 
@@ -100,7 +100,7 @@ export const CACHE = {
 
 // Batch processing
 export const BATCH = {
-  MARKET_BATCH_SIZE: 10,            // fetch 10 at a time instead of default
+  MARKET_BATCH_SIZE: 5,             // Reduced for faster batch fetches (proxy fix)
 };
 
 

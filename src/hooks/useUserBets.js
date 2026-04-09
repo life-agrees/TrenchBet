@@ -21,8 +21,8 @@ export const useUserBets = (address, markets) => {
   const [isLoading, setIsLoading]         = useState(false);
   const [error, setError]                 = useState(null);
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
-  const [refreshTrigger, setRefreshTrigger]   = useState(0);
-const [rawBets, setRawBets]             = useState([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [rawBets, setRawBets] = useState([]);
   const [hasMoreBets, setHasMoreBets]       = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
@@ -32,7 +32,8 @@ const [rawBets, setRawBets]             = useState([]);
   // triggered the useEffect([fetchRawBets]) and kicked off another fetch cycle.
   // The 3-second rate limit masked the loop but it still caused wasteful
   // recreation. Using a ref breaks the cycle entirely.
-  const rawBetsLengthRef = useRef(0);
+const rawBetsLengthRef = useRef(0);
+  const isFetchingRef = useRef(false);
 
   const getCurrentBlock = useCallback(async () => {
     try {
@@ -43,17 +44,29 @@ const [rawBets, setRawBets]             = useState([]);
     }
   }, [publicClient]);
 
-  const fetchRawBets = useCallback(async (force = false) => {
+const fetchRawBets = useCallback(async (force = false) => {
+    if (isFetchingRef.current) {
+      logger.debug('Skipping fetch - already in progress');
+      return;
+    }
     if (!effectiveAddress || !publicClient) {
       logger.debug('Skipping fetch - no address or publicClient');
       return;
     }
+    isFetchingRef.current = true;
 
     const now = Date.now();
     if (!force && now - lastRefreshTime < 3000) {
       logger.debug('Skipping fetch - rate limited');
+      isFetchingRef.current = false;
       return;
     }
+
+    if (isFetchingRef.current) {
+      logger.debug('Skipping fetch - already in progress');
+      return;
+    }
+    isFetchingRef.current = true;
 
     // FIX 1: use ref instead of rawBets.length in closure/deps
     if (rawBetsLengthRef.current === 0 || force) {
@@ -84,7 +97,8 @@ const [rawBets, setRawBets]             = useState([]);
             fromBlock: from,
             toBlock: to,
           });
-          allLogs.push(...chunk);
+          if (Array.isArray(chunk)) allLogs.push(...chunk);
+          else logger.warn(`Expected array chunk, got:`, typeof chunk);
         } catch (chunkErr) {
           logger.warn(`[useUserBets] Chunk from ${from} failed:`, chunkErr.message);
         }
@@ -93,15 +107,18 @@ const [rawBets, setRawBets]             = useState([]);
 
       logger.info(`[useUserBets] Found ${allLogs.length} total bet events`);
 
-      const rawBetData = allLogs.map(log => ({
+const rawBetData = allLogs
+  .filter(log => log.args && log.args.marketId !== undefined)
+  .map(log => ({
         txHash:      log.transactionHash,
         marketId:    Number(log.args.marketId),
         choice:      Number(log.args.choice),
-        amount:      log.args.amount,              // actual bet amount
-        multiplier:  Number(log.args.effectiveMultiplier), // store for payout calc
+        amount:      log.args.amount,              
+        multiplier:  Number(log.args.effectiveMultiplier), 
         blockNumber: log.blockNumber,
         logIndex:    log.logIndex,
-      }));
+      }))
+  .filter(bet => !isNaN(bet.marketId) && bet.marketId > 0);
 
       rawBetData.sort((a, b) => {
         if (b.blockNumber !== a.blockNumber) return Number(b.blockNumber) - Number(a.blockNumber);
@@ -109,7 +126,7 @@ const [rawBets, setRawBets]             = useState([]);
       });
 
       // FIX 1: update ref before state so next render's ref is already correct
-const previousLength = rawBetsLengthRef.current;
+      const previousLength = rawBetsLengthRef.current;
       rawBetsLengthRef.current = rawBetData.length;
       
       // Detect if we found new older bets (for pagination)
@@ -122,9 +139,9 @@ const previousLength = rawBetsLengthRef.current;
       logger.error('[useUserBets] Error fetching user bets:', err);
       setError(err.message || 'Failed to fetch user bets');
     } finally {
+      isFetchingRef.current = false;
       setIsLoading(false);
     }
-  // FIX 1: rawBets.length removed from deps — use rawBetsLengthRef.current instead
   }, [effectiveAddress, publicClient, lastRefreshTime]);
 
   const enrichBets = useCallback(async () => {
@@ -201,7 +218,50 @@ const previousLength = rawBetsLengthRef.current;
 
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
         const { marketId, choice, amount } = rawBet;
-        const market = markets?.find(m => m.id === marketId);
+        let market = markets?.find(m => m.id === marketId);
+        if (!market) {
+          try {
+            const raw = await publicClient.readContract({
+              address: CONTRACTS.PROXY,
+              abi: PREDICTION_MARKET_PROXY_ABI,
+              functionName: 'markets',
+              args: [BigInt(marketId)]
+            });
+            if (raw && Number(raw.startTime) !== 0) {
+              market = {
+                id: marketId,
+                marketType: Number(raw.marketType),
+                asset: raw.asset,
+                resolved: raw.resolved,
+                priceWentUp: raw.priceWentUp,
+                winningChoice: raw.resolved ? (raw.marketType === 0 ? (raw.priceWentUp ? 1 : 0) : null) : null,
+                endTime: Number(raw.endTime) * 1000,
+                yesPool: 0, noPool: 0,
+                totalBets: Number(raw.totalBets),
+              };
+              // For resolved advanced markets, get winningChoice from MarketResolved event
+              if (raw.resolved && Number(raw.marketType) !== 0) {
+                try {
+                  const currentBlock = await publicClient.getBlockNumber();
+                  const from = currentBlock > 490000n ? currentBlock - 490000n : 0n;
+                  for (let f = from; f < currentBlock; f += 49999n) {
+                    const t = f + 49999n > currentBlock ? currentBlock : f + 49999n;
+                    const logs = await publicClient.getLogs({
+                      address: CONTRACTS.PROXY,
+                      event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+                      args: { marketId: BigInt(marketId) },
+                      fromBlock: f, toBlock: t,
+                    });
+                    if (logs.length > 0) {
+                      market.winningChoice = Number(logs[0].args.winningChoice);
+                      break;
+                    }
+                  }
+                } catch { /* skip */ }
+              }
+            }
+          } catch { /* leave undefined */ }
+        }
 
         const marketLabel = market
           ? `${market.asset} - ${getMarketTypeLabel(market.marketType)}`
@@ -273,7 +333,7 @@ const previousLength = rawBetsLengthRef.current;
     return () => clearInterval(interval);
   }, [effectiveAddress, fetchRawBets]);
 
-const forceRefresh = useCallback(() => {
+  const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
     setHasMoreBets(true);
     setLastRefreshTime(0);
@@ -314,14 +374,16 @@ const forceRefresh = useCallback(() => {
             fromBlock: from,
             toBlock: to,
           });
-          olderLogs.push(...chunk);
+          if (Array.isArray(chunk)) olderLogs.push(...chunk);
         } catch (chunkErr) {
           logger.warn(`Chunk from ${from} failed:`, chunkErr.message);
         }
       }
 
       if (olderLogs.length > 0) {
-        const olderBetData = olderLogs.map(log => ({
+        const olderBetData = olderLogs
+  .filter(log => log.args && log.args.marketId !== undefined)
+  .map(log => ({
           txHash: log.transactionHash,
           marketId: Number(log.args.marketId),
           choice: Number(log.args.choice),
@@ -329,7 +391,8 @@ const forceRefresh = useCallback(() => {
           multiplier: Number(log.args.effectiveMultiplier),
           blockNumber: log.blockNumber,
           logIndex: log.logIndex,
-        }));
+        }))
+  .filter(bet => !isNaN(bet.marketId) && bet.marketId > 0);
 
         // Prepend older bets (they're already newest-first sorted)
         const updatedBets = [...rawBets, ...olderBetData];
