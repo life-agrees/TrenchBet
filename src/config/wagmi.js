@@ -36,7 +36,9 @@ const createTransport = (publicUrls) => {
 
 const FREE_RPC_PROVIDERS = {
   baseSepolia: [
-    'https://base-sepolia.infura.io/v3/cbab4b63ab6743aa8c1922a7e97a1e50'
+    'https://base-sepolia.infura.io/v3/cbab4b63ab6743aa8c1922a7e97a1e50',
+    'https://base-sepolia-rpc.publicnode.com',
+    'https://sepolia.base.org',
   ],
   base: [
     'https://mainnet.base.org',

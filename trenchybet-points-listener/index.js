@@ -18,7 +18,7 @@ const RPC_URL = ALCHEMY_API_KEY
 console.log(`🔌 Using RPC provider: ${RPC_URL.includes('alchemy') ? 'Alchemy' : 'Base Sepolia RPC'}`);
 
 // Proxy contract (all events emitted here)
-const PROXY_CONTRACT_ADDRESS = process.env.PROXY_ADDRESS || "0x40c64085FEA4b46494e7674d2f8EE1f6C24c9581";
+const PROXY_CONTRACT_ADDRESS = process.env.PROXY_ADDRESS || "0x2d1d11Fb8A0C899c681C2D66b555eF37650fdFC8";
 
 // Supabase client
 const supabase = createClient(

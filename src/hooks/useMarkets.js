@@ -40,44 +40,51 @@ export function useMarkets() {
         setIsLoading(true);
       }
 
-      logger.info(`Fetching recent ACTIVE markets via MarketCreated events... (force: ${force})`);
+      logger.info(`Fetching markets via marketCounter (reliable, no getLogs dependency)... (force: ${force})`);
 
-      const proxyCounter = await publicClient.readContract({
-        address: PROXY_CONTRACT_ADDRESS,
-        abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: 'marketCounter'
-      }).catch(() => 0n);
+      // ── Step 1: Read marketCounter with retry ──
+      // This is a simple view call — highly reliable even on free-tier RPCs
+      let proxyTotal = 0;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const proxyCounter = await publicClient.readContract({
+            address: PROXY_CONTRACT_ADDRESS,
+            abi: PREDICTION_MARKET_PROXY_ABI,
+            functionName: 'marketCounter'
+          });
+          proxyTotal = Number(proxyCounter);
+          break;
+        } catch (err) {
+          logger.warn(`marketCounter read attempt ${attempt + 1} failed: ${err.message}`);
+          if (attempt < 2) await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        }
+      }
 
-      const proxyTotal = Number(proxyCounter);
       logger.info(`Market counter: ${proxyTotal} from Proxy`);
 
-      // Get recent MarketCreated events — much faster than scanning by index
-      const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock > 49999n ? currentBlock - 49999n : 0n;
-
-      let recentIds = [];
-      try {
-        const logs = await publicClient.getLogs({
-          address: PROXY_CONTRACT_ADDRESS,
-          event: parseAbiItem('event MarketCreated(uint256 indexed marketId, uint8 marketType, string asset, bool useFixedOdds, bool useTimeDecay)'),
-          fromBlock,
-          toBlock: currentBlock,
-        });
-        recentIds = [...new Set(logs.map(l => Number(l.args.marketId)))];
-        logger.info(`Found ${recentIds.length} recent market IDs from events`);
-      } catch (err) {
-        logger.warn('Event fetching failed, using fallback:', err.message);
+      if (proxyTotal === 0) {
+        // No markets exist at all — show empty state
+        hasLoadedOnce.current = true;
+        setMarkets([]);
+        setIsLoading(false);
+        return;
       }
 
-      // Fallback to last 30 if events fail or no recent markets
-      if (recentIds.length === 0) {
-        recentIds = Array.from({ length: Math.min(30, proxyTotal) }, (_, i) => proxyTotal - 1 - i);
-        logger.info(`Using fallback: last ${recentIds.length} market IDs`);
-      }
+      // ── Step 2: Build market IDs directly from counter ──
+      // Scan the last 50 market IDs (or all if fewer exist)
+      // This is the PRIMARY discovery mechanism — no getLogs required
+      const MAX_SCAN = 50;
+      const scanCount = Math.min(MAX_SCAN, proxyTotal);
+      const recentIds = Array.from(
+        { length: scanCount },
+        (_, i) => proxyTotal - 1 - i
+      );
+      logger.info(`Scanning last ${scanCount} market IDs (${proxyTotal - scanCount} to ${proxyTotal - 1})`);
 
-      // Fetch resolvedMap for recent markets
+      // ── Step 3: Fetch resolvedMap (optional enrichment — OK if it fails) ──
       const resolvedMap = {};
       try {
+        const currentBlock = await publicClient.getBlockNumber();
         const CHUNK_SIZE = 99999n;
         const eventFromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
         for (let from = eventFromBlock; from < currentBlock; from += CHUNK_SIZE) {
@@ -91,11 +98,12 @@ export function useMarkets() {
             chunks.forEach(log => {
               resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
             });
-          } catch { /* skip */ }
+          } catch { /* skip — resolvedMap is best-effort */ }
         }
-      } catch { /* skip */ }
+      } catch { /* skip — resolvedMap is best-effort */ }
 
-      logger.info(`Fetching ${recentIds.length} specific markets`);
+      // ── Step 4: Fetch each market's data by ID ──
+      logger.info(`Fetching ${recentIds.length} specific markets by ID`);
       const proxyMarkets = await Promise.all(
         recentIds.map(id => fetchSingleMarketFromProxy(publicClient, id, 0, resolvedMap))
       );
@@ -105,9 +113,13 @@ export function useMarkets() {
       setMarkets(allMarkets);
       setIsLoading(false);
 
-      logger.info(`✅ Loaded ${allMarkets.length} valid recent markets from ${recentIds.length} IDs`);
+      logger.info(`✅ Loaded ${allMarkets.length} valid markets from ${recentIds.length} IDs (counter-based)`);
     } catch (err) {
       logger.error('Failed to fetch markets:', err);
+      // Preserve existing markets on transient errors (don't blank the UI)
+      if (hasLoadedOnce.current) {
+        logger.info('Keeping previously loaded markets after transient error');
+      }
       setError(err.message || 'Failed to fetch markets');
       setIsLoading(false);
     }
