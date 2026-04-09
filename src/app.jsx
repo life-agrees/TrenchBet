@@ -154,7 +154,7 @@ const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
 
   const { toggleFavorite, isFavorite } = useFavorites();
 
-  const { prices: currentPrices } = useCurrentPrices(['BTC', 'ETH', 'SOL']);
+  const { prices: currentPrices } = useCurrentPrices(['BTC', 'ETH', 'LINK']);
 
   // FIX 4: Read sidebarCollapsed from preferences so MainLayout can apply
   // correct padding. Previously isSidebarCollapsed was never passed to MainLayout,
@@ -717,11 +717,9 @@ if (market?.resolved) {
                     </div>
                     <div className="flex items-center gap-2" role="group">
                       <span className="text-sm text-neutral-400 mr-2">Filter by:</span>
-                      {['ALL', 'BTC', 'ETH', 'SOL'].map((asset) => {
-                        const now = Date.now();
-                        const safeMarkets = markets || [];
-                        // FIX 3: endTime already in ms from useMarkets
-                        const activeMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) > now);
+                      {['ALL', 'BTC', 'ETH', 'LINK'].map((asset) => {
+                        // FIXED: Use liveMarkets from hook (already filtered for active)
+                        const activeMarkets = liveMarkets || [];
                         const count = asset === 'ALL' ? activeMarkets.length : activeMarkets.filter(m => m.asset === asset).length;
                         return (
                           <button
@@ -755,9 +753,9 @@ if (market?.resolved) {
             )}
 
 {(() => {
-              const now = Date.now();
-              const safeMarkets = markets || [];
-              const currentLiveMarkets = safeMarkets.filter(m => !m.resolved && Number(m.endTime) > now);
+              // FIXED: Use liveMarkets from the hook instead of re-filtering
+              // This ensures consistency and avoids timing issues with endTime checks
+              const currentLiveMarkets = liveMarkets || [];
               let filteredMarkets = selectedAssetFilter === 'ALL'
                 ? currentLiveMarkets
                 : currentLiveMarkets.filter(m => m.asset === selectedAssetFilter);
