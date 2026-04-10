@@ -105,7 +105,7 @@ export function useMarkets() {
       // ── Step 4: Fetch each market's data by ID ──
       logger.info(`Fetching ${recentIds.length} specific markets by ID`);
       const proxyMarkets = [];
-      const PARALLEL = 5;
+      const PARALLEL = 2;
       for (let i = 0; i < recentIds.length; i += PARALLEL) {
         const batch = recentIds.slice(i, i + PARALLEL);
         const results = await Promise.all(
@@ -113,7 +113,7 @@ export function useMarkets() {
         );
         proxyMarkets.push(...results);
         if (i + PARALLEL < recentIds.length) {
-          await new Promise(r => setTimeout(r, 200)); // 200ms between batches
+          await new Promise(r => setTimeout(r, 400)); // 400ms between batches
         }
       }
       const allMarkets = proxyMarkets.filter(m => m !== null).sort((a, b) => b.id - a.id);
@@ -387,16 +387,8 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       return null;
     }
 
-    if (retryCount < MAX_RETRIES && (
-      error.message?.includes('timeout') ||
-      error.message?.includes('rate limit') ||
-      error.message?.includes('429') ||
-      error.message?.includes('503') ||
-      error.message?.includes('Too Many') ||
-      error.message?.includes('network') ||
-      error.message?.includes('connection')
-    )) {
-      logger.info(`Retrying market ${marketId} (attempt ${retryCount + 1})`);
+    if (retryCount < MAX_RETRIES) {
+      logger.info(`Retrying market ${marketId} (attempt ${retryCount + 1}) due to: ${error.shortMessage || error.message}`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
       return fetchSingleMarketFromProxy(publicClient, marketId, retryCount + 1, resolvedMap);
     }
