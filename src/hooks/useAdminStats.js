@@ -12,7 +12,7 @@ const MAX_BLOCK_RANGE = 8000;
 
 
 export const useAdminStats = (contractAddress) => {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalVolume: 0,

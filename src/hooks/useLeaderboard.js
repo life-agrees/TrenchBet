@@ -27,7 +27,7 @@ const logger = createLogger('useLeaderboard');
  *   { rank, address, displayAddress, wins, losses, winRate, totalVolume, totalBets }
  */
 export const useLeaderboard = (count = 10) => {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
   const [leaderboard, setLeaderboard]   = useState([]);
   const [isLoading, setIsLoading]       = useState(false);
   const [error, setError]               = useState(null);

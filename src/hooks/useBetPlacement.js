@@ -26,7 +26,7 @@ function getContractForMarketType(marketType) {
 
 export const useBetPlacement = () => {
   const { address } = useAccount();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
   const { data: walletClient } = useWalletClient();
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [isPending, setIsPending] = useState(false);

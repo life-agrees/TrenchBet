@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePublicClient } from 'wagmi';
+import { baseSepolia } from 'wagmi/chains';
 // FIX: Removed unused PRICE_FEEDS import from wagmi.js — it was imported
 // but never referenced anywhere in this file.
 import { CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
@@ -20,7 +21,7 @@ const logger = createLogger('useCurrentPrice');
 export function useCurrentPrice(asset) {
   const [currentPrice, setCurrentPrice] = useState(null);
   const [isLoading, setIsLoading]       = useState(true);
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: baseSepolia.id });
 
   useEffect(() => {
     // Null asset is valid — parent may pass null to suppress fetching
@@ -82,7 +83,7 @@ export function useCurrentPrice(asset) {
 export function useCurrentPrices(assets = ['BTC', 'ETH', 'LINK']) {
   const [prices, setPrices]   = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: baseSepolia.id });
 
   // Stable serialised key so the effect doesn't re-run on array identity changes
   const assetsKey = JSON.stringify([...assets].sort());

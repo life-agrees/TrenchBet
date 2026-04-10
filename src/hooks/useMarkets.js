@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePublicClient } from 'wagmi';
+import { baseSepolia } from 'wagmi/chains';
 import { formatUnits, parseAbiItem } from 'viem';
 import { PROXY_ADDRESS, DURATIONS, BATCH } from '../utils/constants';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
@@ -19,7 +20,7 @@ function getContractForMarketType(marketType) {
 }
 
 export function useMarkets() {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: baseSepolia.id });
   const [markets, setMarkets]   = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError]       = useState(null);
@@ -73,7 +74,7 @@ export function useMarkets() {
       // ── Step 2: Build market IDs directly from counter ──
       // Scan the last 50 market IDs (or all if fewer exist)
       // This is the PRIMARY discovery mechanism — no getLogs required
-      const MAX_SCAN = 50;
+      const MAX_SCAN = 300; // FIX: Near-perfect 11-hour lookback window to absorb intense bot volume
       const scanCount = Math.min(MAX_SCAN, proxyTotal);
       const recentIds = Array.from(
         { length: scanCount },
@@ -105,7 +106,7 @@ export function useMarkets() {
       // ── Step 4: Fetch each market's data by ID ──
       logger.info(`Fetching ${recentIds.length} specific markets by ID`);
       const proxyMarkets = [];
-      const PARALLEL = 2;
+      const PARALLEL = 5;
       for (let i = 0; i < recentIds.length; i += PARALLEL) {
         const batch = recentIds.slice(i, i + PARALLEL);
         const results = await Promise.all(
@@ -113,7 +114,7 @@ export function useMarkets() {
         );
         proxyMarkets.push(...results);
         if (i + PARALLEL < recentIds.length) {
-          await new Promise(r => setTimeout(r, 400)); // 400ms between batches
+          await new Promise(r => setTimeout(r, 250)); // 250ms between batches
         }
       }
       const allMarkets = proxyMarkets.filter(m => m !== null).sort((a, b) => b.id - a.id);
@@ -236,16 +237,13 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       });
     } catch (readError) {
         if (
-          readError.message?.includes('Cannot decode zero data') ||
-          readError.message?.includes('zero data') ||
-          readError.message?.includes('AbiDecoding') ||
           readError.message?.includes('out of bounds') ||
           readError.message?.includes('Position') ||
           readError.message?.includes('decoding') ||
           readError.message?.includes('overflow') ||
           readError.message?.includes('invalid')
         ) {
-        logger.debug(`Market ${marketId} slot empty (normal), skipping silently`);
+        logger.debug(`Market ${marketId} slot invalid (normal), skipping silently`);
         return null;
       }
       throw readError;
@@ -375,13 +373,11 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       logger.error(`Error reading market ${marketId}:`, error);
 
     if (
-      error.message?.includes('Cannot decode zero data') ||
       error.message?.includes('out of bounds') ||
       error.message?.includes('Position') ||
       error.message?.includes('decoding') ||
       error.message?.includes('overflow') ||
-      error.message?.includes('invalid') ||
-      error.message?.includes('reverted')
+      error.message?.includes('invalid')
     ) {
       logger.warn(`Market ${marketId} not found or has invalid data: ${error.message}`);
       return null;

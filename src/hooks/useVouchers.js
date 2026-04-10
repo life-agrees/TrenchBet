@@ -15,7 +15,7 @@ export const useVouchers = (userAddress) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
 
   // Read vouchersContract address from proxy
   useEffect(() => {

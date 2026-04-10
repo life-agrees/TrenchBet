@@ -17,7 +17,7 @@ const baseSepoliaWithRPC = {
 const createTransport = (publicUrls) => {
   const transports = publicUrls.map(url =>
     http(url, {
-      batch: true,
+      batch: false,  // FIX: Disable batching to prevent free RPC nodes from silently dropping multicall payloads
       retryCount: 3,
       retryDelay: 1000,
       timeout: 30000,
@@ -53,10 +53,9 @@ export const config = getDefaultConfig({
   walletConnectOptions: {
     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
   },
-  chains: [baseSepoliaWithRPC, base],
+  chains: [baseSepoliaWithRPC],
   transports: {
     [baseSepoliaWithRPC.id]: createTransport(FREE_RPC_PROVIDERS.baseSepolia),
-    [base.id]:               createTransport(FREE_RPC_PROVIDERS.base),
   },
   ssr: false,
 });

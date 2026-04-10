@@ -26,7 +26,7 @@ const logger = createLogger('useReferrals');
  */
 export const useReferrals = () => {
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
 
   const [referralCode, setReferralCode]         = useState('');
   const [referrer, setReferrer]                 = useState(null);

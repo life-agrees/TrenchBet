@@ -10,7 +10,7 @@ const logger = createLogger('useContractValidation');
 export const useContractValidation = (contractAddresses) => {
   const [validationState, setValidationState] = useState({});
   const [isValidating, setIsValidating] = useState(false);
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
 
   const validateContract = useCallback(async (name, address) => {
     if (!address || !publicClient) {

@@ -6,7 +6,7 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger('useAdminMarkets');
 
 export const useAdminMarkets = (contractAddress) => {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
   const [markets, setMarkets] = useState([]);
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
   const [error, setError] = useState(null);

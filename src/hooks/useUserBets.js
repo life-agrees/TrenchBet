@@ -14,7 +14,7 @@ const MAX_BLOCK_RANGE = null; // search all blocks
 
 export const useUserBets = (address, markets) => {
   const { address: connectedAddress } = useAccount();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
   const effectiveAddress = address || connectedAddress;
 
   const [userBets, setUserBets]           = useState([]);

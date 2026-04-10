@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
+import { baseSepolia } from 'wagmi/chains';
 import { createLogger } from '../utils/logger';
 import { PROXY_ADDRESS } from '../utils/constants';
 
@@ -13,7 +14,7 @@ const DEV_OWNER_ADDRESS = '0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d';
  * FIX 1: Replaced `window.ethereum` with wagmi's `usePublicClient`.
  *        `window.ethereum` is only the injected MetaMask provider — it's
  *        undefined for WalletConnect, Coinbase Wallet, and other connectors.
- *        usePublicClient() returns whichever transport the user connected with.
+ *        usePublicClient({ chainId: 84532 }) returns whichever transport the user connected with.
  *
  * FIX 2: `coreContractAddress` and `typesContractAddress` params were
  *        accepted but completely unused (only PROXY_ADDRESS was ever read).
@@ -27,7 +28,7 @@ const DEV_OWNER_ADDRESS = '0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d';
  */
 export const useAdminOwner = () => { // FIX 2: unused params removed
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient(); // FIX 1: wagmi instead of window.ethereum
+  const publicClient = usePublicClient({ chainId: baseSepolia.id }); // FIX 1: wagmi instead of window.ethereum
 
   const [isOwner, setIsOwner]         = useState(false);
   const [isLoading, setIsLoading]     = useState(true);

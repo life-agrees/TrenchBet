@@ -9,7 +9,7 @@ import { createLogger } from '../utils/logger';
 const logger = createLogger('usePriceFetching');
 
 export const usePriceFetching = () => {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 84532 });
   const [currentAssetPrice, setCurrentAssetPrice] = useState(null);
   const [isPriceLoading, setIsPriceLoading] = useState(false);
   const [error, setError] = useState(null);
