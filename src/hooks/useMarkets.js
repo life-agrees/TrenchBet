@@ -104,9 +104,18 @@ export function useMarkets() {
 
       // ── Step 4: Fetch each market's data by ID ──
       logger.info(`Fetching ${recentIds.length} specific markets by ID`);
-      const proxyMarkets = await Promise.all(
-        recentIds.map(id => fetchSingleMarketFromProxy(publicClient, id, 0, resolvedMap))
-      );
+      const proxyMarkets = [];
+      const PARALLEL = 5;
+      for (let i = 0; i < recentIds.length; i += PARALLEL) {
+        const batch = recentIds.slice(i, i + PARALLEL);
+        const results = await Promise.all(
+          batch.map(id => fetchSingleMarketFromProxy(publicClient, id, 0, resolvedMap))
+        );
+        proxyMarkets.push(...results);
+        if (i + PARALLEL < recentIds.length) {
+          await new Promise(r => setTimeout(r, 200)); // 200ms between batches
+        }
+      }
       const allMarkets = proxyMarkets.filter(m => m !== null).sort((a, b) => b.id - a.id);
 
       hasLoadedOnce.current = true;
@@ -381,7 +390,9 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
     if (retryCount < MAX_RETRIES && (
       error.message?.includes('timeout') ||
       error.message?.includes('rate limit') ||
+      error.message?.includes('429') ||
       error.message?.includes('503') ||
+      error.message?.includes('Too Many') ||
       error.message?.includes('network') ||
       error.message?.includes('connection')
     )) {
