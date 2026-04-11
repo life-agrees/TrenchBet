@@ -47,15 +47,15 @@ export const NotificationSettings = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-dark-800">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">Notification Settings</h2>
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Notification Settings</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+            className="p-2 text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -71,7 +71,7 @@ export const NotificationSettings = ({
                 <button
                   onClick={() => handleToggle(key)}
                   className={`w-12 h-6 rounded-full transition-colors ${
-                    value ? 'bg-primary' : 'bg-dark-600'
+                    value ? 'bg-primary' : 'bg-neutral-200 dark:bg-dark-600'
                   }`}
                   aria-label={`Toggle ${label}`}
                 >

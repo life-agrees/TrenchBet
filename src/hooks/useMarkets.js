@@ -21,9 +21,9 @@ function getContractForMarketType(marketType) {
 
 export function useMarkets() {
   const publicClient = usePublicClient({ chainId: baseSepolia.id });
-  const [markets, setMarkets]   = useState([]);
+  const [markets, setMarkets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError]       = useState(null);
+  const [error, setError] = useState(null);
 
   const hasLoadedOnce = useRef(false);
 
@@ -72,9 +72,9 @@ export function useMarkets() {
       }
 
       // ── Step 2: Build market IDs directly from counter ──
-      // Scan the last 50 market IDs (or all if fewer exist)
+      // Scan the recent market IDs (or all if fewer exist)
       // This is the PRIMARY discovery mechanism — no getLogs required
-      const MAX_SCAN = 300; // FIX: Near-perfect 11-hour lookback window to absorb intense bot volume
+      const MAX_SCAN = 20; // Reduced from 300 to 20 to prevent Infura limits while unauthenticated
       const scanCount = Math.min(MAX_SCAN, proxyTotal);
       const recentIds = Array.from(
         { length: scanCount },
@@ -84,40 +84,12 @@ export function useMarkets() {
 
       // ── Step 3: Fetch resolvedMap (optional enrichment — OK if it fails) ──
       const resolvedMap = {};
-      try {
-        const currentBlock = await publicClient.getBlockNumber();
-        const CHUNK_SIZE = 99999n;
-        const eventFromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
-        for (let from = eventFromBlock; from < currentBlock; from += CHUNK_SIZE) {
-          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-          try {
-            const chunks = await publicClient.getLogs({
-              address: PROXY_CONTRACT_ADDRESS,
-              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-              fromBlock: from, toBlock: to,
-            });
-            chunks.forEach(log => {
-              resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
-            });
-          } catch { /* skip — resolvedMap is best-effort */ }
-        }
-      } catch { /* skip — resolvedMap is best-effort */ }
+      // DISABLED getLogs polling to prevent Infura RPC 429 'Too Many Requests' rate-limits.
+      // Market.resolved state is provided safely native via multicall instead.
 
-      // ── Step 4: Fetch each market's data by ID ──
-      logger.info(`Fetching ${recentIds.length} specific markets by ID`);
-      const proxyMarkets = [];
-      const PARALLEL = 5;
-      for (let i = 0; i < recentIds.length; i += PARALLEL) {
-        const batch = recentIds.slice(i, i + PARALLEL);
-        const results = await Promise.all(
-          batch.map(id => fetchSingleMarketFromProxy(publicClient, id, 0, resolvedMap))
-        );
-        proxyMarkets.push(...results);
-        if (i + PARALLEL < recentIds.length) {
-          await new Promise(r => setTimeout(r, 250)); // 250ms between batches
-        }
-      }
-      const allMarkets = proxyMarkets.filter(m => m !== null).sort((a, b) => b.id - a.id);
+      // ── Step 4: Fetch each market's data by ID via MULTICALL ──
+      logger.info(`Fetching ${recentIds.length} specific markets by ID via Multicall`);
+      const allMarkets = await fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap);
 
       hasLoadedOnce.current = true;
       setMarkets(allMarkets);
@@ -143,12 +115,13 @@ export function useMarkets() {
 
   const { liveMarkets, expiredMarkets } = useMemo(() => {
     const now = Date.now();
-    const live    = [];
+    const fiveMinAgo = now - (5 * 60 * 1000);
+    const live = [];
     const expired = [];
 
     for (const market of markets) {
       const endTime = Number(market.endTime);
-      if (market.resolved || endTime <= now) {
+      if (market.resolved || endTime < fiveMinAgo) {
         expired.push(market);
       } else {
         live.push(market);
@@ -156,7 +129,7 @@ export function useMarkets() {
     }
 
     return {
-      liveMarkets:    live.sort((a, b) => a.endTime - b.endTime),
+      liveMarkets: live.sort((a, b) => a.endTime - b.endTime),
       expiredMarkets: expired.sort((a, b) => b.endTime - a.endTime),
     };
   }, [markets]);
@@ -236,13 +209,13 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
         args: [BigInt(marketId)]
       });
     } catch (readError) {
-        if (
-          readError.message?.includes('out of bounds') ||
-          readError.message?.includes('Position') ||
-          readError.message?.includes('decoding') ||
-          readError.message?.includes('overflow') ||
-          readError.message?.includes('invalid')
-        ) {
+      if (
+        readError.message?.includes('out of bounds') ||
+        readError.message?.includes('Position') ||
+        readError.message?.includes('decoding') ||
+        readError.message?.includes('overflow') ||
+        readError.message?.includes('invalid')
+      ) {
         logger.debug(`Market ${marketId} slot invalid (normal), skipping silently`);
         return null;
       }
@@ -267,24 +240,24 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       return null;
     }
 
-    const marketType    = Number(market.marketType);
-    const yesPool       = market.yesPool ? Number(formatUnits(market.yesPool, 6)) : 0;
-    const noPool        = market.noPool  ? Number(formatUnits(market.noPool, 6))  : 0;
-    const useFixedOdds  = market.useFixedOdds  || false;
+    const marketType = Number(market.marketType);
+    const yesPool = market.yesPool ? Number(formatUnits(market.yesPool, 6)) : 0;
+    const noPool = market.noPool ? Number(formatUnits(market.noPool, 6)) : 0;
+    const useFixedOdds = market.useFixedOdds || false;
     const yesMultiplier = market.yesMultiplier ? Number(market.yesMultiplier) : 0;
-    const noMultiplier  = market.noMultiplier  ? Number(market.noMultiplier)  : 0;
+    const noMultiplier = market.noMultiplier ? Number(market.noMultiplier) : 0;
 
     let yesPrice, noPrice;
     if (useFixedOdds && yesMultiplier > 0 && noMultiplier > 0) {
       yesPrice = calculateFixedOddsPercentage(yesMultiplier / 100) / 100;
-      noPrice  = calculateFixedOddsPercentage(noMultiplier  / 100) / 100;
+      noPrice = calculateFixedOddsPercentage(noMultiplier / 100) / 100;
     } else {
       const { upPercentage, downPercentage } = calculateMarketPercentages(yesPool, noPool);
-      yesPrice = upPercentage   / 100;
-      noPrice  = downPercentage / 100;
+      yesPrice = upPercentage / 100;
+      noPrice = downPercentage / 100;
     }
 
-    const rawEndTime   = Number(market.endTime);
+    const rawEndTime = Number(market.endTime);
     const rawStartTime = Number(market.startTime);
 
     let validEndTime = rawEndTime;
@@ -294,31 +267,31 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
     }
 
     const baseMarket = {
-      id:           marketId,
+      id: marketId,
       marketType,
-      asset:        market.asset || 'BTC',
-      startTime:    rawStartTime  * 1000,  // stored as ms
-      endTime:      validEndTime  * 1000,  // stored as ms
-      startPrice:   market.startPrice ? Number(formatUnits(market.startPrice, 8)) : 0,
-      endPrice:     market.endPrice   ? Number(formatUnits(market.endPrice,   8)) : 0,
+      asset: market.asset || 'BTC',
+      startTime: rawStartTime * 1000,  // stored as ms
+      endTime: validEndTime * 1000,  // stored as ms
+      startPrice: market.startPrice ? Number(formatUnits(market.startPrice, 8)) : 0,
+      endPrice: market.endPrice ? Number(formatUnits(market.endPrice, 8)) : 0,
       yesPool,
       noPool,
       yesPrice,
       noPrice,
-      resolved:     market.resolved   || false,
-      priceWentUp:  market.priceWentUp || false,
-      totalBets:    Number(market.totalBets) || 0,
+      resolved: market.resolved || false,
+      priceWentUp: market.priceWentUp || false,
+      totalBets: Number(market.totalBets) || 0,
       useFixedOdds,
       yesMultiplier,
       noMultiplier,
-      protocolFee:  market.protocolFee ? Number(market.protocolFee) : 0,
+      protocolFee: market.protocolFee ? Number(market.protocolFee) : 0,
       winningChoice: market.winningChoice !== undefined ? Number(market.winningChoice) : null,
-      useTimeDecay:  market.useTimeDecay  || false,
+      useTimeDecay: market.useTimeDecay || false,
       decayStartTime: market.decayStartTime ? Number(market.decayStartTime) * 1000 : rawStartTime * 1000,
-      minMultiplier:  market.minMultiplier  ? Number(market.minMultiplier)  : 120,
-      name:           getCoinName(market.asset  || 'BTC'),
-      color:          getCoinColor(market.asset || 'BTC'),
-      status:         market.resolved ? 'resolved' : 'active',
+      minMultiplier: market.minMultiplier ? Number(market.minMultiplier) : 120,
+      name: getCoinName(market.asset || 'BTC'),
+      color: getCoinColor(market.asset || 'BTC'),
+      status: market.resolved ? 'resolved' : 'active',
       contractSource: 'proxy',
       contractAddress: PROXY_CONTRACT_ADDRESS,
     };
@@ -337,16 +310,16 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
     const contract = { address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI };
 
     if (marketType === 1) {
-      baseMarket.options    = await fetchMultiChoiceOptions(publicClient, marketId, contract);
+      baseMarket.options = await fetchMultiChoiceOptions(publicClient, marketId, contract);
       baseMarket.multipliers = await fetchMultipliers(publicClient, marketId, contract);
     } else if (marketType === 2) {
-      const rangeData       = await fetchRangeData(publicClient, marketId, contract);
-      baseMarket.ranges     = rangeData.ranges;
+      const rangeData = await fetchRangeData(publicClient, marketId, contract);
+      baseMarket.ranges = rangeData.ranges;
       baseMarket.multipliers = await fetchMultipliers(publicClient, marketId, contract);
     } else if (marketType === 3) {
-      const timeData        = await fetchTimeData(publicClient, marketId, contract);
+      const timeData = await fetchTimeData(publicClient, marketId, contract);
       baseMarket.targetPrice = timeData.targetPrice;
-      baseMarket.timeframes  = timeData.timeframes;
+      baseMarket.timeframes = timeData.timeframes;
       baseMarket.multipliers = await fetchMultipliers(publicClient, marketId, contract);
     } else {
       baseMarket.multipliers = [baseMarket.yesMultiplier, baseMarket.noMultiplier];
@@ -362,7 +335,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
           args: [BigInt(marketId)]
         });
         baseMarket.yesPool = Number(formatUnits(rawTotal, 6));
-        baseMarket.noPool  = 0;
+        baseMarket.noPool = 0;
       } catch (e) {
         logger.warn(`Failed to fetch total pool for market ${marketId}:`, e.message);
       }
@@ -370,7 +343,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
 
     return baseMarket;
   } catch (error) {
-      logger.error(`Error reading market ${marketId}:`, error);
+    logger.error(`Error reading market ${marketId}:`, error);
 
     if (
       error.message?.includes('out of bounds') ||
@@ -401,29 +374,29 @@ function parseMarketArray(marketArray) {
 
   const safeBigInt = (val) => { try { return BigInt(val ?? 0); } catch { return 0n; } };
   const safeNumber = (val) => { try { return Number(val ?? 0); } catch { return 0; } };
-  const safeBool   = (val) => Boolean(val);
+  const safeBool = (val) => Boolean(val);
   const safeString = (val) => { try { return String(val ?? ''); } catch { return ''; } };
 
   return {
-    id:            safeBigInt(marketArray[0]),
-    marketType:    safeNumber(marketArray[1]),
-    asset:         safeString(marketArray[2]),
-    startTime:     safeBigInt(marketArray[3]),
-    endTime:       safeBigInt(marketArray[4]),
-    startPrice:    safeBigInt(marketArray[5]),
-    endPrice:      safeBigInt(marketArray[6]),
-    yesPool:       safeBigInt(marketArray[7]),
-    noPool:        safeBigInt(marketArray[8]),
-    resolved:      safeBool(marketArray[9]),
-    priceWentUp:   safeBool(marketArray[10]),
-    totalBets:     safeBigInt(marketArray[11]),
-    useFixedOdds:  safeBool(marketArray[12]),
+    id: safeBigInt(marketArray[0]),
+    marketType: safeNumber(marketArray[1]),
+    asset: safeString(marketArray[2]),
+    startTime: safeBigInt(marketArray[3]),
+    endTime: safeBigInt(marketArray[4]),
+    startPrice: safeBigInt(marketArray[5]),
+    endPrice: safeBigInt(marketArray[6]),
+    yesPool: safeBigInt(marketArray[7]),
+    noPool: safeBigInt(marketArray[8]),
+    resolved: safeBool(marketArray[9]),
+    priceWentUp: safeBool(marketArray[10]),
+    totalBets: safeBigInt(marketArray[11]),
+    useFixedOdds: safeBool(marketArray[12]),
     yesMultiplier: safeBigInt(marketArray[13]),
-    noMultiplier:  safeBigInt(marketArray[14]),
-    protocolFee:   safeBigInt(marketArray[15]),
-    useTimeDecay:  safeBool(marketArray[16]),
+    noMultiplier: safeBigInt(marketArray[14]),
+    protocolFee: safeBigInt(marketArray[15]),
+    useTimeDecay: safeBool(marketArray[16]),
     decayStartTime: safeBigInt(marketArray[17]),
-    minMultiplier:  safeBigInt(marketArray[18]),
+    minMultiplier: safeBigInt(marketArray[18]),
   };
 }
 
@@ -463,8 +436,8 @@ async function fetchTimeData(publicClient, marketId, contract) {
     const data = await publicClient.readContract({
       ...contract, functionName: 'getTimeMarketData', args: [BigInt(marketId)]
     });
-    const targetPrice      = data.targetPrice || data[0];
-    const timeframeSeconds = data.timeframes  || data[1] || [];
+    const targetPrice = data.targetPrice || data[0];
+    const timeframeSeconds = data.timeframes || data[1] || [];
     return {
       targetPrice: Number(formatUnits(targetPrice, 8)),
       timeframes: timeframeSeconds.map(s => ({
@@ -498,11 +471,11 @@ async function fetchMultipliers(publicClient, marketId, contract) {
 }
 
 function formatTimeframeLabel(seconds) {
-  const days    = Math.floor(seconds / 86400);
-  const hours   = Math.floor((seconds % 86400) / 3600);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  if (days > 0)    return `${days}d`;
-  if (hours > 0)   return `${hours}h`;
+  if (days > 0) return `${days}d`;
+  if (hours > 0) return `${hours}h`;
   return `${minutes}m`;
 }
 
@@ -510,10 +483,176 @@ function getCoinName(asset) {
   return { BTC: 'Bitcoin', ETH: 'Ethereum', LINK: 'Chainlink' }[asset] || asset;
 }
 
+async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap) {
+  const CHUNK_SIZE = 50;
+  const proxyMarkets = [];
+
+  // Phase 1: Base Markets
+  for (let i = 0; i < recentIds.length; i += CHUNK_SIZE) {
+    const chunk = recentIds.slice(i, i + CHUNK_SIZE);
+    const contracts = chunk.map(id => ({
+      address: PROXY_CONTRACT_ADDRESS,
+      abi: PREDICTION_MARKET_PROXY_ABI,
+      functionName: 'markets',
+      args: [BigInt(id)],
+    }));
+
+    try {
+      const results = await publicClient.multicall({ contracts, allowFailure: true });
+      results.forEach((res, idx) => {
+        if (res.status === 'success' && res.result) {
+          const raw = res.result;
+          const marketId = chunk[idx];
+          const market = parseMarketArray(raw);
+          if (market && Number(market.startTime) > 0) {
+            market.id = marketId; // number
+            proxyMarkets.push(market);
+          }
+        }
+      });
+    } catch (e) {
+      logger.error('Multicall base markets batch failed:', e);
+    }
+  }
+
+  // Phase 2: Process Base Markets and formulate additional calls
+  const finalMarkets = [];
+  const additionalCalls = [];
+  const callMap = [];
+
+  for (const market of proxyMarkets) {
+    const marketType = Number(market.marketType);
+    const marketId = Number(market.id);
+
+    const yesPool = market.yesPool ? Number(formatUnits(market.yesPool, 6)) : 0;
+    const noPool = market.noPool ? Number(formatUnits(market.noPool, 6)) : 0;
+    const useFixedOdds = market.useFixedOdds || false;
+    const yesMultiplier = market.yesMultiplier ? Number(market.yesMultiplier) : 0;
+    const noMultiplier = market.noMultiplier ? Number(market.noMultiplier) : 0;
+
+    let yesPrice, noPrice;
+    if (useFixedOdds && yesMultiplier > 0 && noMultiplier > 0) {
+      yesPrice = calculateFixedOddsPercentage(yesMultiplier / 100) / 100;
+      noPrice = calculateFixedOddsPercentage(noMultiplier / 100) / 100;
+    } else {
+      const { upPercentage, downPercentage } = calculateMarketPercentages(yesPool, noPool);
+      yesPrice = upPercentage / 100;
+      noPrice = downPercentage / 100;
+    }
+
+    const rawEndTime = Number(market.endTime);
+    const rawStartTime = Number(market.startTime);
+
+    let validEndTime = rawEndTime;
+    if (validEndTime === 0 || validEndTime <= rawStartTime) {
+      validEndTime = rawStartTime + (15 * 60);
+    }
+
+    const baseMarket = {
+      id: marketId,
+      marketType,
+      asset: market.asset || 'BTC',
+      startTime: rawStartTime * 1000,
+      endTime: validEndTime * 1000,
+      startPrice: market.startPrice ? Number(formatUnits(market.startPrice, 8)) : 0,
+      endPrice: market.endPrice ? Number(formatUnits(market.endPrice, 8)) : 0,
+      yesPool,
+      noPool,
+      yesPrice,
+      noPrice,
+      resolved: market.resolved || false,
+      priceWentUp: market.priceWentUp || false,
+      totalBets: Number(market.totalBets) || 0,
+      useFixedOdds,
+      yesMultiplier,
+      noMultiplier,
+      protocolFee: market.protocolFee ? Number(market.protocolFee) : 0,
+      useTimeDecay: market.useTimeDecay || false,
+      decayStartTime: market.decayStartTime ? Number(market.decayStartTime) * 1000 : rawStartTime * 1000,
+      minMultiplier: market.minMultiplier ? Number(market.minMultiplier) : 120,
+      name: getCoinName(market.asset || 'BTC'),
+      color: getCoinColor(market.asset || 'BTC'),
+      status: market.resolved ? 'resolved' : 'active',
+      contractSource: 'proxy',
+      contractAddress: PROXY_CONTRACT_ADDRESS,
+    };
+
+    if (baseMarket.resolved) {
+      if (resolvedMap[marketId] !== undefined) {
+        baseMarket.winningChoice = resolvedMap[marketId];
+      }
+      if (marketType === 0) {
+        baseMarket.winningChoice = baseMarket.priceWentUp ? 1 : 0;
+      }
+    }
+
+    finalMarkets.push(baseMarket);
+
+    if (marketType === 1) {
+      additionalCalls.push({ address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI, functionName: 'getMultiChoiceOptions', args: [BigInt(marketId)] });
+      callMap.push({ marketId, field: 'options' });
+    } else if (marketType === 2) {
+      additionalCalls.push({ address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI, functionName: 'getRangeMarketData', args: [BigInt(marketId)] });
+      callMap.push({ marketId, field: 'ranges' });
+    } else if (marketType === 3) {
+      additionalCalls.push({ address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI, functionName: 'getTimeMarketData', args: [BigInt(marketId)] });
+      callMap.push({ marketId, field: 'timeframes' });
+    }
+
+    if (marketType !== 0) {
+      additionalCalls.push({ address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI, functionName: 'getTotalPool', args: [BigInt(marketId)] });
+      callMap.push({ marketId, field: 'totalPool' });
+
+      additionalCalls.push({ address: PROXY_CONTRACT_ADDRESS, abi: PREDICTION_MARKET_PROXY_ABI, functionName: 'getCurrentOdds', args: [BigInt(marketId)] });
+      callMap.push({ marketId, field: 'multipliers' });
+    } else {
+      baseMarket.multipliers = [baseMarket.yesMultiplier, baseMarket.noMultiplier];
+    }
+  }
+
+  // Phase 3: Execute additional calls via multicall
+  for (let i = 0; i < additionalCalls.length; i += CHUNK_SIZE) {
+    const chunk = additionalCalls.slice(i, i + CHUNK_SIZE);
+    try {
+      const results = await publicClient.multicall({ contracts: chunk, allowFailure: true });
+      results.forEach((res, idx) => {
+        const mapInfo = callMap[i + idx];
+        const market = finalMarkets.find(m => m.id === mapInfo.marketId);
+        if (res.status === 'success' && res.result && market) {
+          if (mapInfo.field === 'options') market.options = res.result || [];
+          if (mapInfo.field === 'ranges') {
+            const data = res.result;
+            const mins = data.mins || data[0] || [];
+            const maxs = data.maxs || data[1] || [];
+            market.ranges = mins.map((min, idx2) => ({ min: Number(formatUnits(min, 8)), max: Number(formatUnits(maxs[idx2], 8)) }));
+          }
+          if (mapInfo.field === 'timeframes') {
+            const data = res.result;
+            const targetPrice = data.targetPrice || data[0];
+            const timeframeSeconds = data.timeframes || data[1] || [];
+            market.targetPrice = Number(formatUnits(targetPrice, 8));
+            market.timeframes = timeframeSeconds.map(s => ({ label: formatTimeframeLabel(Number(s)), seconds: Number(s) }));
+          }
+          if (mapInfo.field === 'totalPool') {
+            market.yesPool = Number(formatUnits(res.result, 6));
+            market.noPool = 0;
+          }
+          if (mapInfo.field === 'multipliers') {
+            market.multipliers = (res.result || []).map(m => Number(m));
+          }
+        }
+      });
+    } catch (e) {
+      logger.error('Multicall additional fields batch failed:', e);
+    }
+  }
+
+  return finalMarkets.sort((a, b) => b.id - a.id);
+}
 function getCoinColor(asset) {
   return {
-    BTC:  'from-orange-500 to-yellow-500',
-    ETH:  'from-blue-500 to-purple-500',
+    BTC: 'from-orange-500 to-yellow-500',
+    ETH: 'from-blue-500 to-purple-500',
     LINK: 'from-blue-400 to-green-400',
   }[asset] || 'from-gray-500 to-gray-700';
 }

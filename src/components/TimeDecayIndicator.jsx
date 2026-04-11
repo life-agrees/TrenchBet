@@ -73,7 +73,7 @@ export const TimeDecayIndicator = ({
   }
 
   return (
-    <div className="bg-dark-800/50 border border-dark-700 rounded-lg p-3 space-y-2">
+    <div className="bg-white dark:bg-dark-800/50 border border-neutral-200 dark:border-dark-700 rounded-lg p-3 space-y-2">
       {/* Header with status badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -108,7 +108,7 @@ export const TimeDecayIndicator = ({
             <span>Decay Progress</span>
             <span>{status.progress}%</span>
           </div>
-          <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+          <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
             <div 
               className="h-full bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 transition-all duration-1000"
               style={{ width: `${status.progress}%` }}

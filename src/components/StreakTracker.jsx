@@ -49,7 +49,7 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
 
   if (!isConnected) {
     return (
-      <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4">
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-600 rounded-2xl p-4">
         <p className="text-neutral-400 text-center">Connect wallet to track streak</p>
       </div>
     );
@@ -68,7 +68,7 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
             <Flame className="text-orange-500" size={24} />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Daily Streak</h3>
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Daily Streak</h3>
             <p className="text-xs text-neutral-400">Longest: {longestStreak} days</p>
           </div>
         </div>
@@ -87,10 +87,10 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
             <div key={day} className="flex flex-col items-center">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-1 transition-all ${
                 isCompleted
-                  ? 'bg-orange-500 text-white'
+                  ? 'bg-orange-500 text-neutral-900 dark:text-white'
                   : isCurrent
                   ? 'bg-orange-500/30 border-2 border-orange-500 text-orange-500'
-                  : 'bg-dark-700 text-neutral-500'
+                  : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'
               }`}>
                 {isCompleted ? <CheckCircle size={14} /> : day}
               </div>
@@ -106,8 +106,8 @@ const StreakTracker = ({ streakData, onCheckIn, isCheckingIn, canCheckIn, timeUn
         disabled={!canCheckIn || isCheckingIn}
         className={`w-full py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
           canCheckIn
-            ? 'bg-orange-500 hover:bg-orange-600 text-white'
-            : 'bg-dark-700 text-neutral-400 cursor-not-allowed'
+            ? 'bg-orange-500 hover:bg-orange-600 text-neutral-900 dark:text-white'
+            : 'bg-neutral-100 dark:bg-dark-700 text-neutral-400 cursor-not-allowed'
         }`}
       >
         {isCheckingIn ? (

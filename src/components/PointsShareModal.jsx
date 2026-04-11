@@ -53,15 +53,15 @@ export const PointsShareModal = ({
   return (
     // FIX 2: dark-* tokens
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-dark-800">
           <div className="flex items-center gap-2">
             <Share2 className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">Share Achievement</h2>
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Share Achievement</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+            className="p-2 text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -70,20 +70,20 @@ export const PointsShareModal = ({
         <div className="p-4 space-y-4">
           {/* Points display — FIX 1: null-safe */}
           <div className="bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30 rounded-xl p-4 text-center">
-            <div className="text-3xl font-bold text-white mb-1">
+            <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-1">
               {totalPoints.toLocaleString()}
             </div>
             <div className="text-primary font-medium">{tierName} Tier</div>
           </div>
 
-          <div className="bg-dark-800/50 rounded-lg p-4">
+          <div className="bg-white dark:bg-dark-800/50 rounded-lg p-4">
             <p className="text-neutral-300 text-sm mb-3">{shareText}</p>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={shareUrl}
                 readOnly
-                className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none"
+                className="flex-1 bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none"
               />
               <button
                 onClick={copyToClipboard}
@@ -102,10 +102,10 @@ export const PointsShareModal = ({
 
           <button
             onClick={shareOnTwitter}
-            className="w-full flex items-center justify-center gap-2 p-3 bg-dark-800 hover:bg-dark-700 border border-dark-700 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 p-3 bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 rounded-lg transition-colors"
           >
             <Twitter className="w-5 h-5 text-[#1DA1F2]" />
-            <span className="text-white font-medium">Share on Twitter</span>
+            <span className="text-neutral-900 dark:text-white font-medium">Share on Twitter</span>
           </button>
         </div>
       </div>

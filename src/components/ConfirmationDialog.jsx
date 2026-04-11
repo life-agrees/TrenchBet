@@ -40,7 +40,7 @@ export const ConfirmationDialog = ({
       <div className="relative w-full max-w-md bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-neutral-900 dark:text-white hover:bg-gray-800 rounded-lg transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -50,19 +50,19 @@ export const ConfirmationDialog = ({
             {getIcon()}
           </div>
           
-          <h2 className="text-xl font-bold text-white mb-2">{title}</h2>
+          <h2 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">{title}</h2>
           <p className="text-gray-400 mb-6">{message}</p>
 
           <div className="flex gap-3 w-full">
             <button
               onClick={onClose}
-              className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white font-semibold rounded-lg transition-colors"
+              className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-neutral-900 dark:text-white font-semibold rounded-lg transition-colors"
             >
               {cancelText}
             </button>
             <button
               onClick={onConfirm}
-              className={`flex-1 py-3 ${getButtonStyles()} text-white font-semibold rounded-lg transition-colors`}
+              className={`flex-1 py-3 ${getButtonStyles()} text-neutral-900 dark:text-white font-semibold rounded-lg transition-colors`}
             >
               {confirmText}
             </button>

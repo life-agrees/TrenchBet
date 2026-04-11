@@ -7,7 +7,7 @@ const AboutSection = ({ onLaunchApp }) => {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white mb-4">About TrenchyBet</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">About TrenchyBet</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             We're Building Markets for Everything
           </p>
@@ -27,7 +27,7 @@ const AboutSection = ({ onLaunchApp }) => {
 
           {/* What We Do */}
           <div className="bg-gray-800/30 border border-gray-700/50 rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-white mb-4">What We Do</h3>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">What We Do</h3>
             <p className="text-gray-300 leading-relaxed text-lg">
               TrenchyBet is a decentralized prediction market platform built on Base. We let you bet on crypto price movements, create custom markets, and settle everything on-chain with zero middlemen.
             </p>
@@ -38,7 +38,7 @@ const AboutSection = ({ onLaunchApp }) => {
 
           {/* Why We're Different */}
           <div className="bg-gray-800/30 border border-gray-700/50 rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-white mb-6">Why We're Different</h3>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-6">Why We're Different</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex gap-4">
@@ -46,7 +46,7 @@ const AboutSection = ({ onLaunchApp }) => {
                   <Zap className="w-6 h-6 text-[#c0ff00]" />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold mb-2">Speed</h4>
+                  <h4 className="text-neutral-900 dark:text-white font-semibold mb-2">Speed</h4>
                   <p className="text-gray-400 text-sm">Markets settle in minutes, not days. When the timer hits zero, Chainlink tells us the price, and winners get paid. Simple.</p>
                 </div>
               </div>
@@ -56,7 +56,7 @@ const AboutSection = ({ onLaunchApp }) => {
                   <Shield className="w-6 h-6 text-[#c0ff00]" />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold mb-2">Transparency</h4>
+                  <h4 className="text-neutral-900 dark:text-white font-semibold mb-2">Transparency</h4>
                   <p className="text-gray-400 text-sm">Every bet, every market, every payout lives on-chain. You can verify everything yourself on BaseScan.</p>
                 </div>
               </div>
@@ -66,7 +66,7 @@ const AboutSection = ({ onLaunchApp }) => {
                   <Users className="w-6 h-6 text-[#c0ff00]" />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold mb-2">PVP (Player vs Player)</h4>
+                  <h4 className="text-neutral-900 dark:text-white font-semibold mb-2">PVP (Player vs Player)</h4>
                   <p className="text-gray-400 text-sm">It's you vs other players, not vs the house. We don't take bets against you - we just facilitate fair peer-to-peer wagering.</p>
                 </div>
               </div>
@@ -76,7 +76,7 @@ const AboutSection = ({ onLaunchApp }) => {
                   <Lock className="w-6 h-6 text-[#c0ff00]" />
                 </div>
                 <div>
-                  <h4 className="text-white font-semibold mb-2">Your Keys, Your Crypto</h4>
+                  <h4 className="text-neutral-900 dark:text-white font-semibold mb-2">Your Keys, Your Crypto</h4>
                   <p className="text-gray-400 text-sm">We never custody your funds. Bets go into smart contracts, winners withdraw directly. We literally can't touch your money even if we wanted to.</p>
                 </div>
               </div>
@@ -85,7 +85,7 @@ const AboutSection = ({ onLaunchApp }) => {
 
           {/* The Tech */}
           <div className="bg-gray-800/30 border border-gray-700/50 rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-white mb-4">The Tech</h3>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">The Tech</h3>
             <p className="text-gray-300 leading-relaxed text-lg">
               Built on Base for low fees and fast finality. Powered by Chainlink for tamper-proof price data. Smart contracts audited and battle-tested (okay, still getting there, but we're transparent about it).
             </p>
@@ -96,7 +96,7 @@ const AboutSection = ({ onLaunchApp }) => {
 
           {/* What's Next */}
           <div className="bg-gray-800/30 border border-gray-700/50 rounded-2xl p-8">
-            <h3 className="text-2xl font-bold text-white mb-4">What's Next</h3>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">What's Next</h3>
             <p className="text-gray-400 mb-4">We're just getting started. Coming soon:</p>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {['Sports markets', 'Political events', 'Community-created markets', 'Mobile app', 'Staking rewards'].map((item, index) => (
@@ -110,7 +110,7 @@ const AboutSection = ({ onLaunchApp }) => {
 
           {/* Join the Trenches */}
           <div className="text-center py-8">
-            <h3 className="text-2xl font-bold text-white mb-4">Join the Trenches</h3>
+            <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">Join the Trenches</h3>
             <p className="text-gray-400 mb-6 max-w-xl mx-auto">
               TrenchyBet isn't just a platform—it's a bet on a future where financial markets are open to everyone, not just the suits.
             </p>
@@ -126,7 +126,7 @@ const AboutSection = ({ onLaunchApp }) => {
                 href="https://t.me/trenchybet"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-all border border-gray-700 hover:border-[#c0ff00]"
+                className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-neutral-900 dark:text-white font-bold rounded-xl transition-all border border-gray-700 hover:border-[#c0ff00]"
               >
                 Join Discord
               </a>
@@ -134,7 +134,7 @@ const AboutSection = ({ onLaunchApp }) => {
                 href="https://trench-bet.vercel.app/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-xl transition-all border border-gray-700 hover:border-[#c0ff00]"
+                className="px-8 py-4 bg-gray-800 hover:bg-gray-700 text-neutral-900 dark:text-white font-bold rounded-xl transition-all border border-gray-700 hover:border-[#c0ff00]"
               >
                 Read Docs
               </a>

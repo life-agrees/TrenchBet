@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ActivityFeed from './ActivityFeed';
-import { Bell, Wallet, Plus, Coins } from 'lucide-react';
+import { Bell, Wallet, Plus, Coins, Sun, Moon } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -39,6 +39,33 @@ const MainLayout = ({
   isSidebarCollapsed = false,
 }) => {
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  // Initialize theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark) || savedTheme === null; // default dark
+    
+    setIsDarkMode(shouldBeDark);
+    if (shouldBeDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      setIsDarkMode(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      setIsDarkMode(true);
+    }
+  };
 
   const viewMeta = VIEW_META[currentView] || { label: currentView, emoji: '' };
 
@@ -47,7 +74,7 @@ const MainLayout = ({
   const ACTIVITY_W  = 'md:pr-80'; // ActivityFeed is w-80 on desktop
 
   return (
-    <div className="min-h-screen bg-dark-950 text-white flex flex-col">
+    <div className="min-h-screen bg-white dark:bg-dark-950 text-neutral-900 dark:text-white flex flex-col">
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Left Sidebar ─────────────────────────────────────────────── */}
@@ -69,7 +96,7 @@ const MainLayout = ({
           {/* ── Top Header ───────────────────────────────────────────────── */}
           <header
             role="banner"
-            className="sticky top-0 z-30 bg-dark-900/95 border-b border-dark-700 backdrop-blur-md"
+            className="sticky top-0 z-30 bg-neutral-50 dark:bg-dark-900/95 border-b border-neutral-200 dark:border-dark-700 backdrop-blur-md"
           >
             <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
 
@@ -77,7 +104,7 @@ const MainLayout = ({
               {/* FIX 3: Added pl-10 on mobile so title doesn't sit under hamburger */}
               <div className="flex items-center gap-3 pl-10 md:pl-0">
                 <h1
-                  className="text-xl font-bold text-white"
+                  className="text-xl font-bold text-neutral-900 dark:text-white"
                   aria-label={`Current page: ${viewMeta.label}`}
                 >
                   {viewMeta.emoji} {viewMeta.label}
@@ -90,10 +117,19 @@ const MainLayout = ({
               {/* RIGHT: User controls */}
               <div className="flex items-center gap-2" role="toolbar" aria-label="User controls">
 
+                {/* Theme Toggle */}
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all"
+                  aria-label="Toggle theme"
+                >
+                  {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
+                </button>
+
                 {/* Activity Feed toggle — mobile only */}
                 <button
                   onClick={() => setActivityFeedOpen(!activityFeedOpen)}
-                  className="md:hidden relative p-2 rounded-lg bg-dark-800 hover:bg-dark-700 border border-dark-700 text-neutral-400 hover:text-primary transition-all"
+                  className="md:hidden relative p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all"
                   aria-label="Toggle activity feed"
                 >
                   <Bell size={17} />
@@ -103,18 +139,18 @@ const MainLayout = ({
                 {/* Stats — desktop only, connected only */}
                 {isConnected && (
                   <div className="hidden md:flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 rounded-xl border border-dark-700">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700">
                       <Coins size={14} className="text-yellow-400" />
                       <div className="flex flex-col leading-none">
                         <span className="text-[9px] text-neutral-500 uppercase tracking-wider">Points</span>
-                        <span className="text-sm font-bold text-white">{userPoints.toLocaleString()}</span>
+                        <span className="text-sm font-bold text-neutral-900 dark:text-white">{userPoints.toLocaleString()}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 rounded-xl border border-dark-700">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700">
                       <Wallet size={14} className="text-primary" />
                       <div className="flex flex-col leading-none">
                         <span className="text-[9px] text-neutral-500 uppercase tracking-wider">Balance</span>
-                        <span className="text-sm font-bold text-white">{formattedUsdcBalance}</span>
+                        <span className="text-sm font-bold text-neutral-900 dark:text-white">{formattedUsdcBalance}</span>
                       </div>
                     </div>
                   </div>
@@ -122,7 +158,7 @@ const MainLayout = ({
 
                 {/* Compact points — mobile only, connected only */}
                 {isConnected && (
-                  <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-dark-800 rounded-lg border border-dark-700">
+                  <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700">
                     <Coins size={13} className="text-yellow-400" />
                     <span className="text-xs font-semibold">{userPoints}</span>
                   </div>
@@ -133,18 +169,18 @@ const MainLayout = ({
                   <>
                     <div 
                       onClick={onAddFunds}
-                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-dark-800 rounded-xl border border-dark-700 hover:bg-dark-700 transition-all group cursor-pointer select-none" 
+                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group cursor-pointer select-none" 
                       role="button" 
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onAddFunds(); }}
                       aria-label="Add funds to wallet"
                     >
                       <Plus size={14} className="text-primary group-hover:scale-110 transition-transform flex-shrink-0" />
-                      <span className="text-sm font-bold text-white group-hover:text-primary transition-colors">Add Funds</span>
+                      <span className="text-sm font-bold text-neutral-900 dark:text-white group-hover:text-primary transition-colors">Add Funds</span>
                     </div>
                     <button
                       onClick={onAddFunds}
-                      className="flex sm:hidden items-center justify-center p-2.5 bg-dark-800 rounded-xl border border-dark-700 hover:bg-dark-700 transition-all group"
+                      className="flex sm:hidden items-center justify-center p-2.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group"
                       aria-label="Add funds"
                     >
                       <Plus size={16} className="text-primary group-hover:scale-110 transition-transform" />
@@ -155,8 +191,8 @@ const MainLayout = ({
                 {/* Chain status — desktop */}
                 {isConnected && (
                   <>
-                    <div className="hidden md:block w-px h-7 bg-dark-700 mx-1" />
-                    <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-800/50 rounded-xl border border-dark-700/50">
+                    <div className="hidden md:block w-px h-7 bg-neutral-100 dark:bg-dark-700 mx-1" />
+                    <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700/50">
                       <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
                       <span className="text-xs text-neutral-300 font-medium">{chainName}</span>
                     </div>
@@ -175,7 +211,7 @@ const MainLayout = ({
           </header>
 
           {/* ── Scrollable Content ───────────────────────────────────────── */}
-          <div className="flex-1 overflow-y-auto bg-dark-950">
+          <div className="flex-1 overflow-y-auto bg-white dark:bg-dark-950">
             <div className="px-4 sm:px-6 lg:px-8 py-6 w-full">
               <AnimatePresence mode="wait">
                 <motion.div

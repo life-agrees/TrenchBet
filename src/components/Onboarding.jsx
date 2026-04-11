@@ -75,7 +75,7 @@ const Onboarding = ({ onComplete }) => {
           <button
             onClick={prevStep}
             disabled={step === 1}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-400 hover:text-white disabled:opacity-0"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-gray-400 hover:text-neutral-900 dark:text-white disabled:opacity-0"
           >
             <ChevronLeft className="w-5 h-5" />
             Back
@@ -186,7 +186,7 @@ const Step4FirstBet = () => (
     </p>
     <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
       <div className="text-sm text-blue-400 font-medium mb-2">Your First Bet is Protected</div>
-      <div className="text-2xl font-bold text-white">100 TRENCHY</div>
+      <div className="text-2xl font-bold text-neutral-900 dark:text-white">100 TRENCHY</div>
       <div className="text-sm text-gray-400">~$100 value</div>
     </div>
   </div>

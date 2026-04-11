@@ -79,8 +79,8 @@ const ActivityCard = memo(({ activity, onMarkRead }) => {
       className={[
         'relative p-3.5 rounded-xl transition-all cursor-pointer group',
         isRead
-          ? 'bg-dark-800 opacity-60 border border-dark-700'
-          : 'bg-dark-800 border-l-4 border-primary shadow-md shadow-primary/5',
+          ? 'bg-white dark:bg-dark-800 opacity-60 border border-neutral-200 dark:border-dark-700'
+          : 'bg-white dark:bg-dark-800 border-l-4 border-primary shadow-md shadow-primary/5',
         'hover:opacity-100 active:scale-[0.98]',
       ].join(' ')}
     >
@@ -91,14 +91,14 @@ const ActivityCard = memo(({ activity, onMarkRead }) => {
 
       <div className="flex gap-3">
         {/* Icon */}
-        <div className="w-9 h-9 rounded-lg bg-dark-700 flex items-center justify-center flex-shrink-0">
+        <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-dark-700 flex items-center justify-center flex-shrink-0">
           {getActivityIcon(activity.type)}
         </div>
 
         {/* Body */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <p className="text-sm font-semibold text-white truncate group-hover:text-primary transition-colors">
+            <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate group-hover:text-primary transition-colors">
               {activity.title}
             </p>
             {getPriorityBadge(activity.type)}
@@ -188,7 +188,7 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
     return Object.entries(buckets).map(([label, group]) =>
       group.length > 0 && (
         <div key={label}>
-          <p className="px-1 py-2 text-[9px] text-neutral-500 uppercase tracking-[0.15em] font-bold sticky top-0 bg-dark-900 z-10">
+          <p className="px-1 py-2 text-[9px] text-neutral-500 uppercase tracking-[0.15em] font-bold sticky top-0 bg-neutral-50 dark:bg-dark-900 z-10">
             {label}
           </p>
           <div className="space-y-2">
@@ -222,20 +222,20 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
       {/* Feed panel */}
       <aside
         className={[
-          'fixed right-0 top-0 h-screen bg-dark-900 border-l border-dark-700',
+          'fixed right-0 top-0 h-screen bg-neutral-50 dark:bg-dark-900 border-l border-neutral-200 dark:border-dark-700',
           'w-full sm:w-96 md:w-80 z-40 flex flex-col',
           'transition-transform duration-300',
           isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0',
         ].join(' ')}
       >
         {/* Header */}
-        <div className="h-14 px-4 border-b border-dark-700 flex items-center justify-between flex-shrink-0">
+        <div className="h-14 px-4 border-b border-neutral-200 dark:border-dark-700 flex items-center justify-between flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
               <Bell size={16} className="text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-sm leading-none">Activity Feed</h3>
+              <h3 className="font-bold text-neutral-900 dark:text-white text-sm leading-none">Activity Feed</h3>
               <p className="text-[10px] text-neutral-500 mt-0.5">
                 {isConnected ? 'Live updates' : 'Connect wallet'}
               </p>
@@ -246,7 +246,7 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
               <button
                 onClick={refresh}
                 disabled={isLoading}
-                className="p-1.5 hover:bg-dark-700 rounded-lg transition-colors disabled:opacity-40"
+                className="p-1.5 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors disabled:opacity-40"
                 aria-label="Refresh feed"
               >
                 <RefreshCw size={15} className={`text-neutral-400 ${isLoading ? 'animate-spin' : ''}`} />
@@ -254,7 +254,7 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
             )}
             <button
               onClick={onClose}
-              className="md:hidden p-1.5 hover:bg-dark-700 rounded-lg transition-colors"
+              className="md:hidden p-1.5 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
               aria-label="Close activity feed"
             >
               <X size={15} className="text-neutral-400" />
@@ -263,7 +263,7 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-dark-700 flex-shrink-0">
+        <div className="flex border-b border-neutral-200 dark:border-dark-700 flex-shrink-0">
           {tabs.map(tab => {
             const count = categorizedActivities[tab.key]?.length ?? 0;
             return (
@@ -344,7 +344,7 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
 
         {/* Footer CTA */}
         {isConnected && (
-          <div className="p-3 border-t border-dark-700 flex-shrink-0">
+          <div className="p-3 border-t border-neutral-200 dark:border-dark-700 flex-shrink-0">
             <button className="w-full py-2 px-4 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-primary text-xs font-bold transition-all active:scale-95">
               View All Activity →
             </button>

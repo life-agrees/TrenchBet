@@ -23,7 +23,7 @@ const AchievementBadge = ({ achievement, size = 'md', showName = false }) => {
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className={`${sizeClasses[size]} flex items-center justify-center rounded-full border-2 bg-dark-800 transition-transform hover:scale-110 cursor-pointer`}
+        className={`${sizeClasses[size]} flex items-center justify-center rounded-full border-2 bg-white dark:bg-dark-800 transition-transform hover:scale-110 cursor-pointer`}
         style={getRarityBorder(achievement.rarity)}
         title={`${achievement.name} - ${achievement.description}`}
       >

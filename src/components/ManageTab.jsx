@@ -191,7 +191,7 @@ const ManageTab = ({
 
   if (markets.length === 0) {
     return (
-      <div className="text-center text-gray-400 py-12 bg-dark-800/50 rounded-xl border border-dark-700">
+      <div className="text-center text-gray-400 py-12 bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700">
         <AlertCircle className="mx-auto mb-3 text-gray-600" size={48} />
         <p className="text-lg">No markets found.</p>
         <p className="text-sm text-gray-500 mt-2">Create your first market in the Create tab</p>
@@ -207,7 +207,7 @@ const ManageTab = ({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Settings className="w-5 h-5 text-[#c0ff00]" />
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">
             Manage Markets 
             <span className="text-gray-400 text-sm ml-2">
               ({filteredMarkets.length} of {markets.length})
@@ -220,7 +220,7 @@ const ManageTab = ({
           <div className="flex items-center gap-2">
             <button
               onClick={selectAllResolvable}
-              className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 hover:border-[#c0ff00]/50 text-white text-sm font-semibold rounded-lg transition-all"
+              className="px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 hover:border-[#c0ff00]/50 text-neutral-900 dark:text-white text-sm font-semibold rounded-lg transition-all"
             >
               Select All Pending ({resolvableMarkets.length})
             </button>
@@ -229,7 +229,7 @@ const ManageTab = ({
               <>
                 <button
                   onClick={clearSelection}
-                  className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 text-white text-sm font-semibold rounded-lg transition-all"
+                  className="px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 text-neutral-900 dark:text-white text-sm font-semibold rounded-lg transition-all"
                 >
                   Clear ({selectedMarkets.size})
                 </button>
@@ -248,7 +248,7 @@ const ManageTab = ({
       </div>
 
       {/* Search and Filters Bar */}
-      <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700 space-y-4">
+      <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700 space-y-4">
         {/* Search Input */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -257,12 +257,12 @@ const ManageTab = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by ID, asset, or question..."
-            className="w-full bg-dark-900 border border-dark-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-[#c0ff00] transition-colors"
+            className="w-full bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-lg pl-10 pr-4 py-3 text-neutral-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-[#c0ff00] transition-colors"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-neutral-900 dark:text-white"
             >
               <X size={18} />
             </button>
@@ -272,7 +272,7 @@ const ManageTab = ({
         {/* Filter Controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Status Filter Tabs */}
-          <div className="flex items-center gap-1 bg-dark-900 rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-neutral-50 dark:bg-dark-900 rounded-lg p-1">
             {[
               { key: 'all', label: 'All', count: markets.length },
               { key: 'active', label: 'Active', count: markets.filter(m => getMarketStatus(m) === 'active').length },
@@ -285,7 +285,7 @@ const ManageTab = ({
                 className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all ${
                   statusFilter === key
                     ? 'bg-[#c0ff00] text-dark-950'
-                    : 'text-gray-400 hover:text-white hover:bg-dark-800'
+                    : 'text-gray-400 hover:text-neutral-900 dark:text-white hover:bg-white dark:bg-dark-800'
                 }`}
               >
                 {label} ({count})
@@ -299,7 +299,7 @@ const ManageTab = ({
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-dark-900 border border-dark-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-[#c0ff00] transition-colors"
+              className="bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-lg px-3 py-1.5 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-[#c0ff00] transition-colors"
             >
               <option value="all">All Types</option>
               <option value="0">Binary</option>
@@ -313,7 +313,7 @@ const ManageTab = ({
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-white transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-400 hover:text-neutral-900 dark:text-white transition-colors"
             >
               <X size={14} />
               Clear filters
@@ -325,7 +325,7 @@ const ManageTab = ({
       {/* Markets List */}
       <div className="space-y-3">
         {filteredMarkets.length === 0 ? (
-          <div className="text-center text-gray-400 py-12 bg-dark-800/50 rounded-xl border border-dark-700">
+          <div className="text-center text-gray-400 py-12 bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700">
             <Search className="mx-auto mb-3 text-gray-600" size={48} />
             <p className="text-lg">No markets match your filters.</p>
             <p className="text-sm text-gray-500 mt-2">Try adjusting your search or filters</p>
@@ -346,10 +346,10 @@ const ManageTab = ({
             return (
               <div 
                 key={market.id} 
-                className={`bg-dark-800/50 rounded-xl p-5 border transition-all ${
+                className={`bg-white dark:bg-dark-800/50 rounded-xl p-5 border transition-all ${
                   isSelected 
                     ? 'border-[#c0ff00] shadow-lg shadow-[#c0ff00]/20' 
-                    : 'border-dark-700 hover:border-dark-600'
+                    : 'border-neutral-200 dark:border-dark-700 hover:border-neutral-200 dark:border-dark-600'
                 }`}
               >
                 <div className="flex justify-between items-start gap-4">
@@ -372,7 +372,7 @@ const ManageTab = ({
                         <span>{market.asset || 'Unknown'}</span>
                       </div>
                       
-                      <span className="font-black text-xl text-white">
+                      <span className="font-black text-xl text-neutral-900 dark:text-white">
                         #{market.id}
                       </span>
                       
@@ -381,32 +381,32 @@ const ManageTab = ({
                         {statusInfo.text}
                       </span>
                       
-                      <span className="text-xs px-2 py-1 bg-dark-700 text-gray-400 rounded font-semibold">
+                      <span className="text-xs px-2 py-1 bg-neutral-100 dark:bg-dark-700 text-gray-400 rounded font-semibold">
                         {getMarketTypeLabel(market.marketType)}
                       </span>
                     </div>
 
                     
                     {/* Market Stats Row */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm mt-3 pt-3 border-t border-dark-700/50">
+                    <div className="flex flex-wrap items-center gap-4 text-sm mt-3 pt-3 border-t border-neutral-200 dark:border-dark-700/50">
                       <div className="flex items-center gap-1.5">
                         <PlayCircle className="w-3.5 h-3.5 text-gray-500" />
                         <span className="text-gray-400">Start:</span>
-                        <span className="text-white font-semibold">
+                        <span className="text-neutral-900 dark:text-white font-semibold">
                           ${market.startPrice ? safeToFixed(market.startPrice, 0) : '---'}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Users className="w-3.5 h-3.5 text-gray-500" />
                         <span className="text-gray-400">Pool:</span>
-                        <span className="text-white font-semibold">
+                        <span className="text-neutral-900 dark:text-white font-semibold">
                           {market.totalPool ? safeToFixed(market.totalPool, 2) : '0.00'} USDC
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <TrendingUp className="w-3.5 h-3.5 text-gray-500" />
                         <span className="text-gray-400">Vol:</span>
-                        <span className="text-white font-semibold">
+                        <span className="text-neutral-900 dark:text-white font-semibold">
                           {market.volume ? safeToFixed(market.volume, 2) : '0.00'} USDC
                         </span>
                       </div>
@@ -426,14 +426,14 @@ const ManageTab = ({
 
                     
                     {market.question && (
-                      <div className="text-gray-300 text-sm mt-2 italic bg-dark-900/50 p-2 rounded border border-dark-700">
+                      <div className="text-gray-300 text-sm mt-2 italic bg-neutral-50 dark:bg-dark-900/50 p-2 rounded border border-neutral-200 dark:border-dark-700">
                         Q: {market.question}
                       </div>
                     )}
 
                     {/* Multi-Choice Options */}
                     {market.marketType === 1 && market.options && market.options.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-dark-700">
+                      <div className="mt-3 pt-3 border-t border-neutral-200 dark:border-dark-700">
                         <div className="text-xs text-gray-400 mb-2 font-semibold uppercase tracking-wide">Options:</div>
                         <div className="flex flex-wrap gap-2">
                           {market.options.map((opt, idx) => (
@@ -454,7 +454,7 @@ const ManageTab = ({
                     {/* Audit Trail Button */}
                     <button
                       onClick={() => setAuditMarket(market)}
-                      className="w-full px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 hover:border-[#c0ff00]/50 text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all"
+                      className="w-full px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 hover:border-[#c0ff00]/50 text-neutral-900 dark:text-white text-sm font-semibold rounded-lg flex items-center justify-center gap-2 transition-all"
                     >
                       <History size={16} />
                       View Audit Trail
@@ -465,7 +465,7 @@ const ManageTab = ({
                         {/* Multi-Choice Winner Selection */}
                         {market.marketType === 1 && market.options && market.options.length > 0 && (
                           <select 
-                            className="w-full bg-dark-700 text-white text-sm p-3 rounded-lg border border-dark-600 focus:border-[#c0ff00] outline-none transition-colors"
+                            className="w-full bg-neutral-100 dark:bg-dark-700 text-neutral-900 dark:text-white text-sm p-3 rounded-lg border border-neutral-200 dark:border-dark-600 focus:border-[#c0ff00] outline-none transition-colors"
                             onChange={(e) => setMultiChoiceAnswers({...multiChoiceAnswers, [market.id]: e.target.value})}
                             value={multiChoiceAnswers[market.id] || ""}
                           >

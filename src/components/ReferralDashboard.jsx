@@ -78,23 +78,23 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
       />
       
       {/* Modal */}
-      <div className="relative bg-dark-900 border-2 border-primary/30 rounded-2xl w-full max-w-lg shadow-2xl glow-primary animate-in fade-in zoom-in duration-200">
+      <div className="relative bg-neutral-50 dark:bg-dark-900 border-2 border-primary/30 rounded-2xl w-full max-w-lg shadow-2xl glow-primary animate-in fade-in zoom-in duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-dark-700">
+        <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-dark-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
               <Users className="text-primary" size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Referral Program</h2>
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Referral Program</h2>
               <p className="text-sm text-neutral-400">Earn TRENCHY by inviting friends</p>
             </div>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-dark-700 transition-colors"
+            className="p-2 rounded-lg hover:bg-neutral-100 dark:bg-dark-700 transition-colors"
           >
-            <span className="text-neutral-400 hover:text-white">✕</span>
+            <span className="text-neutral-400 hover:text-neutral-900 dark:text-white">✕</span>
           </button>
         </div>
 
@@ -109,7 +109,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
           ) : (
             <>
               {/* Your Referral Code */}
-              <div className="bg-dark-800 rounded-xl p-4 border border-dark-600">
+              <div className="bg-white dark:bg-dark-800 rounded-xl p-4 border border-neutral-200 dark:border-dark-600">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold text-neutral-400">Your Referral Code</span>
                   {referralCount > 0 && (
@@ -119,7 +119,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-dark-950 rounded-lg px-4 py-3 font-mono text-xl font-bold text-primary tracking-wider">
+                  <div className="flex-1 bg-white dark:bg-dark-950 rounded-lg px-4 py-3 font-mono text-xl font-bold text-primary tracking-wider">
                     {referralCode || '------'}
                   </div>
                   <button
@@ -134,16 +134,16 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
               </div>
 
               {/* Referral Link */}
-              <div className="bg-dark-800 rounded-xl p-4 border border-dark-600">
+              <div className="bg-white dark:bg-dark-800 rounded-xl p-4 border border-neutral-200 dark:border-dark-600">
                 <span className="text-sm font-semibold text-neutral-400 mb-3 block">Share Link</span>
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-dark-950 rounded-lg px-3 py-2 text-sm text-neutral-300 truncate font-mono">
+                  <div className="flex-1 bg-white dark:bg-dark-950 rounded-lg px-3 py-2 text-sm text-neutral-300 truncate font-mono">
                     {getReferralLink() || 'https://trenchy.bet/ref/...'}
                   </div>
                   <button
                     onClick={handleCopyLink}
                     disabled={!referralCode}
-                    className="p-2 bg-dark-700 hover:bg-dark-600 rounded-lg transition-colors disabled:opacity-50"
+                    className="p-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 rounded-lg transition-colors disabled:opacity-50"
                     title="Copy link"
                   >
                     <Link2 size={16} className="text-neutral-400" />
@@ -173,14 +173,14 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-dark-800 rounded-xl p-4 border border-dark-600">
+                <div className="bg-white dark:bg-dark-800 rounded-xl p-4 border border-neutral-200 dark:border-dark-600">
                   <div className="flex items-center gap-2 mb-2">
                     <Users size={16} className="text-secondary" />
                     <span className="text-xs text-neutral-400">Referrals</span>
                   </div>
-                  <div className="text-2xl font-black text-white">{referralCount}</div>
+                  <div className="text-2xl font-black text-neutral-900 dark:text-white">{referralCount}</div>
                 </div>
-                <div className="bg-dark-800 rounded-xl p-4 border border-dark-600">
+                <div className="bg-white dark:bg-dark-800 rounded-xl p-4 border border-neutral-200 dark:border-dark-600">
                   <div className="flex items-center gap-2 mb-2">
                     <Gift size={16} className="text-primary" />
                     <span className="text-xs text-neutral-400">Earnings</span>
@@ -191,7 +191,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
 
               {/* Enter Referral Code */}
               {!hasReferrer && (
-                <div className="bg-dark-800 rounded-xl p-4 border border-primary/30">
+                <div className="bg-white dark:bg-dark-800 rounded-xl p-4 border border-primary/30">
                   <span className="text-sm font-semibold text-neutral-400 mb-3 block">
                     Have a referral code?
                   </span>
@@ -202,7 +202,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
                       onChange={(e) => setInputCode(e.target.value.toUpperCase())}
                       placeholder="Enter code"
                       maxLength={8}
-                      className="flex-1 bg-dark-950 border border-dark-600 rounded-lg px-4 py-2 text-white font-mono uppercase placeholder:text-neutral-600 focus:border-primary focus:outline-none"
+                      className="flex-1 bg-white dark:bg-dark-950 border border-neutral-200 dark:border-dark-600 rounded-lg px-4 py-2 text-neutral-900 dark:text-white font-mono uppercase placeholder:text-neutral-600 focus:border-primary focus:outline-none"
                     />
                     <button
                       onClick={handleRegisterReferral}
@@ -235,7 +235,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-dark-700 text-center">
+        <div className="p-4 border-t border-neutral-200 dark:border-dark-700 text-center">
           <p className="text-xs text-neutral-500">
             Earn 10 TRENCHY for each friend who places their first bet
           </p>

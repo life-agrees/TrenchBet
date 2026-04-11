@@ -13,9 +13,9 @@ const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600">
+      <div className="flex flex-col items-center justify-center h-64 bg-white dark:bg-dark-800 rounded-2xl border-2 border-neutral-200 dark:border-dark-600">
         <Trophy size={48} className="text-primary mb-4" />
-        <p className="text-xl text-white mb-2">No Rankings Yet</p>
+        <p className="text-xl text-neutral-900 dark:text-white mb-2">No Rankings Yet</p>
         <p className="text-neutral-400">Be the first to place a bet and climb the leaderboard!</p>
       </div>
     );
@@ -33,9 +33,9 @@ const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
                 2
               </div>
               <div className="text-4xl mb-2">🥈</div>
-              <p className="font-mono text-sm text-white mb-2">{data[1].displayAddress}</p>
+              <p className="font-mono text-sm text-neutral-900 dark:text-white mb-2">{data[1].displayAddress}</p>
               <div className="space-y-1">
-                <p className="text-2xl font-black text-white">{data[1].wins} Wins</p>
+                <p className="text-2xl font-black text-neutral-900 dark:text-white">{data[1].wins} Wins</p>
                 <p className="text-sm text-neutral-300">{data[1].winRate}% Win Rate</p>
                 <p className="text-xs text-neutral-400">${data[1].totalVolume.toFixed(2)} Volume</p>
               </div>
@@ -65,9 +65,9 @@ const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
                 3
               </div>
               <div className="text-4xl mb-2">🥉</div>
-              <p className="font-mono text-sm text-white mb-2">{data[2].displayAddress}</p>
+              <p className="font-mono text-sm text-neutral-900 dark:text-white mb-2">{data[2].displayAddress}</p>
               <div className="space-y-1">
-                <p className="text-2xl font-black text-white">{data[2].wins} Wins</p>
+                <p className="text-2xl font-black text-neutral-900 dark:text-white">{data[2].wins} Wins</p>
                 <p className="text-sm text-neutral-200">{data[2].winRate}% Win Rate</p>
                 <p className="text-xs text-neutral-300">${data[2].totalVolume.toFixed(2)} Volume</p>
               </div>
@@ -77,9 +77,9 @@ const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
       )}
 
       {/* Rest of Rankings */}
-      <div className="bg-dark-800 rounded-2xl border-2 border-dark-600 overflow-hidden">
-        <div className="bg-dark-700 px-6 py-4 border-b border-dark-600">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+      <div className="bg-white dark:bg-dark-800 rounded-2xl border-2 border-neutral-200 dark:border-dark-600 overflow-hidden">
+        <div className="bg-neutral-100 dark:bg-dark-700 px-6 py-4 border-b border-neutral-200 dark:border-dark-600">
+          <h3 className="text-xl font-bold text-neutral-900 dark:text-white flex items-center gap-2">
             <Trophy className="text-secondary" size={24} />
             Full Rankings
           </h3>
@@ -94,19 +94,19 @@ const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
               <div
                 key={user.address}
                 className={`px-6 py-4 flex items-center justify-between transition-all ${
-                  isCurrentUser ? 'bg-primary/10 border-l-4 border-primary' : 'hover:bg-dark-700'
+                  isCurrentUser ? 'bg-primary/10 border-l-4 border-primary' : 'hover:bg-neutral-100 dark:bg-dark-700'
                 }`}
               >
                 <div className="flex items-center gap-4 flex-1">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${
-                    isCurrentUser ? 'bg-primary text-dark-950' : 'bg-dark-700 text-neutral-400'
+                    isCurrentUser ? 'bg-primary text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-400'
                   }`}>
                     {rank}
                   </div>
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className={`font-mono font-semibold ${isCurrentUser ? 'text-primary' : 'text-white'}`}>
+                      <p className={`font-mono font-semibold ${isCurrentUser ? 'text-primary' : 'text-neutral-900 dark:text-white'}`}>
                         {user.displayAddress}
                       </p>
                       {isCurrentUser && (
@@ -126,7 +126,7 @@ const LeaderboardView = ({ data, isLoading, currentUserAddress }) => {
                   </div>
 
                   <div className="text-right">
-                    <p className="text-lg font-bold text-white">{user.winRate}%</p>
+                    <p className="text-lg font-bold text-neutral-900 dark:text-white">{user.winRate}%</p>
                     <p className="text-xs text-neutral-500">Win Rate</p>
                   </div>
 

@@ -14,7 +14,7 @@ export const HeroSection = ({ onLaunchApp }) => {
           <span className="text-[#c0ff00] text-sm font-medium">High-Velocity Prediction Markets</span>
         </div>
 
-        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-neutral-900 dark:text-white mb-6 leading-tight">
           Predict the Future.
           <br />
           <span className="bg-gradient-to-r from-[#c0ff00] to-[#00FF88] bg-clip-text text-transparent">
@@ -37,7 +37,7 @@ export const HeroSection = ({ onLaunchApp }) => {
           </button>
           <button 
             onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
-            className="px-8 py-4 bg-gray-800/50 hover:bg-gray-800 text-white font-semibold rounded-xl border border-gray-700 transition-all"
+            className="px-8 py-4 bg-gray-800/50 hover:bg-gray-800 text-neutral-900 dark:text-white font-semibold rounded-xl border border-gray-700 transition-all"
           >
             Learn More
           </button>
@@ -46,15 +46,15 @@ export const HeroSection = ({ onLaunchApp }) => {
         {/* Stats Preview */}
         <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
           <div className="text-center">
-            <div className="text-3xl font-bold text-white">$2.5M+</div>
+            <div className="text-3xl font-bold text-neutral-900 dark:text-white">$2.5M+</div>
             <div className="text-gray-500 text-sm">Total Volume</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-white">50K+</div>
+            <div className="text-3xl font-bold text-neutral-900 dark:text-white">50K+</div>
             <div className="text-gray-500 text-sm">Active Users</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-white">100+</div>
+            <div className="text-3xl font-bold text-neutral-900 dark:text-white">100+</div>
             <div className="text-gray-500 text-sm">Markets</div>
           </div>
         </div>

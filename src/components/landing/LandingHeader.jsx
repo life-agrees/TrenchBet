@@ -86,7 +86,7 @@ const LandingHeader = ({ onLaunchApp }) => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+            className="md:hidden p-2 text-gray-300 hover:text-neutral-900 dark:text-white transition-colors"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (

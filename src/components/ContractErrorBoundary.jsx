@@ -75,12 +75,12 @@ class ContractErrorBoundary extends React.Component {
 
       return (
         <div className="min-h-[200px] flex items-center justify-center p-6">
-          <div className="bg-dark-800 border border-red-500/30 rounded-2xl p-6 max-w-md w-full text-center">
+          <div className="bg-white dark:bg-dark-800 border border-red-500/30 rounded-2xl p-6 max-w-md w-full text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/20 flex items-center justify-center">
               <AlertTriangle className="text-red-500" size={32} />
             </div>
             
-            <h3 className="text-xl font-bold text-white mb-2">{title}</h3>
+            <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">{title}</h3>
             <p className="text-neutral-400 mb-6 text-sm">{message}</p>
             
             <div className="flex gap-3 justify-center">
@@ -115,7 +115,7 @@ class ContractErrorBoundary extends React.Component {
               
               <button
                 onClick={() => this.setState({ hasError: false })}
-                className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white font-semibold rounded-xl transition-all"
+                className="px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 text-neutral-900 dark:text-white font-semibold rounded-xl transition-all"
               >
                 Dismiss
               </button>
@@ -126,7 +126,7 @@ class ContractErrorBoundary extends React.Component {
                 <summary className="text-xs text-neutral-500 cursor-pointer hover:text-neutral-400">
                   Technical Details
                 </summary>
-                <pre className="mt-2 p-3 bg-dark-950 rounded-lg text-xs text-red-400 overflow-auto max-h-32">
+                <pre className="mt-2 p-3 bg-white dark:bg-dark-950 rounded-lg text-xs text-red-400 overflow-auto max-h-32">
                   {error?.toString()}
                 </pre>
               </details>

@@ -79,7 +79,7 @@ const fetchRawBets = useCallback(async (force = false) => {
     try {
       const currentBlock = await publicClient.getBlockNumber();
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 3000000n; // ~17 days on Base Sepolia (2 blocks/sec)
+      const totalBlocks = 10000n; // Reduced from 3000000n to 10k to prevent strict Infura 429 Error rate limit
       const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
 
       logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 490k blocks)...`);
@@ -194,7 +194,7 @@ const rawBetData = allLogs
           // Chunk fallback
           const currentBlock = await publicClient.getBlockNumber();
           const CHUNK_SIZE = 49999n;
-          const totalBlocks = 3000000n; // ~17 days on Base Sepolia (2 blocks/sec)
+          const totalBlocks = 10000n; // Reduced to 10k to prevent strict Infura 429 rate limit
           const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
           for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
             const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
@@ -243,7 +243,7 @@ const rawBetData = allLogs
               if (raw.resolved && Number(raw.marketType) !== 0) {
                 try {
                   const currentBlock = await publicClient.getBlockNumber();
-                  const from = currentBlock > 490000n ? currentBlock - 490000n : 0n;
+                  const from = currentBlock > 10000n ? currentBlock - 10000n : 0n; // Reduced lookback
                   for (let f = from; f < currentBlock; f += 49999n) {
                     const t = f + 49999n > currentBlock ? currentBlock : f + 49999n;
                     const logs = await publicClient.getLogs({
@@ -358,7 +358,7 @@ const rawBetData = allLogs
       logger.info(`[useUserBets] Loading older bets before block ${oldestBetBlock}`);
       
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 3000000n;
+      const totalBlocks = 10000n; // Reduced to 10k to prevent RPC rate-limits
       const fromBlock = oldestBetBlock > totalBlocks ? oldestBetBlock - totalBlocks : 0n;
       
       let olderLogs = [];

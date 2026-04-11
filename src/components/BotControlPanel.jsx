@@ -127,11 +127,11 @@ export default function BotControlPanel() {
   return (
     <div className="space-y-4">
       {/* Header status card */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-5">
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={`w-3 h-3 rounded-full ${isRunning ? 'bg-[#CDFF00] animate-pulse' : 'bg-neutral-600'}`} />
-            <h3 className="text-lg font-bold text-white">Market Bot</h3>
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Market Bot</h3>
             <span className={`text-xs px-2 py-0.5 rounded-full font-bold border ${isRunning ? 'bg-[#CDFF00]/10 text-[#CDFF00] border-[#CDFF00]/30' : 'bg-neutral-700 text-neutral-400 border-neutral-600'}`}>
               {isRunning ? 'RUNNING' : 'STOPPED'}
             </span>
@@ -158,9 +158,9 @@ export default function BotControlPanel() {
               { label: 'Resolved', value: status.stats.marketsResolved },
               { label: 'Errors',   value: status.stats.errors,  red: true },
             ].map(({ label, value, red }) => (
-              <div key={label} className="bg-dark-900/60 rounded-lg p-3 border border-dark-700">
+              <div key={label} className="bg-neutral-50 dark:bg-dark-900/60 rounded-lg p-3 border border-neutral-200 dark:border-dark-700">
                 <p className="text-xs text-neutral-500">{label}</p>
-                <p className={`text-2xl font-black ${red && value > 0 ? 'text-red-400' : 'text-white'}`}>{value}</p>
+                <p className={`text-2xl font-black ${red && value > 0 ? 'text-red-400' : 'text-neutral-900 dark:text-white'}`}>{value}</p>
               </div>
             ))}
           </div>
@@ -168,7 +168,7 @@ export default function BotControlPanel() {
       </div>
 
       {/* Manual cycle fire buttons */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-5">
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-5">
         <h4 className="text-sm font-bold text-neutral-400 uppercase tracking-wide mb-3">Manual Fire</h4>
         <div className="grid grid-cols-2 gap-2">
           {CYCLES.map(({ key, label, color }) => {
@@ -179,7 +179,7 @@ export default function BotControlPanel() {
                 key={key}
                 onClick={() => handleFireCycle(key)}
                 disabled={firing[key] || running}
-                className="flex items-center justify-between px-4 py-3 bg-dark-900/60 border border-dark-700 hover:border-dark-500 rounded-lg transition-all disabled:opacity-50 text-left"
+                className="flex items-center justify-between px-4 py-3 bg-neutral-50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700 hover:border-dark-500 rounded-lg transition-all disabled:opacity-50 text-left"
               >
                 <div>
                   <p className={`text-sm font-bold ${color}`}>{label}</p>
@@ -196,20 +196,20 @@ export default function BotControlPanel() {
       </div>
 
       {/* Config panel */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl overflow-hidden">
         <button
           onClick={() => setShowConfig(s => !s)}
-          className="w-full flex items-center justify-between p-5 text-left hover:bg-dark-700/30 transition-all"
+          className="w-full flex items-center justify-between p-5 text-left hover:bg-neutral-100 dark:bg-dark-700/30 transition-all"
         >
           <div className="flex items-center gap-2">
             <Settings className="w-4 h-4 text-[#CDFF00]" />
-            <span className="font-bold text-white">Configuration</span>
+            <span className="font-bold text-neutral-900 dark:text-white">Configuration</span>
           </div>
           {showConfig ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
         </button>
 
         {showConfig && (
-          <div className="px-5 pb-5 space-y-5 border-t border-dark-700">
+          <div className="px-5 pb-5 space-y-5 border-t border-neutral-200 dark:border-dark-700">
             {/* Assets */}
             <div className="pt-4">
               <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Assets</label>
@@ -221,7 +221,7 @@ export default function BotControlPanel() {
                     className={`px-4 py-2 rounded-lg font-bold text-sm border transition-all ${
                       cfg.assets.includes(a)
                         ? 'bg-[#CDFF00]/20 border-[#CDFF00]/50 text-[#CDFF00]'
-                        : 'bg-dark-900 border-dark-600 text-neutral-500'
+                        : 'bg-neutral-50 dark:bg-dark-900 border-neutral-200 dark:border-dark-600 text-neutral-500'
                     }`}
                   >
                     {a}
@@ -247,7 +247,7 @@ export default function BotControlPanel() {
                       type="number"
                       value={cfg.durations[key] / 60}
                       onChange={e => setCfg(c => ({ ...c, durations: { ...c.durations, [key]: parseInt(e.target.value) * 60 } }))}
-                      className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                      className="w-full bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-[#CDFF00]"
                       min="1"
                     />
                   </div>
@@ -263,7 +263,7 @@ export default function BotControlPanel() {
                   type="number"
                   value={cfg.rangeBandPercent}
                   onChange={e => setCfg(c => ({ ...c, rangeBandPercent: parseFloat(e.target.value) }))}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                  className="w-full bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-[#CDFF00]"
                   min="1" max="50" step="0.5"
                 />
                 <p className="text-[10px] text-neutral-600 mt-1">±{cfg.rangeBandPercent}% around current price</p>
@@ -274,7 +274,7 @@ export default function BotControlPanel() {
                   type="number"
                   value={cfg.timePriceTargetPct}
                   onChange={e => setCfg(c => ({ ...c, timePriceTargetPct: parseFloat(e.target.value) }))}
-                  className="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                  className="w-full bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-[#CDFF00]"
                   min="1" max="100" step="0.5"
                 />
                 <p className="text-[10px] text-neutral-600 mt-1">+{cfg.timePriceTargetPct}% price target</p>
@@ -292,7 +292,7 @@ export default function BotControlPanel() {
                       type="text"
                       value={cfg.schedules[k]}
                       onChange={e => setCfg(c => ({ ...c, schedules: { ...c.schedules, [k]: e.target.value } }))}
-                      className="flex-1 bg-dark-900 border border-dark-600 rounded-lg px-3 py-1.5 text-white text-xs font-mono focus:outline-none focus:border-[#CDFF00]"
+                      className="flex-1 bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-1.5 text-neutral-900 dark:text-white text-xs font-mono focus:outline-none focus:border-[#CDFF00]"
                     />
                   </div>
                 ))}
@@ -302,7 +302,7 @@ export default function BotControlPanel() {
             {/* Market Strategy Section */}
             <div>
               <label className="text-xs font-bold text-[#CDFF00] uppercase tracking-wide block mb-3">🎮 Market Strategy</label>
-              <div className="space-y-4 bg-dark-900/60 border border-dark-700 rounded-lg p-4">
+              <div className="space-y-4 bg-neutral-50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700 rounded-lg p-4">
                 
                 {/* Fixed Odds Toggle */}
                 <div className="flex items-center gap-3">
@@ -334,13 +334,13 @@ export default function BotControlPanel() {
 
                 {/* Decay Percent */}
                 {cfg.useTimeDecay && (
-                  <div className="ml-7 space-y-2 pt-2 border-t border-dark-700">
+                  <div className="ml-7 space-y-2 pt-2 border-t border-neutral-200 dark:border-dark-700">
                     <label className="text-xs text-neutral-400 font-semibold">Decay Starts At (%)</label>
                     <input
                       type="number"
                       value={cfg.decayStartPercent}
                       onChange={e => setCfg(c => ({ ...c, decayStartPercent: parseInt(e.target.value) || 0 }))}
-                      className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                      className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-[#CDFF00]"
                       min="0"
                       max="100"
                     />
@@ -349,13 +349,13 @@ export default function BotControlPanel() {
                 )}
 
                 {/* Min Multiplier */}
-                <div className="space-y-2 pt-2 border-t border-dark-700">
+                <div className="space-y-2 pt-2 border-t border-neutral-200 dark:border-dark-700">
                   <label className="text-xs text-neutral-400 font-semibold">Min Multiplier (x)</label>
                   <input
                     type="number"
                     value={cfg.minMultiplier / 100}
                     onChange={e => setCfg(c => ({ ...c, minMultiplier: Math.round(parseFloat(e.target.value) * 100) || 0 }))}
-                    className="w-full bg-dark-800 border border-dark-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-[#CDFF00]"
+                    className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none focus:border-[#CDFF00]"
                     min="1"
                     max="2"
                     step="0.05"
@@ -379,23 +379,23 @@ export default function BotControlPanel() {
       </div>
 
       {/* Logs */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden">
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl overflow-hidden">
         <button
           onClick={() => { setShowLogs(s => !s); if (!showLogs) fetchLogs(); }}
-          className="w-full flex items-center justify-between p-5 text-left hover:bg-dark-700/30 transition-all"
+          className="w-full flex items-center justify-between p-5 text-left hover:bg-neutral-100 dark:bg-dark-700/30 transition-all"
         >
           <div className="flex items-center gap-2">
             <Terminal className="w-4 h-4 text-neutral-400" />
-            <span className="font-bold text-white">Bot Logs</span>
+            <span className="font-bold text-neutral-900 dark:text-white">Bot Logs</span>
           </div>
           <div className="flex items-center gap-2">
-            {showLogs && <button onClick={(e) => { e.stopPropagation(); fetchLogs(); }} className="p-1 hover:text-white text-neutral-500"><RefreshCw className="w-3.5 h-3.5" /></button>}
+            {showLogs && <button onClick={(e) => { e.stopPropagation(); fetchLogs(); }} className="p-1 hover:text-neutral-900 dark:text-white text-neutral-500"><RefreshCw className="w-3.5 h-3.5" /></button>}
             {showLogs ? <ChevronUp className="w-4 h-4 text-neutral-400" /> : <ChevronDown className="w-4 h-4 text-neutral-400" />}
           </div>
         </button>
 
         {showLogs && (
-          <div className="border-t border-dark-700 bg-dark-950 max-h-[300px] overflow-y-auto p-4 font-mono text-xs space-y-1">
+          <div className="border-t border-neutral-200 dark:border-dark-700 bg-white dark:bg-dark-950 max-h-[300px] overflow-y-auto p-4 font-mono text-xs space-y-1">
             {logs.length === 0
               ? <p className="text-neutral-600">No logs yet</p>
               : [...logs].reverse().map((entry, i) => (

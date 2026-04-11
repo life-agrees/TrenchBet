@@ -45,6 +45,12 @@ export const useUserStats = (userBets, wonBets, lostBets, pendingBets) => {
     // Total amount wagered across ALL bets (win or lose)
     const totalWagered = safeBets.reduce((sum, bet) => sum + toUSDC(bet.amount), 0);
 
+    // Largest single bet amount
+    const largestBet = safeBets.reduce((max, bet) => {
+      const amt = toUSDC(bet.amount);
+      return amt > max ? amt : max;
+    }, 0);
+
     // Total payout received from winning bets
     // bet.payout may be present (if enriched), otherwise estimate from multiplier
     const totalWinnings = safeWonBets.reduce((sum, bet) => {
@@ -93,6 +99,9 @@ export const useUserStats = (userBets, wonBets, lostBets, pendingBets) => {
       losses,
       pending,
       streak,
+      currentStreak: streak,
+      totalWins: wins,
+      largestBet,
       winRate,
       totalWinnings,
       totalLosses,

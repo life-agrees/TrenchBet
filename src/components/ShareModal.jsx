@@ -41,15 +41,15 @@ export const ShareModal = ({ isOpen, onClose, market }) => {
   return (
     // FIX 3: dark-* tokens throughout
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-dark-800">
           <div className="flex items-center gap-2">
             <Share2 className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">Share Market</h2>
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Share Market</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+            className="p-2 text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -64,7 +64,7 @@ export const ShareModal = ({ isOpen, onClose, market }) => {
               type="text"
               value={shareUrl}
               readOnly
-              className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none"
+              className="flex-1 bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-3 py-2 text-neutral-900 dark:text-white text-sm focus:outline-none"
             />
             <button
               onClick={copyToClipboard}
@@ -78,10 +78,10 @@ export const ShareModal = ({ isOpen, onClose, market }) => {
           <div className="flex gap-2">
             <button
               onClick={shareOnTwitter}
-              className="flex-1 flex items-center justify-center gap-2 p-3 bg-dark-800 hover:bg-dark-700 border border-dark-700 rounded-lg transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 p-3 bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 rounded-lg transition-colors"
             >
               <Twitter className="w-5 h-5 text-[#1DA1F2]" />
-              <span className="text-white font-medium">Share on Twitter</span>
+              <span className="text-neutral-900 dark:text-white font-medium">Share on Twitter</span>
             </button>
           </div>
         </div>

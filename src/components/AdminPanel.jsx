@@ -18,6 +18,7 @@ import {
   ERC20_ABI,
   CHAINLINK_RESOLVER_ABI
 } from '../contracts/abis';
+import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 
 import { sanitizeInput } from '../utils/inputSanitization';
 import { createLogger } from '../utils/logger';
@@ -44,18 +45,11 @@ export default function AdminPanel({
  * Multi/Range/Time markets (types 1-3) -> Proxy delegates to Types implementation
  */
 function getContractForMarketType(marketType) {
-  // Always use PROXY_ADDRESS - the proxy will route to correct implementation
-  // based on function selector mapping configured in deploy-proxy-pattern.cjs
-  if (marketType === 0 || marketType === 'binary') {
-    return {
-      address: PROXY_ADDRESS,
-      abi: PREDICTION_MARKET_CORE_ABI,
-      source: 'proxy'
-    };
-  }
+  // Always use PROXY_ADDRESS and PREDICTION_MARKET_PROXY_ABI
+  // The proxy pattern works best with the unified ABI that contains all functions
   return {
     address: PROXY_ADDRESS,
-    abi: PREDICTION_MARKET_TYPES_ABI,
+    abi: PREDICTION_MARKET_PROXY_ABI,
     source: 'proxy'
   };
 }
@@ -355,10 +349,6 @@ function getContractForMarketType(marketType) {
             logger.info('Notifying parent component of new market creation');
             onMarketCreated();
           }
-
-          // Force refresh markets in store (bypasses cache)
-          const appStore = useAppStore.getState();
-          appStore.setLastFetch('markets', 0); // Invalidate cache
         // Note: Removed useMarketsWithStore() call - can't call hooks inside useEffect
         // Parent onMarketCreated will handle global refresh
 
@@ -404,7 +394,7 @@ function getContractForMarketType(marketType) {
       try {
         marketCounter = await publicClient.readContract({
           address: PROXY_ADDRESS,
-          abi: PREDICTION_MARKET_CORE_ABI,
+          abi: PREDICTION_MARKET_PROXY_ABI,
           functionName: 'marketCounter'
         });
         console.log('✅ Proxy marketCounter:', marketCounter.toString());
@@ -780,7 +770,7 @@ try {
       // Read marketCounter from PROXY
       const marketCounter = await publicClient.readContract({
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_CORE_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'marketCounter'
       });
 
@@ -813,7 +803,7 @@ try {
       // Get base market data from PROXY
       const rawMarket = await publicClient.readContract({
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_CORE_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'markets',
         args: [BigInt(marketId)]
       });
@@ -993,7 +983,7 @@ try {
 
       const txHash = await walletClient.writeContract({
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_CORE_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'withdrawFees',
         account: address
       });
@@ -1126,12 +1116,9 @@ try {
       console.log('⏳ Waiting for wallet state sync...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // FIXED: Always pass valid multiplier values (>= 100)
-      // The contract requires non-zero multipliers — passing 0 causes revert with 0x
-      // When useFixedOdds is false, pass default 200 (2.0x). The contract internally
-      // determines useFixedOdds based on whether multipliers are > 0.
-      const yesMultiplier = binaryForm.yesMultiplier || 200;
-      const noMultiplier = binaryForm.noMultiplier || 200;
+      // When useFixedOdds is false, multipliers should be 0 unless the contract expects otherwise.
+      const yesMultiplier = binaryForm.useFixedOdds ? (binaryForm.yesMultiplier || 200) : 0;
+      const noMultiplier = binaryForm.useFixedOdds ? (binaryForm.noMultiplier || 200) : 0;
 
       const args = [
         sanitizeInput(binaryForm.asset),
@@ -1152,7 +1139,7 @@ try {
       try {
         const { request } = await publicClient.simulateContract({
           address: PROXY_ADDRESS,
-          abi: PREDICTION_MARKET_CORE_ABI,
+          abi: PREDICTION_MARKET_PROXY_ABI,
           functionName: 'createMarketWithOdds',
           args: args,
           account: address,
@@ -1167,7 +1154,7 @@ try {
       // Try without gas limit first to let wallet estimate
       const txParams = {
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_CORE_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'createMarketWithOdds',
         args: args,
         account: address,
@@ -1267,7 +1254,7 @@ multiChoiceForm.useFixedOdds ? validOptions.map((_, idx) => BigInt(multiChoiceFo
 
       const hash = await walletClient.writeContract({
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_TYPES_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'createMultiChoiceMarketWithOdds',
         args: args,
         account: address,
@@ -1355,7 +1342,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
 
       const hash = await walletClient.writeContract({
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_TYPES_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'createRangeMarketWithOdds',
         args: args,
         account: address,
@@ -1449,7 +1436,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
 
       const hash = await walletClient.writeContract({
         address: PROXY_ADDRESS,
-        abi: PREDICTION_MARKET_TYPES_ABI,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'createTimeMarketWithOdds',
         args: args,
         account: address,
@@ -1587,7 +1574,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
           }}
         >
           <div 
-            className="bg-dark-900 border border-[#c0ff00]/30 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl shadow-[#c0ff00]/20 relative"
+            className="bg-neutral-50 dark:bg-dark-900 border border-[#c0ff00]/30 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl shadow-[#c0ff00]/20 relative"
             style={{ backgroundColor: '#1a1a1a' }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1596,7 +1583,7 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
               <h2 className="text-2xl font-bold text-[#c0ff00]">Admin Panel</h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-dark-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-gray-400" />
               </button>

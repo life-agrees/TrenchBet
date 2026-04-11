@@ -58,17 +58,17 @@ export const PointsHistoryModal = ({ isOpen, onClose, walletAddress }) => {
   return (
     // FIX 3: dark-* tokens
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-lg bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-dark-800 bg-dark-900/50">
+        <div className="flex items-center justify-between p-4 border-b border-dark-800 bg-neutral-50 dark:bg-dark-900/50">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">Points History</h2>
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Points History</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+            className="p-2 text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -96,7 +96,7 @@ export const PointsHistoryModal = ({ isOpen, onClose, walletAddress }) => {
               {history.map((item) => (
                 <div
                   key={item.id}
-                  className="p-3 bg-dark-800/50 rounded-lg border border-dark-700"
+                  className="p-3 bg-white dark:bg-dark-800/50 rounded-lg border border-neutral-200 dark:border-dark-700"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">

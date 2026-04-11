@@ -29,25 +29,25 @@ const UserManagementTab = ({ users, isLoading, onSuspend, onVerify }) => {
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <h2 className="text-3xl font-black text-white mb-1">User Management</h2>
+        <h2 className="text-3xl font-black text-neutral-900 dark:text-white mb-1">User Management</h2>
         <p className="text-sm text-gray-400">Monitor and manage platform users</p>
       </div>
 
       {/* User Statistics Cards */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700">
+        <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
           <p className="text-gray-400 text-xs uppercase font-bold mb-2">Total Users</p>
           <p className="text-2xl font-black text-primary">{users?.length || 0}</p>
         </div>
-        <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700">
+        <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
           <p className="text-gray-400 text-xs uppercase font-bold mb-2">Active (7d)</p>
           <p className="text-2xl font-black text-secondary">{users?.filter(u => u.lastActive > Date.now() - 7 * 86400000).length || 0}</p>
         </div>
-        <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700">
+        <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
           <p className="text-gray-400 text-xs uppercase font-bold mb-2">High Activity</p>
           <p className="text-2xl font-black text-yellow-400">{users?.filter(u => u.bets > 50).length || 0}</p>
         </div>
-        <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700">
+        <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
           <p className="text-gray-400 text-xs uppercase font-bold mb-2">Flagged</p>
           <p className="text-2xl font-black text-red-400">{users?.filter(u => u.suspicious).length || 0}</p>
         </div>
@@ -62,14 +62,14 @@ const UserManagementTab = ({ users, isLoading, onSuspend, onVerify }) => {
             placeholder="Search by address or ENS..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-dark-700 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary"
+            className="w-full pl-10 pr-4 py-2.5 bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-600 rounded-lg text-neutral-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-primary"
           />
         </div>
 
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
-          className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white text-sm font-semibold"
+          className="bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-600 rounded-lg px-4 py-2.5 text-neutral-900 dark:text-white text-sm font-semibold"
         >
           <option value="all">All Users</option>
           <option value="active">Active (7d)</option>
@@ -80,7 +80,7 @@ const UserManagementTab = ({ users, isLoading, onSuspend, onVerify }) => {
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
-          className="bg-dark-700 border border-dark-600 rounded-lg px-4 py-2.5 text-white text-sm font-semibold"
+          className="bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-600 rounded-lg px-4 py-2.5 text-neutral-900 dark:text-white text-sm font-semibold"
         >
           <option value="volume">Sort by Volume</option>
           <option value="bets">Sort by Bets</option>
@@ -88,10 +88,10 @@ const UserManagementTab = ({ users, isLoading, onSuspend, onVerify }) => {
       </div>
 
       {/* Users Table */}
-      <div className="bg-dark-800/50 rounded-xl border border-dark-700 overflow-hidden">
+      <div className="bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-dark-900/50 border-b border-dark-700">
+            <thead className="bg-neutral-50 dark:bg-dark-900/50 border-b border-neutral-200 dark:border-dark-700">
               <tr className="text-left text-xs text-gray-400 font-bold uppercase">
                 <th className="px-6 py-3">User</th>
                 <th className="px-6 py-3">Bets Placed</th>
@@ -105,18 +105,18 @@ const UserManagementTab = ({ users, isLoading, onSuspend, onVerify }) => {
             </thead>
             <tbody className="divide-y divide-dark-700">
               {filteredUsers.map((user) => (
-                <tr key={user.address} className="hover:bg-dark-700/30 transition">
+                <tr key={user.address} className="hover:bg-neutral-100 dark:bg-dark-700/30 transition">
                   <td className="px-6 py-4">
                     <div>
-                      <p className="font-mono text-white text-sm">{user.address.slice(0, 10)}...</p>
+                      <p className="font-mono text-neutral-900 dark:text-white text-sm">{user.address.slice(0, 10)}...</p>
                       <p className="text-xs text-gray-500">{user.ens || 'No ENS'}</p>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-white font-bold">{user.bets}</td>
+                  <td className="px-6 py-4 text-neutral-900 dark:text-white font-bold">{user.bets}</td>
                   <td className="px-6 py-4 text-primary font-bold">${(user.volume / 1000).toFixed(1)}K</td>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
-                      <div className="w-12 h-2 bg-dark-700 rounded-full overflow-hidden">
+                      <div className="w-12 h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
                         <div className="h-full bg-success" style={{ width: `${user.winRate || 0}%` }}></div>
                       </div>
                       <span className="ml-2 text-xs text-gray-400">{user.winRate || 0}%</span>

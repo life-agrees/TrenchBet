@@ -39,7 +39,7 @@ export const FeaturesSection = ({ onLaunchApp }) => {
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white mb-4">Why TrenchyBet?</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">Why TrenchyBet?</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             The most advanced prediction market platform on Base
           </p>
@@ -55,7 +55,7 @@ export const FeaturesSection = ({ onLaunchApp }) => {
                 <feature.icon className="w-6 h-6 text-[#c0ff00]" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-white mb-2">{feature.title}</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{feature.title}</h3>
                 <p className="text-gray-400 text-sm">{feature.description}</p>
               </div>
             </div>

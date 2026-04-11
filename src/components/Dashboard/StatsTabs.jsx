@@ -59,9 +59,9 @@ const StatsTabs = ({ userBets = [] }) => {
   }, [userBets, activeTab]);
 
   return (
-    <div className="bg-dark-800 border border-secondary/30 rounded-xl overflow-hidden">
+    <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl overflow-hidden">
       {/* Tabs */}
-      <div className="flex border-b border-dark-700 overflow-x-auto">
+      <div className="flex border-b border-neutral-200 dark:border-dark-700 overflow-x-auto">
         {tabs.map(tab => {
           const Icon = tab.icon;
           return (
@@ -71,7 +71,7 @@ const StatsTabs = ({ userBets = [] }) => {
               className={`flex-1 px-4 py-4 text-sm font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'text-primary border-b-2 border-primary bg-primary/5'
-                  : 'text-neutral-400 hover:text-white hover:bg-dark-700/50'
+                  : 'text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-neutral-100 dark:bg-dark-700/50'
               }`}
             >
               <Icon size={16} />
@@ -86,7 +86,7 @@ const StatsTabs = ({ userBets = [] }) => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div>
             <p className="text-xs text-neutral-400 mb-1">Total Bets</p>
-            <p className="text-2xl font-black text-white">{stats.total}</p>
+            <p className="text-2xl font-black text-neutral-900 dark:text-white">{stats.total}</p>
           </div>
           <div>
             <p className="text-xs text-neutral-400 mb-1">Wins</p>
@@ -118,7 +118,7 @@ const StatsTabs = ({ userBets = [] }) => {
               <span className="text-sm text-neutral-300">Win Rate</span>
               <span className="text-sm font-bold text-primary">{stats.winRate}%</span>
             </div>
-            <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-success to-primary transition-all"
                 style={{ width: `${stats.winRate}%` }}
@@ -127,16 +127,16 @@ const StatsTabs = ({ userBets = [] }) => {
           </div>
 
           {/* Bet Distribution */}
-          <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-dark-700">
+          <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-neutral-200 dark:border-dark-700">
             <div className="text-center">
               <p className="text-xs text-neutral-400 mb-1">Avg Bet</p>
-              <p className="text-lg font-bold text-white">
+              <p className="text-lg font-bold text-neutral-900 dark:text-white">
                 ${stats.total > 0 ? (stats.totalBetAmount / stats.total).toFixed(2) : '0.00'}
               </p>
             </div>
             <div className="text-center">
               <p className="text-xs text-neutral-400 mb-1">Total Wagered</p>
-              <p className="text-lg font-bold text-white">${stats.totalBetAmount.toFixed(2)}</p>
+              <p className="text-lg font-bold text-neutral-900 dark:text-white">${stats.totalBetAmount.toFixed(2)}</p>
             </div>
             <div className="text-center">
               <p className="text-xs text-neutral-400 mb-1">Total Won</p>

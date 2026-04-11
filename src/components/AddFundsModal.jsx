@@ -69,7 +69,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-neutral-400 hover:text-white transition-colors z-10"
+          className="absolute top-4 right-4 text-neutral-400 hover:text-neutral-900 dark:text-white transition-colors z-10"
           aria-label="Close add funds modal"
         >
           <X size={24} aria-hidden="true" />
@@ -83,7 +83,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center" aria-hidden="true">
                 <DollarSign size={32} className="text-primary" />
               </div>
-              <h2 id="add-funds-title" className="text-3xl font-black text-white mb-2">Add Funds</h2>
+              <h2 id="add-funds-title" className="text-3xl font-black text-neutral-900 dark:text-white mb-2">Add Funds</h2>
               <p id="add-funds-description" className="text-neutral-400">Get USDC to start betting on {networkInfo.name}</p>
             </div>
 
@@ -114,10 +114,10 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
 
 
             {/* Wallet Address */}
-            <div className="bg-dark-900 border border-dark-600 rounded-xl p-4 mb-6">
+            <div className="bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-600 rounded-xl p-4 mb-6">
               <p className="text-xs text-neutral-400 mb-2">Your Wallet Address:</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-sm font-mono bg-dark-950 px-3 py-2 rounded-lg text-primary break-all">
+                <code className="flex-1 text-sm font-mono bg-white dark:bg-dark-950 px-3 py-2 rounded-lg text-primary break-all">
                   {address}
                 </code>
                 <button
@@ -135,7 +135,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Zap className="w-5 h-5 text-primary" aria-hidden="true" />
-                <h3 className="text-lg font-bold text-white">Fastest Option: Swap Your ETH</h3>
+                <h3 className="text-lg font-bold text-neutral-900 dark:text-white">Fastest Option: Swap Your ETH</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -150,11 +150,11 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
                       <ArrowRightLeft className="w-6 h-6 text-pink-400" />
                     </div>
                     <div className="flex-1">
-                      <div className="text-white font-bold text-lg">Uniswap</div>
+                      <div className="text-neutral-900 dark:text-white font-bold text-lg">Uniswap</div>
                       <div className="text-xs text-neutral-400">Best rates, most trusted</div>
                     </div>
                   </div>
-                  <div className="bg-dark-900/50 rounded-lg p-2 border border-pink-700/30">
+                  <div className="bg-neutral-50 dark:bg-dark-900/50 rounded-lg p-2 border border-pink-700/30">
                     <div className="text-xs text-neutral-400">ETH → USDC</div>
                     <div className="text-sm text-pink-400 font-semibold">Recommended ⭐</div>
                   </div>
@@ -172,11 +172,11 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
                         <ArrowRightLeft className="w-6 h-6 text-blue-400" />
                       </div>
                       <div className="flex-1">
-                        <div className="text-white font-bold text-lg">1inch</div>
+                        <div className="text-neutral-900 dark:text-white font-bold text-lg">1inch</div>
                         <div className="text-xs text-neutral-400">DEX aggregator</div>
                       </div>
                     </div>
-                    <div className="bg-dark-900/50 rounded-lg p-2 border border-blue-700/30">
+                    <div className="bg-neutral-50 dark:bg-dark-900/50 rounded-lg p-2 border border-blue-700/30">
                       <div className="text-xs text-neutral-400">ETH → USDC</div>
                       <div className="text-sm text-blue-400 font-semibold">Best price finder</div>
                     </div>
@@ -195,10 +195,10 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-dark-600"></div>
+                <div className="w-full border-t border-neutral-200 dark:border-dark-600"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-dark-800 text-neutral-400">Other Options</span>
+                <span className="px-4 bg-white dark:bg-dark-800 text-neutral-400">Other Options</span>
               </div>
             </div>
 
@@ -206,13 +206,13 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
             <div className="space-y-4">
               {/* Testnet Faucet */}
               {networkInfo.testnet && (
-                <div className="bg-dark-900 border-2 border-success/30 rounded-xl p-4 hover:border-success/50 transition-all">
+                <div className="bg-neutral-50 dark:bg-dark-900 border-2 border-success/30 rounded-xl p-4 hover:border-success/50 transition-all">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-12 h-12 rounded-xl bg-success/20 border-2 border-success flex items-center justify-center text-2xl" aria-hidden="true">
                       🚰
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-bold text-white text-lg">Testnet Faucet</h3>
+                      <h3 className="font-bold text-neutral-900 dark:text-white text-lg">Testnet Faucet</h3>
                       <p className="text-sm text-neutral-400">Get free test {networkInfo.nativeToken} for testing</p>
                     </div>
                   </div>
@@ -229,13 +229,13 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
               )}
 
               {/* Bridge from Ethereum */}
-              <div className="bg-dark-900 border-2 border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all">
+              <div className="bg-neutral-50 dark:bg-dark-900 border-2 border-primary/30 rounded-xl p-4 hover:border-primary/50 transition-all">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary flex items-center justify-center text-2xl" aria-hidden="true">
                     🌉
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-white text-lg">Bridge from Ethereum</h3>
+                    <h3 className="font-bold text-neutral-900 dark:text-white text-lg">Bridge from Ethereum</h3>
                     <p className="text-sm text-neutral-400">Transfer USDC from Ethereum L1 to {networkInfo.name}</p>
                   </div>
                 </div>
@@ -254,13 +254,13 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
               </div>
 
               {/* Buy on Exchanges */}
-              <div className="bg-dark-900 border-2 border-secondary/30 rounded-xl p-4 hover:border-secondary/50 transition-all">
+              <div className="bg-neutral-50 dark:bg-dark-900 border-2 border-secondary/30 rounded-xl p-4 hover:border-secondary/50 transition-all">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 rounded-xl bg-secondary/20 border-2 border-secondary flex items-center justify-center text-2xl" aria-hidden="true">
                     💱
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-white text-lg">Buy on Exchanges</h3>
+                    <h3 className="font-bold text-neutral-900 dark:text-white text-lg">Buy on Exchanges</h3>
                     <p className="text-sm text-neutral-400">Purchase USDC and withdraw to {networkInfo.name}</p>
                   </div>
                 </div>
@@ -291,9 +291,9 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
             </div>
 
             {/* Network Info Footer */}
-            <div className="mt-6 p-4 bg-dark-900/50 rounded-xl border border-dark-600">
+            <div className="mt-6 p-4 bg-neutral-50 dark:bg-dark-900/50 rounded-xl border border-neutral-200 dark:border-dark-600">
               <p className="text-sm text-neutral-400 text-center">
-                <span className="text-white font-semibold">Network:</span> <span className="text-primary font-bold">{networkInfo.name}</span>
+                <span className="text-neutral-900 dark:text-white font-semibold">Network:</span> <span className="text-primary font-bold">{networkInfo.name}</span>
                 {networkInfo.testnet && <span className="text-secondary ml-2 font-semibold">(Testnet)</span>}
               </p>
               <p className="text-xs text-neutral-500 text-center mt-2">

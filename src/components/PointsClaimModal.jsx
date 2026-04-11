@@ -71,17 +71,17 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
   return (
     // FIX 3: dark-* tokens throughout
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-dark-900 border border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-neutral-50 dark:bg-dark-900 border border-neutral-200 dark:border-dark-700 rounded-2xl shadow-2xl overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-dark-800">
           <div className="flex items-center gap-2">
             <Coins className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-bold text-white">Claim TRENCHY Tokens</h2>
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Claim TRENCHY Tokens</h2>
           </div>
           <button
             onClick={handleClose}
-            className="p-2 text-neutral-400 hover:text-white hover:bg-dark-800 rounded-lg transition-colors"
+            className="p-2 text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -93,9 +93,9 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
           {/* ── STEP: input ── */}
           {step === 'input' && (
             <>
-              <div className="bg-dark-800/50 rounded-lg p-4">
+              <div className="bg-white dark:bg-dark-800/50 rounded-lg p-4">
                 <div className="text-neutral-400 text-sm mb-1">Available Points</div>
-                <div className="text-2xl font-bold text-white">
+                <div className="text-2xl font-bold text-neutral-900 dark:text-white">
                   {/* FIX 2: availablePoints now comes from pointsData.points_available */}
                   {isLoadingPoints ? '...' : availablePoints.toLocaleString()}
                 </div>
@@ -112,7 +112,7 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
                   placeholder="Enter points amount"
                   min="100"
                   step="100"
-                  className="w-full bg-dark-800 border border-dark-700 rounded-lg px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-primary"
+                  className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white placeholder-neutral-600 focus:outline-none focus:border-primary"
                 />
               </div>
 
@@ -126,14 +126,14 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
                 </div>
               )}
 
-              <div className="flex items-center justify-between p-3 bg-dark-800/30 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-white dark:bg-dark-800/30 rounded-lg">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-green-400" />
                   <span className="text-sm text-neutral-300">Auto-stake tokens</span>
                 </div>
                 <button
                   onClick={() => setAutoStake(!autoStake)}
-                  className={`w-12 h-6 rounded-full transition-colors ${autoStake ? 'bg-green-500' : 'bg-dark-600'}`}
+                  className={`w-12 h-6 rounded-full transition-colors ${autoStake ? 'bg-green-500' : 'bg-neutral-200 dark:bg-dark-600'}`}
                 >
                   <div className={`w-5 h-5 bg-white rounded-full transition-transform ${autoStake ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -162,7 +162,7 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
               <button
                 onClick={handlePrepareClaim}
                 disabled={!pointsAmount || pointsAmount < 100 || isLoading}
-                className="w-full py-3 bg-primary hover:bg-primary/90 disabled:bg-dark-700 disabled:cursor-not-allowed text-dark-950 disabled:text-neutral-500 font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 bg-primary hover:bg-primary/90 disabled:bg-neutral-100 dark:bg-dark-700 disabled:cursor-not-allowed text-dark-950 disabled:text-neutral-500 font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 {isLoading ? (
                   <><Loader2 className="w-5 h-5 animate-spin" /> Preparing...</>
@@ -178,22 +178,22 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
             <>
               <div className="text-center mb-4">
                 <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-2" />
-                <h3 className="text-lg font-semibold text-white">Ready to Claim</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white">Ready to Claim</h3>
                 <p className="text-neutral-400 text-sm">Your claim has been prepared and signed</p>
               </div>
 
-              <div className="bg-dark-800/50 rounded-lg p-4 space-y-2">
+              <div className="bg-white dark:bg-dark-800/50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-400">Points</span>
-                  <span className="text-white font-medium">{claimData.pointsAmount}</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">{claimData.pointsAmount}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-400">TRENCHY Amount</span>
-                  <span className="text-white font-medium">{claimData.trenchyAmount}</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">{claimData.trenchyAmount}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-400">Auto-stake</span>
-                  <span className="text-white font-medium">{autoStake ? 'Yes' : 'No'}</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">{autoStake ? 'Yes' : 'No'}</span>
                 </div>
               </div>
 
@@ -214,14 +214,14 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
                 <button
                   onClick={() => setStep('input')}
                   disabled={isLoading}
-                  className="flex-1 py-3 bg-dark-700 hover:bg-dark-600 text-white font-semibold rounded-lg transition-colors"
+                  className="flex-1 py-3 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 text-neutral-900 dark:text-white font-semibold rounded-lg transition-colors"
                 >
                   Back
                 </button>
                 <button
                   onClick={handleExecuteClaim}
                   disabled={isLoading}
-                  className="flex-1 py-3 bg-primary hover:bg-primary/90 disabled:bg-dark-700 text-dark-950 font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-primary hover:bg-primary/90 disabled:bg-neutral-100 dark:bg-dark-700 text-dark-950 font-bold rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   {isLoading ? (
                     <><Loader2 className="w-5 h-5 animate-spin" /> Claiming...</>
@@ -237,7 +237,7 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
           {step === 'success' && (
             <div className="text-center py-8">
               <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Claim Successful!</h3>
+              <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-2">Claim Successful!</h3>
               <p className="text-neutral-400 mb-4">
                 You have successfully claimed {claimData?.trenchyAmount} TRENCHY tokens
               </p>

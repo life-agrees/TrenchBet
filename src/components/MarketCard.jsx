@@ -62,7 +62,7 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
         <AssetIcon className="w-3.5 h-3.5" />
         <span>{market.asset}</span>
       </div>
-      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-dark-700/60 border border-dark-600 text-[10px] font-semibold text-neutral-400">
+      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-100 dark:bg-dark-700/60 border border-neutral-200 dark:border-dark-600 text-[10px] font-semibold text-neutral-400">
         <TypeIcon className="w-3 h-3" style={{ color: typeMeta.accent }} />
         {typeMeta.label}
       </div>
@@ -91,19 +91,19 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
 // ── Stats Bar ─────────────────────────────────────────────────────────────────
 
 const StatsBar = ({ market, totalPool, countdown, urgency }) => (
-  <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-dark-900/60 border border-dark-700/50 text-xs">
+  <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700/50 text-xs">
     <div className="flex items-center gap-1 text-neutral-500">
       <Users className="w-3 h-3" />
-      <span className="text-white font-semibold">{safeToFixed(totalPool, 1)}</span>
+      <span className="text-neutral-900 dark:text-white font-semibold">{safeToFixed(totalPool, 1)}</span>
       <span>USDC</span>
     </div>
-    <div className="w-px h-3 bg-dark-600" />
+    <div className="w-px h-3 bg-neutral-200 dark:bg-dark-600" />
     <div className="flex items-center gap-1 text-neutral-500">
       <Trophy className="w-3 h-3" />
-      <span className="text-white font-semibold">{market.totalBets || 0}</span>
+      <span className="text-neutral-900 dark:text-white font-semibold">{market.totalBets || 0}</span>
       <span>bets</span>
     </div>
-    <div className="w-px h-3 bg-dark-600" />
+    <div className="w-px h-3 bg-neutral-200 dark:bg-dark-600" />
     <div className={`flex items-center gap-1 ml-auto font-semibold ${urgency.color || 'text-green-400'}`}>
       <Clock className="w-3 h-3" />
       <span>{countdown.formatted}</span>
@@ -121,14 +121,14 @@ const BinaryHero = ({ market, currentPrice, priceChange, yesOdds, noOdds, isPlac
   return (
     <div className="space-y-2.5">
       {currentPrice && (
-        <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-dark-900/50 border border-dark-700/50">
+        <div className="flex items-center justify-between px-2.5 py-2 rounded-lg bg-neutral-50 dark:bg-dark-900/50 border border-neutral-200 dark:border-dark-700/50">
           <div className="flex items-center gap-1.5">
             <Zap className="w-3.5 h-3.5 text-yellow-400" />
             <span className="text-xs text-neutral-500">Live</span>
           </div>
           <div className="flex items-center gap-2">
             {priceChange && <MiniPriceChart startPrice={market.startPrice} currentPrice={currentPrice} isPositive={priceChange.isPositive} />}
-            <span className="text-sm font-bold text-white">${safeToFixed(currentPrice, currentPrice >= 1000 ? 0 : 2)}</span>
+            <span className="text-sm font-bold text-neutral-900 dark:text-white">${safeToFixed(currentPrice, currentPrice >= 1000 ? 0 : 2)}</span>
             {priceChange && <span className={`text-xs font-semibold ${priceChange.color}`}>{priceChange.formatted}</span>}
           </div>
         </div>
@@ -232,7 +232,7 @@ const RangeHero = ({ market, currentPrice, disabled, onRange }) => {
       </div>
 
       {/* Visual price track */}
-      <div className="relative h-2.5 rounded-full bg-dark-700 mb-3 overflow-visible">
+      <div className="relative h-2.5 rounded-full bg-neutral-100 dark:bg-dark-700 mb-3 overflow-visible">
         {ranges.map((range, idx) => {
           const left  = ((range.min - allMin) / span) * 100;
           const width = ((range.max  - range.min) / span) * 100;
@@ -304,14 +304,14 @@ const TimeHero = ({ market, currentPrice, disabled, onTimeframe }) => {
   return (
     <div>
       {market.targetPrice && (
-        <div className="px-3 py-2.5 rounded-xl bg-dark-900/60 border border-dark-700/50 mb-3">
+        <div className="px-3 py-2.5 rounded-xl bg-neutral-50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700/50 mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] text-neutral-500 uppercase tracking-wide">Target</span>
-            <span className={`text-sm font-bold ${reached ? 'text-[#CDFF00]' : 'text-white'}`}>
+            <span className={`text-sm font-bold ${reached ? 'text-[#CDFF00]' : 'text-neutral-900 dark:text-white'}`}>
               ${safeToFixed(market.targetPrice, market.targetPrice >= 1000 ? 0 : 2)}
             </span>
           </div>
-          <div className="relative h-1.5 rounded-full bg-dark-700 overflow-hidden">
+          <div className="relative h-1.5 rounded-full bg-neutral-100 dark:bg-dark-700 overflow-hidden">
             <div
               className="absolute left-0 top-0 h-full rounded-full transition-all duration-700"
               style={{ width: `${progress}%`, background: reached ? '#CDFF00' : '#fb923c' }}
@@ -407,7 +407,7 @@ const MarketCardComponent = ({
   return (
     <div
       onClick={onClick}
-      className="relative bg-dark-800 border border-dark-700/50 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer group transition-all duration-200 hover:border-dark-600 hover:bg-dark-800/90 overflow-hidden will-change-transform [backface-visibility:hidden]"
+      className="relative bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700/50 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer group transition-all duration-200 hover:border-neutral-200 dark:border-dark-600 hover:bg-white dark:bg-dark-800/90 overflow-hidden will-change-transform [backface-visibility:hidden]"
 
     >
       {/* Type accent strip */}
@@ -435,7 +435,7 @@ const MarketCardComponent = ({
       />
 
       {/* ── Title ── */}
-      <h3 className="font-bold text-white text-sm leading-snug line-clamp-2 group-hover:text-[#CDFF00] transition-colors duration-200 -mt-1">
+      <h3 className="font-bold text-neutral-900 dark:text-white text-sm leading-snug line-clamp-2 group-hover:text-[#CDFF00] transition-colors duration-200 -mt-1">
         {title}
       </h3>
 

@@ -42,7 +42,7 @@ const Footer = () => {
           <div className="lg:col-span-1">
             <div className="flex items-center mb-3">
               <TrenchyBetLogo className="w-8 h-8" />
-              <span className="ml-2 text-xl font-black text-white">
+              <span className="ml-2 text-xl font-black text-neutral-900 dark:text-white">
                 Trenchy<span className="text-[#c0ff00]">Bet</span>
               </span>
             </div>
@@ -73,7 +73,7 @@ const Footer = () => {
 
           {/* Product Links */}
           <div>
-            <h5 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Product</h5>
+            <h5 className="text-neutral-900 dark:text-white font-bold mb-4 text-sm uppercase tracking-wider">Product</h5>
             <ul className="space-y-3">
               <li>
                 <a href="/" className="link-hover-underline text-gray-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-1 group">
@@ -99,7 +99,7 @@ const Footer = () => {
 
           {/* Legal */}
           <div>
-            <h5 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Legal</h5>
+            <h5 className="text-neutral-900 dark:text-white font-bold mb-4 text-sm uppercase tracking-wider">Legal</h5>
             <ul className="space-y-3">
               <li>
                 <a href="#" className="link-hover-underline text-gray-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2">
@@ -125,7 +125,7 @@ const Footer = () => {
 
           {/* Newsletter */}
           <div>
-            <h5 className="text-white font-bold mb-4 text-sm uppercase tracking-wider">Stay Updated</h5>
+            <h5 className="text-neutral-900 dark:text-white font-bold mb-4 text-sm uppercase tracking-wider">Stay Updated</h5>
             <p className="text-sm text-gray-400 mb-3">
               Get notified when new markets open.
             </p>
@@ -140,7 +140,7 @@ const Footer = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#c0ff00]/50 transition-colors"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-neutral-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-[#c0ff00]/50 transition-colors"
                   required
                 />
                 <button

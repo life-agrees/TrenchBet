@@ -26,6 +26,7 @@ import AirdropClaimModal from './components/AirdropClaimModal';
 import MarketCard from './components/MarketCard';
 import BetModal from './components/BetModal';
 import VirtualMarketList from './components/VirtualMarketList';
+import ErrorBoundary from './components/ErrorBoundary';
 import { PREDICTION_MARKET_PROXY_ABI } from './contracts/proxyAbi';
 import { sdk } from '@farcaster/miniapp-sdk';
 import LandingPage from './LandingPage';
@@ -102,27 +103,11 @@ const App = () => {
   // ── All hooks — must be called before any conditional returns ──
   const { markets, liveMarkets, isLoading: isLoadingMarkets, refresh: refreshMarkets, immediateRefresh, forceRefresh } = useMarkets();
 
-const handleMarketCreated = useCallback(async () => {
-  logger.info('🎉 handleMarketCreated triggered');
-  // Immediate refresh
-  await immediateRefresh?.();
-  
-  // Follow-up refreshes for blockchain sync
-  setTimeout(async () => {
-    logger.info('🔄 MarketCreated refresh +2s');
-    await immediateRefresh?.();
-  }, 2000);
-  
-  setTimeout(async () => {
-    logger.info('🔄 MarketCreated refresh +5s');
-    await immediateRefresh?.();
-  }, 5000);
-  
-  setTimeout(async () => {
-    logger.info('🔄 MarketCreated refresh +10s');
-    await refreshMarkets();
-  }, 10000);
-}, [immediateRefresh, refreshMarkets]);
+const handleMarketCreated = useCallback(() => {
+  forceRefresh();
+  setTimeout(() => forceRefresh(), 3000);
+  setTimeout(() => forceRefresh(), 8000);
+}, [forceRefresh]);
 
   const {
     userBets, ongoingBets, pendingBets, wonBets, lostBets,
@@ -142,19 +127,69 @@ const {
   const rtNotifications = useRealtimeNotifications(address, isConnected);
   const userStats = useUserStats(userBets, wonBets, lostBets, pendingBets);
 
-  const { stats: referralStats, shareReferral } = useReferrals();
-  const { achievements, shareAchievement } = useAchievements();
+  const { stats: referralStats, shareReferral, refresh: refreshReferrals } = useReferrals();
+  const { achievements, shareAchievement, refresh: refreshAchievements } = useAchievements();
 
   const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
   const { leaderboard, isLoading: isLoadingLeaderboard } = useLeaderboard(10);
   const { isOwner } = useAdminOwner();
 
 const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
-  const { pointsData } = usePointsData(address);
+  const { pointsData, refreshPoints } = usePointsData(address);
 
   const { toggleFavorite, isFavorite } = useFavorites();
 
   const { prices: currentPrices } = useCurrentPrices(['BTC', 'ETH', 'LINK']);
+
+  // PREDICTION_MARKET_PROXY_ABI included via proxyAbi.js (Line 30)
+
+  // ── Achievement & Referral Wiring ──────────────────────────────────────────
+  
+  // Consolidate all stats needed for achievements
+  const achievementStats = useMemo(() => ({
+    ...userStats,
+    referralCount: referralStats?.referralCount || 0,
+    hasReferrer: referralStats?.hasReferrer || false,
+    // Add placeholders or derived stats for other achievements
+    earlyBets: 0, 
+    betsInADay: 0,
+    stakedDuration: 0,
+    firstBettorCount: 0,
+    hasClaimedAirdrop: false, 
+  }), [userStats, referralStats]);
+
+  const { registerReferral } = useReferrals();
+
+  // Capture referral code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const refCode = params.get('ref') || params.get('referral');
+    if (refCode) {
+      logger.info('Referral code detected in URL:', refCode);
+      sessionStorage.setItem('pending_referral_code', refCode);
+    }
+  }, []);
+
+  // Auto-register referral when user connects
+  useEffect(() => {
+    if (isConnected && address) {
+      const pendingRef = sessionStorage.getItem('pending_referral_code');
+      if (pendingRef) {
+        logger.info('Auto-registering pending referral:', pendingRef);
+        registerReferral(pendingRef)
+          .then(() => {
+            sessionStorage.removeItem('pending_referral_code');
+            toast.success('Referral registered!');
+          })
+          .catch(err => {
+            logger.warn('Auto-referral failed:', err.message);
+            // Don't remove so we can retry if it was just a network issue? 
+            // Better to remove to avoid spamming failed calls.
+            sessionStorage.removeItem('pending_referral_code');
+          });
+      }
+    }
+  }, [isConnected, address, registerReferral]);
 
   // FIX 4: Read sidebarCollapsed from preferences so MainLayout can apply
   // correct padding. Previously isSidebarCollapsed was never passed to MainLayout,
@@ -302,8 +337,11 @@ const handleClaimAdvanced = async (marketId) => {
       refreshMarkets();
       refreshUserBets();
       refetchBalance(); // ← ADD THIS
+      refreshPoints();
+      refreshAchievements();
+      refreshReferrals();
     }, 1000);
-}, [refreshMarkets, refreshUserBets, refetchBalance, rtNotifications, selectedBet, betAmount]);
+}, [refreshMarkets, refreshUserBets, refetchBalance, refreshPoints, refreshAchievements, refreshReferrals, rtNotifications, selectedBet, betAmount]);
 
   const handleOpenShareModal = useCallback((market) => { setShareModalData(market); }, []);
   const handleOpenAdminPanel  = useCallback(() => { setShowAdminPanel(true); }, []);
@@ -317,7 +355,7 @@ const handleClaimAdvanced = async (marketId) => {
   const handleSidebarNavigation = useCallback((viewId) => {
     const viewMap = {
       dashboard:   'dashboard',
-      portfolio:   'myBets',
+      myBets:      'myBets',
       markets:     'markets',
       leaderboard: 'leaderboard',
       referrals:   'referrals',
@@ -446,9 +484,9 @@ if (market?.resolved) {
     }
 
     return (
-      <div key={bet.txHash} className={`bg-dark-800 p-4 rounded-xl shadow-md flex justify-between items-center transition-all duration-300 ${claimed && isWin ? 'opacity-70' : ''}`}>
+      <div key={bet.txHash} className={`bg-white dark:bg-dark-800 p-4 rounded-xl shadow-md flex justify-between items-center transition-all duration-300 ${claimed && isWin ? 'opacity-70' : ''}`}>
         <div className="flex flex-col">
-          <span className="text-lg font-bold text-white">{bet.marketLabel}</span>
+          <span className="text-lg font-bold text-neutral-900 dark:text-white">{bet.marketLabel}</span>
           <span className="text-sm text-neutral-400">
             Bet on: <span className="font-semibold text-primary">{bet.choiceLabel}</span>
             {!market.resolved && oddsDisplay && (
@@ -461,7 +499,7 @@ if (market?.resolved) {
         </div>
         <div className="flex flex-col items-end gap-2">
           {!market.resolved ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-500 text-white">
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-500 text-neutral-900 dark:text-white">
               {getMarketTimeRemaining(market)}
             </span>
           ) : isWin && canClaim ? (
@@ -475,15 +513,15 @@ if (market?.resolved) {
               <Trophy size={16} /> Claim Winnings
             </button>
           ) : isWin && claimed ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-success text-white flex items-center gap-1">
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-success text-neutral-900 dark:text-white flex items-center gap-1">
               <CheckCircle size={14} /> Claimed
             </span>
           ) : isLoss ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500 text-white flex items-center gap-1">
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500 text-neutral-900 dark:text-white flex items-center gap-1">
               <XCircle size={14} /> Lost
             </span>
           ) : (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-neutral-500 text-white">Unknown</span>
+            <span className="px-3 py-1 text-xs font-bold rounded-full bg-neutral-500 text-neutral-900 dark:text-white">Unknown</span>
           )}
         </div>
       </div>
@@ -491,14 +529,14 @@ if (market?.resolved) {
   };
 
   const renderUserBetsLoading = () => (
-    <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl">
+    <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-dark-800 rounded-xl">
       <Loader2 className="animate-spin text-primary mb-3" size={32} />
       <p className="text-neutral-400">Loading your bets...</p>
     </div>
   );
 
   const renderUserBetsError = () => (
-    <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl border border-red-500/30">
+    <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-dark-800 rounded-xl border border-red-500/30">
       <AlertTriangle className="text-red-500 mb-3" size={32} />
       <p className="text-red-400 mb-2">Failed to load bets</p>
       <p className="text-sm text-neutral-500 mb-3">{userBetsError}</p>
@@ -512,7 +550,7 @@ if (market?.resolved) {
   );
 
   const renderUserBetsEmpty = (message) => (
-    <div className="flex flex-col items-center justify-center h-48 bg-dark-800 rounded-xl text-neutral-400">
+    <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-dark-800 rounded-xl text-neutral-400">
       <BarChart3 size={32} className="mb-3 opacity-50" />
       <p className="text-lg">{message}</p>
       <p className="text-sm text-neutral-500 mt-2">Place a bet to see it here</p>
@@ -558,13 +596,13 @@ if (market?.resolved) {
               <button
                 onClick={() => refreshUserBets()}
                 disabled={isLoadingUserBets}
-                className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 border-2 border-dark-600 rounded-xl transition-all disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border-2 border-neutral-200 dark:border-dark-600 rounded-xl transition-all disabled:opacity-50"
               >
                 <RefreshCw size={16} className={isLoadingUserBets ? 'animate-spin' : ''} />
                 {isLoadingUserBets ? 'Refreshing...' : 'Refresh'}
               </button>
             </div>
-            <div className="flex border-b border-dark-600 mb-6 overflow-x-auto" role="tablist">
+            <div className="flex border-b border-neutral-200 dark:border-dark-600 mb-6 overflow-x-auto" role="tablist">
               {[
                 { key: 'ongoing', label: `Ongoing (${ongoingBets.length})`,  icon: Clock },
                 { key: 'pending', label: `Pending (${pendingBets.length})`,  icon: AlertTriangle, hidden: pendingBets.length === 0 },
@@ -575,7 +613,7 @@ if (market?.resolved) {
                   key={key}
                   onClick={() => setBetView(key)}
                   className={`py-3 px-6 text-lg font-semibold transition-all flex items-center gap-2 ${
-                    betView === key ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-white hover:bg-primary/5'
+                    betView === key ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-primary/5'
                   }`}
                 >
                   <Icon size={20} className={betView === key ? 'text-primary' : 'text-neutral-500'} />
@@ -609,7 +647,7 @@ if (market?.resolved) {
 
       case 'achievements':
         return isConnected
-          ? <AchievementsPage isOpen achievements={achievements} onClose={() => setCurrentView('dashboard')} onShare={shareAchievement} />
+          ? <AchievementsPage isOpen achievements={achievements} stats={achievementStats} onClose={() => setCurrentView('dashboard')} onShare={shareAchievement} />
           : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'referrals':
@@ -647,7 +685,7 @@ if (market?.resolved) {
               </h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-dark-800 border-2 border-yellow-400/30 rounded-2xl p-6 hover:border-yellow-400/60 transition-all">
+              <div className="bg-white dark:bg-dark-800 border-2 border-yellow-400/30 rounded-2xl p-6 hover:border-yellow-400/60 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-lg bg-yellow-400/20 flex items-center justify-center">
                     <Zap size={24} className="text-yellow-400" />
@@ -659,7 +697,7 @@ if (market?.resolved) {
                 </div>
                 <p className="text-sm text-neutral-400">Win consecutive bets to build your streak</p>
               </div>
-              <div className="bg-dark-800 border-2 border-yellow-400/20 rounded-2xl p-6 hover:border-yellow-400/40 transition-all">
+              <div className="bg-white dark:bg-dark-800 border-2 border-yellow-400/20 rounded-2xl p-6 hover:border-yellow-400/40 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-lg bg-yellow-400/10 flex items-center justify-center">
                     <Trophy size={24} className="text-yellow-400" />
@@ -671,7 +709,7 @@ if (market?.resolved) {
                 </div>
                 <p className="text-sm text-neutral-400">Your personal best streak record</p>
               </div>
-              <div className="bg-dark-800 border-2 border-yellow-400/20 rounded-2xl p-6 hover:border-yellow-400/40 transition-all">
+              <div className="bg-white dark:bg-dark-800 border-2 border-yellow-400/20 rounded-2xl p-6 hover:border-yellow-400/40 transition-all">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-lg bg-yellow-400/10 flex items-center justify-center">
                     <Clock size={24} className="text-yellow-400" />
@@ -691,10 +729,11 @@ if (market?.resolved) {
       default:
         return (
           <section id="markets-panel" role="tabpanel">
+
             {!isLoadingMarkets && (markets || []).length > 0 && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <h2 className="text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
                     Active Markets
                     {searchQuery !== debouncedSearchQuery && (
                       <span className="text-sm text-neutral-400 flex items-center gap-2">
@@ -708,7 +747,7 @@ if (market?.resolved) {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 bg-dark-800 border-2 border-dark-600 rounded-xl text-sm text-white focus:border-primary focus:outline-none cursor-pointer"
+                        className="px-3 py-2 bg-white dark:bg-dark-800 border-2 border-neutral-200 dark:border-dark-600 rounded-xl text-sm text-neutral-900 dark:text-white focus:border-primary focus:outline-none cursor-pointer"
                       >
                         <option value="endingSoon">Ending Soon</option>
                         <option value="mostActive">Most Active</option>
@@ -728,13 +767,13 @@ if (market?.resolved) {
                             className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
                               selectedAssetFilter === asset
                                 ? 'bg-primary text-dark-950 scale-105'
-                                : 'bg-dark-800 border-2 border-dark-600 text-neutral-400 hover:border-primary hover:text-white'
+                                : 'bg-white dark:bg-dark-800 border-2 border-neutral-200 dark:border-dark-600 text-neutral-400 hover:border-primary hover:text-neutral-900 dark:text-white'
                             }`}
                           >
                             {asset === 'BTC' && '₿'}{asset === 'ETH' && 'Ξ'}
                             {asset === 'SOL' && '◎'}{asset === 'ALL' && '🌐'}
                             <span>{asset}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-dark-950/30' : 'bg-dark-700'}`}>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-white dark:bg-dark-950/30' : 'bg-neutral-100 dark:bg-dark-700'}`}>
                               {count}
                             </span>
                           </button>
@@ -752,9 +791,7 @@ if (market?.resolved) {
               </div>
             )}
 
-{(() => {
-              // FIXED: Use liveMarkets from the hook instead of re-filtering
-              // This ensures consistency and avoids timing issues with endTime checks
+            {(() => {
               const currentLiveMarkets = liveMarkets || [];
               let filteredMarkets = selectedAssetFilter === 'ALL'
                 ? currentLiveMarkets
@@ -762,76 +799,90 @@ if (market?.resolved) {
 
               if (debouncedSearchQuery.trim()) {
                 const query = debouncedSearchQuery.toLowerCase();
-                filteredMarkets = filteredMarkets.filter(m =>
-                  m.asset.toLowerCase().includes(query) ||
-                  getMarketLabel(m.marketType, m.asset).toLowerCase().includes(query)
-                );
+                filteredMarkets = filteredMarkets.filter(m => m.title.toLowerCase().includes(query));
               }
 
-              const sortedMarkets = sortMarkets(filteredMarkets);
+              const sortedMarkets = [...filteredMarkets].sort((a, b) => {
+                if (sortBy === 'endingSoon') return Number(a.endTime) - Number(b.endTime);
+                if (sortBy === 'highestPool') return Number(b.poolSize) - Number(a.poolSize);
+                return 0;
+              });
+
               const pinned = sortedMarkets.filter(m => isFavorite(m.id));
               const rest = sortedMarkets.filter(m => !isFavorite(m.id));
 
               if (!isLoadingMarkets && currentLiveMarkets.length === 0) return <EmptyState isConnected={isConnected} variant="empty" />;
               if (!isLoadingMarkets && sortedMarkets.length === 0) return (
-                <div className="flex flex-col items-center justify-center h-64 bg-dark-800 rounded-2xl border-2 border-dark-600">
+                <div className="flex flex-col items-center justify-center h-64 bg-white dark:bg-dark-800 rounded-2xl border-2 border-neutral-200 dark:border-dark-600">
                   <AlertTriangle size={48} className="text-primary mb-4" />
                   <p className="text-xl text-neutral-400">No markets available</p>
                 </div>
               );
 
-{pinned.length > 0 && (
-                <div className="mb-8 p-6 bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border border-yellow-400/20 rounded-3xl">
-                  <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
-                    ⭐ Pinned ({pinned.length})
-                    <button onClick={() => {/* clear all? */}} className="ml-auto text-xs text-yellow-300 hover:text-yellow-200">Clear</button>
-                  </h3>
-                  {pinned.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
-                    <VirtualMarketList markets={pinned} currentPrices={currentPrices} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} pinned />
+              return (
+                <div className="space-y-6">
+                  {pinned.length > 0 && (
+                    <div className="mb-8 p-6 bg-gradient-to-r from-yellow-500/5 to-amber-500/5 border border-yellow-400/20 rounded-3xl">
+                      <h3 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                        ⭐ Pinned ({pinned.length})
+                        <button onClick={() => {/* clear all? */}} className="ml-auto text-xs text-yellow-300 hover:text-yellow-200">Clear</button>
+                      </h3>
+                      {pinned.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
+                        <ErrorBoundary variant="inline">
+                          <VirtualMarketList markets={pinned} currentPrices={currentPrices} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} pinned />
+                        </ErrorBoundary>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {pinned.map(market => (
+                            <ErrorBoundary variant="inline" key={Number(market.id) + "-eb"}>
+                              <MarketCard key={Number(market.id)} market={market} currentPrice={currentPrices[market.asset]} onClick={() => handleOpenShareModal(market)} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite(market.id)} onToggleFavorite={() => toggleFavorite(market.id)} pinned />
+                            </ErrorBoundary>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {pinned.length > 0 && rest.length > 0 && (
+                    <div className="w-full h-px bg-gradient-to-r from-transparent via-dark-600 to-transparent my-8"></div>
+                  )}
+                  {rest.length === 0 ? (
+                    <div className="text-center py-12 text-neutral-500">
+                      <Star size={48} className="mx-auto mb-4 opacity-30 text-yellow-400" />
+                      <p>No unpinned markets. ⭐ Favorite some to keep them at top!</p>
+                    </div>
+                  ) : rest.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
+                    <ErrorBoundary variant="inline">
+                      <VirtualMarketList
+                        markets={rest}
+                        currentPrices={currentPrices}
+                        onBetClick={handleBetClick}
+                        usdcBalance={usdcBalanceNum}
+                        isFavorite={isFavorite}
+                        onToggleFavorite={toggleFavorite}
+                      />
+                    </ErrorBoundary>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {pinned.map(market => (
-                        <MarketCard key={Number(market.id)} market={market} currentPrice={currentPrices[market.asset]} onClick={() => handleOpenShareModal(market)} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite(market.id)} onToggleFavorite={() => toggleFavorite(market.id)} pinned />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
+                      {rest.map((market) => (
+                        <ErrorBoundary variant="inline" key={Number(market.id) + "-eb"}>
+                          <MarketCard
+                            key={Number(market.id)}
+                            market={market}
+                            currentPrice={currentPrices[market.asset]}
+                            onClick={() => handleOpenShareModal(market)}
+                            onBetClick={handleBetClick}
+                            usdcBalance={usdcBalanceNum}
+                            isLoading={false}
+                            isPlacingBet={false}
+                            isFavorite={isFavorite(market.id)}
+                            onToggleFavorite={() => toggleFavorite(market.id)}
+                          />
+                        </ErrorBoundary>
                       ))}
                     </div>
                   )}
                 </div>
-              )}
-              {pinned.length > 0 && rest.length > 0 && (
-                <div className="w-full h-px bg-gradient-to-r from-transparent via-dark-600 to-transparent my-8"></div>
-              )}
-              {rest.length === 0 ? (
-                <div className="text-center py-12 text-neutral-500">
-                  <Star size={48} className="mx-auto mb-4 opacity-30 text-yellow-400" />
-                  <p>No pinned markets. ⭐ Favorite some to keep them at top!</p>
-                </div>
-              ) : rest.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
-                <VirtualMarketList
-                  markets={rest}
-                  currentPrices={currentPrices}
-                  onBetClick={handleBetClick}
-                  usdcBalance={usdcBalanceNum}
-                  isFavorite={isFavorite}
-                  onToggleFavorite={toggleFavorite}
-                />
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" role="list">
-                  {rest.map((market) => (
-                    <MarketCard
-                      key={Number(market.id)}
-                      market={market}
-                      currentPrice={currentPrices[market.asset]}
-                      onClick={() => handleOpenShareModal(market)}
-                      onBetClick={handleBetClick}
-                      usdcBalance={usdcBalanceNum}
-                      isLoading={false}
-                      isPlacingBet={false}
-                      isFavorite={isFavorite(market.id)}
-                      onToggleFavorite={() => toggleFavorite(market.id)}
-                    />
-                  ))}
-                </div>
-              )}
+              );
             })()}
           </section>
         );

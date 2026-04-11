@@ -29,7 +29,7 @@ export const HowItWorksSection = () => {
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">How It Works</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
             Get started with TrenchyBet in four simple steps
           </p>
@@ -44,7 +44,7 @@ export const HowItWorksSection = () => {
                   <step.icon className="w-6 h-6 text-[#c0ff00]" />
                 </div>
                 <div className="mb-2 text-sm font-bold text-[#c0ff00]">Step {index + 1}</div>
-                <h3 className="text-lg font-semibold text-white mb-2">{step.title}</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{step.title}</h3>
                 <p className="text-gray-400 text-sm">{step.description}</p>
               </div>
               {index < steps.length - 1 && (

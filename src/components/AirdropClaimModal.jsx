@@ -101,19 +101,19 @@ const AirdropClaimModal = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-dark-900 border-2 border-primary/30 rounded-2xl w-full max-w-md shadow-2xl glow-primary animate-in zoom-in-95 duration-200">
+      <div className="relative bg-neutral-50 dark:bg-dark-900 border-2 border-primary/30 rounded-2xl w-full max-w-md shadow-2xl glow-primary animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-dark-700">
+        <div className="flex items-center justify-between p-6 border-b border-neutral-200 dark:border-dark-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/20 rounded-full flex items-center justify-center">
               <Gift className="text-primary" size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">Launch Airdrop</h2>
+              <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Launch Airdrop</h2>
               <p className="text-sm text-neutral-400">Claim your free TRENCHY tokens</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-dark-700 transition-colors">
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-neutral-100 dark:bg-dark-700 transition-colors">
             <X size={20} className="text-neutral-400" />
           </button>
         </div>
@@ -133,18 +133,18 @@ const AirdropClaimModal = ({ isOpen, onClose }) => {
           ) : claimSuccess ? (
             <div className="text-center py-8">
               <CheckCircle size={64} className="mx-auto mb-4 text-green-400" />
-              <h3 className="text-xl font-bold text-white mb-2">Airdrop Claimed!</h3>
+              <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-2">Airdrop Claimed!</h3>
               <p className="text-neutral-400 mb-4">You have successfully claimed 100 TRENCHY tokens.</p>
               <p className="text-sm text-neutral-500">Tokens will be available in your wallet shortly.</p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-dark-800 rounded-xl p-4 text-center">
+                <div className="bg-white dark:bg-dark-800 rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold text-primary mb-1">100</div>
                   <div className="text-xs text-neutral-400">TRENCHY per user</div>
                 </div>
-                <div className="bg-dark-800 rounded-xl p-4 text-center">
+                <div className="bg-white dark:bg-dark-800 rounded-xl p-4 text-center">
                   <div className="text-2xl font-bold text-secondary mb-1">{remainingSlots.toLocaleString()}</div>
                   <div className="text-xs text-neutral-400">Slots remaining</div>
                 </div>
@@ -153,9 +153,9 @@ const AirdropClaimModal = ({ isOpen, onClose }) => {
               <div className="mb-6">
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-neutral-400">Airdrop Progress</span>
-                  <span className="text-white">{totalRecipients}/1,000 claimed</span>
+                  <span className="text-neutral-900 dark:text-white">{totalRecipients}/1,000 claimed</span>
                 </div>
-                <div className="h-3 bg-dark-700 rounded-full overflow-hidden">
+                <div className="h-3 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
                     style={{ width: `${Math.min((totalRecipients / 1000) * 100, 100)}%` }}
@@ -163,7 +163,7 @@ const AirdropClaimModal = ({ isOpen, onClose }) => {
                 </div>
               </div>
 
-              <div className="bg-dark-800 rounded-xl p-4 mb-6">
+              <div className="bg-white dark:bg-dark-800 rounded-xl p-4 mb-6">
                 <div className="flex items-center gap-3 mb-3">
                   <Users size={20} className="text-neutral-400" />
                   <span className="text-sm text-neutral-400">Your Status</span>
@@ -199,8 +199,8 @@ const AirdropClaimModal = ({ isOpen, onClose }) => {
                   hasClaimed
                     ? 'bg-green-500/20 text-green-400 cursor-not-allowed'
                     : !isEligible || remainingSlots === 0
-                    ? 'bg-dark-700 text-neutral-500 cursor-not-allowed'
-                    : 'bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25'
+                    ? 'bg-neutral-100 dark:bg-dark-700 text-neutral-500 cursor-not-allowed'
+                    : 'bg-primary hover:bg-primary/90 text-neutral-900 dark:text-white shadow-lg shadow-primary/25'
                 }`}
               >
                 {isClaiming ? (

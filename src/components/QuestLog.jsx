@@ -102,16 +102,16 @@ const QuestLog = ({ userStats, achievements, onClose }) => {
   };
 
   return (
-    <div className="bg-dark-800 border border-dark-600 rounded-2xl p-4 w-full max-w-sm">
+    <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-600 rounded-2xl p-4 w-full max-w-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <h3 className="text-lg font-bold text-neutral-900 dark:text-white flex items-center gap-2">
           <Target className="text-primary" size={20} />
           Quest Log
         </h3>
         {onClose && (
           <button 
             onClick={onClose}
-            className="text-neutral-400 hover:text-white transition-colors"
+            className="text-neutral-400 hover:text-neutral-900 dark:text-white transition-colors"
           >
             ✕
           </button>
@@ -131,7 +131,7 @@ const QuestLog = ({ userStats, achievements, onClose }) => {
           return (
             <div 
               key={quest.id}
-              className="bg-dark-900 rounded-xl p-3 border border-dark-700 hover:border-primary/30 transition-all"
+              className="bg-neutral-50 dark:bg-dark-900 rounded-xl p-3 border border-neutral-200 dark:border-dark-700 hover:border-primary/30 transition-all"
             >
               <div className="flex items-start gap-3">
                 <div 
@@ -143,7 +143,7 @@ const QuestLog = ({ userStats, achievements, onClose }) => {
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-white text-sm truncate">
+                    <span className="font-semibold text-neutral-900 dark:text-white text-sm truncate">
                       {quest.name}
                     </span>
                     <span 
@@ -160,7 +160,7 @@ const QuestLog = ({ userStats, achievements, onClose }) => {
                   
                   {/* Progress Bar */}
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-dark-700 rounded-full overflow-hidden">
+                    <div className="flex-1 h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full rounded-full transition-all duration-500"
                         style={{ 
@@ -182,7 +182,7 @@ const QuestLog = ({ userStats, achievements, onClose }) => {
 
       {/* Recent Unlocks */}
       {recentUnlocks.length > 0 && (
-        <div className="border-t border-dark-700 pt-3">
+        <div className="border-t border-neutral-200 dark:border-dark-700 pt-3">
           <h4 className="text-xs font-semibold text-success uppercase tracking-wide mb-2">
             Recently Unlocked 🎉
           </h4>

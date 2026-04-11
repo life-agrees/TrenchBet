@@ -309,7 +309,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 <div className="relative w-full max-w-md bg-gradient-to-br from-dark-900/95 via-dark-800 to-dark-900 border border-primary/20 rounded-2xl shadow-2xl shadow-primary/10 hover:shadow-primary/20 hover:border-primary/40 overflow-hidden flex flex-col max-h-[90vh] transition-all duration-300">
 <div className="flex items-center justify-between p-4 border-b border-primary/10 bg-gradient-to-r from-primary/5 to-transparent flex-shrink-0">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-bold text-white">Place Bet</h2>
+            <h2 className="text-lg font-bold text-neutral-900 dark:text-white">Place Bet</h2>
             {/* Asset Badge */}
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${assetInfo.color}`}>
               <AssetIcon className="w-3.5 h-3.5" />
@@ -322,7 +322,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-neutral-900 dark:text-white hover:bg-gray-800 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -387,7 +387,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               <PlayCircle className="w-4 h-4 text-gray-500" />
               <div>
                 <div className="text-xs text-gray-500">Start Price</div>
-                <div className="text-white font-semibold text-sm">
+                <div className="text-neutral-900 dark:text-white font-semibold text-sm">
                   ${market.startPrice ? safeToFixed(market.startPrice, 0) : '---'}
                 </div>
               </div>
@@ -398,7 +398,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               <Users className="w-4 h-4 text-gray-500" />
               <div>
                 <div className="text-xs text-gray-500">Pool Size</div>
-                <div className="text-white font-semibold text-sm">
+                <div className="text-neutral-900 dark:text-white font-semibold text-sm">
                   {market.totalPool ? safeToFixed(market.totalPool, 2) : '0.00'} USDC
                 </div>
               </div>
@@ -409,7 +409,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               <Clock className="w-4 h-4 text-gray-500" />
               <div>
                 <div className="text-xs text-gray-500">Ends</div>
-                <div className="text-white font-semibold text-sm">
+                <div className="text-neutral-900 dark:text-white font-semibold text-sm">
                   {market.endDate ? new Date(market.endDate).toLocaleString('en-US', {
                     month: 'short',
                     day: 'numeric',
@@ -431,12 +431,12 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
                   position === 'yes'
                     ? 'bg-success/20 border-2 border-success shadow-lg shadow-success/20'
-                    : 'bg-dark-800 border-2 border-transparent hover:bg-dark-750'
+                    : 'bg-white dark:bg-dark-800 border-2 border-transparent hover:bg-dark-750'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-green-400" />
-                  <span className="text-white font-medium">Yes</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">Yes</span>
                 </div>
                 <span className="text-xs text-green-400/80 font-semibold">{yesOdds.text}</span>
                 {yesOdds.isFixed && (
@@ -448,12 +448,12 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 className={`flex-1 flex flex-col items-center justify-center gap-1 p-3 rounded-lg transition-all duration-200 ${
                   position === 'no'
                     ? 'bg-danger/20 border-2 border-danger shadow-lg shadow-danger/20'
-                    : 'bg-dark-800 border-2 border-transparent hover:bg-dark-750'
+                    : 'bg-white dark:bg-dark-800 border-2 border-transparent hover:bg-dark-750'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <TrendingDown className="w-5 h-5 text-red-400" />
-                  <span className="text-white font-medium">No</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">No</span>
                 </div>
                 <span className="text-xs text-red-400/80 font-semibold">{noOdds.text}</span>
                 {noOdds.isFixed && (
@@ -483,7 +483,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                       onClick={() => setSelectedChoice(idx)}
                       className={`${getOptionColor(idx, selectedChoice === idx)} border rounded-lg p-3 text-center transition-all duration-200 hover:scale-105`}
                     >
-                      <div className="font-bold text-sm text-white">{option}</div>
+                      <div className="font-bold text-sm text-neutral-900 dark:text-white">{option}</div>
                       <div className="text-xs opacity-80">{oddsText}</div>
                     </button>
                   );
@@ -515,7 +515,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                       onClick={() => setSelectedChoice(idx)}
                       className={`w-full ${getOptionColor(idx, selectedChoice === idx)} border rounded-lg p-3 text-center transition-all duration-200 hover:scale-[1.02]`}
                     >
-                      <div className="font-bold text-sm text-white">{rangeLabel}</div>
+                      <div className="font-bold text-sm text-neutral-900 dark:text-white">{rangeLabel}</div>
                       <div className="text-xs opacity-80">{oddsText}</div>
                     </button>
                   );
@@ -546,7 +546,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                       onClick={() => setSelectedChoice(idx)}
                       className={`${getOptionColor(idx, selectedChoice === idx)} border rounded-lg p-3 text-center transition-all duration-200 hover:scale-105`}
                     >
-                      <div className="font-bold text-sm text-white">{tf.label}</div>
+                      <div className="font-bold text-sm text-neutral-900 dark:text-white">{tf.label}</div>
                       <div className="text-xs opacity-80">{oddsText}</div>
                     </button>
                   );
@@ -580,7 +580,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 step="0.01"
                 min="0.01"
                 disabled={isPlacingBet}
-                className={`w-full bg-gray-800 border rounded-lg px-6 py-3 text-white placeholder-gray-500 focus:outline-none transition-colors ${
+                className={`w-full bg-gray-800 border rounded-lg px-6 py-3 text-neutral-900 dark:text-white placeholder-gray-500 focus:outline-none transition-colors ${
                   inputError ? 'border-red-500 focus:border-red-500' : 'border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/30'
                 } pr-16`}
               />
@@ -632,7 +632,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-400">Your Bet</span>
-                  <span className="text-white font-medium">{safeToFixed(parseFloat(amount), 2)} USDC</span>
+                  <span className="text-neutral-900 dark:text-white font-medium">{safeToFixed(parseFloat(amount), 2)} USDC</span>
                 </div>
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-400">Multiplier</span>
@@ -690,7 +690,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               <div className="flex items-center gap-3">
                 {status.icon}
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-white">{status.title}</div>
+                  <div className="text-sm font-medium text-neutral-900 dark:text-white">{status.title}</div>
                   <div className="text-xs text-gray-400">{status.description}</div>
                 </div>
               </div>
@@ -753,7 +753,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
             <button
               onClick={handleConfirmBet}
               disabled={!amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
-              className="w-full py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-neutral-900 dark:text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {isPlacingBet ? (
                 <span className="flex items-center justify-center gap-2">

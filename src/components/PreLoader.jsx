@@ -44,7 +44,7 @@ const PreLoader = ({ onLoadingComplete }) => {
 
   return (
     <div 
-      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-dark-950 transition-all duration-700 ease-out ${
+      className={`fixed inset-0 z-[9999] flex items-center justify-center bg-white dark:bg-dark-950 transition-all duration-700 ease-out ${
         isExiting ? 'opacity-0 scale-110' : 'opacity-100 scale-100'
       }`}
     >
@@ -131,7 +131,7 @@ const PreLoader = ({ onLoadingComplete }) => {
         </p>
 
         {/* Progress bar */}
-        <div className={`w-64 h-1 bg-dark-700 rounded-full overflow-hidden mb-4 transition-all duration-500 delay-700 ${showContent ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`w-64 h-1 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden mb-4 transition-all duration-500 delay-700 ${showContent ? 'opacity-100' : 'opacity-0'}`}>
           <div 
             className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-300 ease-out"
             style={{ 

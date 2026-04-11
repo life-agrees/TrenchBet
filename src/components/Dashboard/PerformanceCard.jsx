@@ -88,7 +88,7 @@ const PerformanceCard = ({ userStats = {} }) => {
                 <span className="text-xs text-neutral-400 font-semibold uppercase">{stat.label}</span>
                 <Icon size={20} className={stat.color} />
               </div>
-              <div className="text-3xl font-black text-white mb-2">{stat.value}</div>
+              <div className="text-3xl font-black text-neutral-900 dark:text-white mb-2">{stat.value}</div>
               {stat.trend === 'up' && (
                 <div className="flex items-center gap-1 text-xs text-green-400">
                   <TrendingUp size={12} /> Trending up
@@ -107,34 +107,34 @@ const PerformanceCard = ({ userStats = {} }) => {
       {/* Secondary Stats Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* FIX 1: was `rounded-xi` — now `rounded-xl` */}
-        <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary transition-all">
+        <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-neutral-400 font-semibold">Total Bets Placed</span>
             <Target size={20} className="text-secondary" />
           </div>
-          <div className="text-3xl font-black text-white">{totalBets}</div>
+          <div className="text-3xl font-black text-neutral-900 dark:text-white">{totalBets}</div>
           {wins > 0 && (
             <div className="text-xs text-success mt-2">{wins} wins • {losses} losses</div>
           )}
         </div>
 
         {/* FIX 2: removed `hover:glow-secondary` (not a Tailwind utility) */}
-        <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary transition-all">
+        <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-neutral-400 font-semibold">Total Losses</span>
             <TrendingDown size={20} className="text-red-400" />
           </div>
-          <div className="text-3xl font-black text-white">${totalLosses.toFixed(2)}</div>
+          <div className="text-3xl font-black text-neutral-900 dark:text-white">${totalLosses.toFixed(2)}</div>
           <div className="text-xs text-red-400 mt-2">From {losses} bets</div>
         </div>
 
-        <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary transition-all">
+        <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary transition-all">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-neutral-400 font-semibold">Avg Bet Size</span>
             <DollarSign size={20} className="text-primary" />
           </div>
           {/* FIX 3: uses avgBetSize derived from totalWagered */}
-          <div className="text-3xl font-black text-white">${avgBetSize}</div>
+          <div className="text-3xl font-black text-neutral-900 dark:text-white">${avgBetSize}</div>
           <div className="text-xs text-neutral-400 mt-2">From {totalBets} bets</div>
         </div>
       </div>

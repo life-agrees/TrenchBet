@@ -78,7 +78,7 @@ const DashboardView = ({
       {/* Header with Edit Mode */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-4xl font-black text-white mb-2">Your Dashboard</h1>
+          <h1 className="text-4xl font-black text-neutral-900 dark:text-white mb-2">Your Dashboard</h1>
           <p className="text-neutral-400">Track your betting performance and achievements</p>
         </div>
         <button
@@ -86,7 +86,7 @@ const DashboardView = ({
           className={`px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all ${
             editMode
               ? 'bg-success/20 border border-success text-success'
-              : 'bg-dark-800 border border-dark-700 text-neutral-400 hover:text-white'
+              : 'bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-neutral-900 dark:text-white'
           }`}
         >
           {editMode ? (
@@ -100,11 +100,11 @@ const DashboardView = ({
       {/* Performance Metrics */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">📊 Performance Overview</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">📊 Performance Overview</h2>
           {editMode && (
             <button
               onClick={() => handleToggleWidget('performance')}
-              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
               title={isWidgetVisible('performance') ? 'Hide widget' : 'Show widget'}
             >
               {isWidgetVisible('performance')
@@ -119,9 +119,9 @@ const DashboardView = ({
       {/* Charts Section */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">📈 Analytics</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">📈 Analytics</h2>
           {editMode && (
-            <span className="text-xs text-neutral-500 px-3 py-1 bg-dark-800 rounded-lg">Edit Mode</span>
+            <span className="text-xs text-neutral-500 px-3 py-1 bg-white dark:bg-dark-800 rounded-lg">Edit Mode</span>
           )}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -129,7 +129,7 @@ const DashboardView = ({
             {editMode && (
               <button
                 onClick={() => handleToggleWidget('winloss')}
-                className="absolute top-4 right-4 z-10 p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="absolute top-4 right-4 z-10 p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
               >
                 {isWidgetVisible('winloss')
                   ? <Eye size={18} className="text-primary" />
@@ -144,7 +144,7 @@ const DashboardView = ({
             {editMode && (
               <button
                 onClick={() => handleToggleWidget('trends')}
-                className="absolute top-4 right-4 z-10 p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="absolute top-4 right-4 z-10 p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
               >
                 {isWidgetVisible('trends')
                   ? <Eye size={18} className="text-primary" />
@@ -161,11 +161,11 @@ const DashboardView = ({
       {/* Stats by Time Period */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-white">📊 Betting Statistics</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">📊 Betting Statistics</h2>
           {editMode && (
             <button
               onClick={() => handleToggleWidget('stats')}
-              className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+              className="p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
             >
               {isWidgetVisible('stats')
                 ? <Eye size={18} className="text-primary" />
@@ -181,11 +181,11 @@ const DashboardView = ({
         {/* Achievements */}
         <div className="lg:col-span-2 relative">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">🏆 Your Achievements</h2>
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">🏆 Your Achievements</h2>
             {editMode && (
               <button
                 onClick={() => handleToggleWidget('achievements')}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
               >
                 {isWidgetVisible('achievements')
                   ? <Eye size={18} className="text-primary" />
@@ -205,11 +205,11 @@ const DashboardView = ({
         {/* Quick Stats */}
         <div className="relative">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">⚡ Quick Stats</h2>
+            <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">⚡ Quick Stats</h2>
             {editMode && (
               <button
                 onClick={() => handleToggleWidget('quickstats')}
-                className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
+                className="p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
               >
                 {isWidgetVisible('quickstats')
                   ? <Eye size={18} className="text-primary" />
@@ -219,7 +219,7 @@ const DashboardView = ({
           </div>
           {isWidgetVisible('quickstats') && (
             <div className="space-y-4">
-              <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
+              <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Most Traded</p>
                 <p className="text-2xl font-black text-primary">BTC/USD</p>
                 <p className="text-xs text-neutral-500 mt-2">
@@ -227,7 +227,7 @@ const DashboardView = ({
                 </p>
               </div>
 
-              <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
+              <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Avg Multiplier</p>
                 <p className="text-2xl font-black text-primary">
                   {userBets.length > 0
@@ -237,20 +237,20 @@ const DashboardView = ({
                 <p className="text-xs text-neutral-500 mt-2">Weighted average</p>
               </div>
 
-              <div className="bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
+              <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Risk Profile</p>
                 <div className="text-2xl font-black text-yellow-400">MODERATE</div>
                 <p className="text-xs text-neutral-500 mt-2">Based on bets</p>
               </div>
 
-              <div className="bg-dark-800 border border-primary/30 rounded-xl p-5 relative overflow-hidden hover:border-primary/50 transition-all">
+              <div className="bg-white dark:bg-dark-800 border border-primary/30 rounded-xl p-5 relative overflow-hidden hover:border-primary/50 transition-all">
                 <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full -mr-8 -mt-8" />
                 <p className="text-xs text-neutral-400 mb-2 font-semibold">Next Milestone</p>
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm text-primary font-bold">50 Total Bets</p>
                   <p className="text-xs text-neutral-500">{userBets.length || 0}/50</p>
                 </div>
-                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary transition-all duration-500"
                     style={{ width: `${Math.min((userBets.length / 50) * 100, 100)}%` }}
@@ -264,7 +264,7 @@ const DashboardView = ({
 
       {/* Footer CTA */}
       <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-xl p-8 text-center hover:border-primary/40 transition-all">
-        <h3 className="text-2xl font-bold text-white mb-4">Keep Pushing Forward! 🚀</h3>
+        <h3 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">Keep Pushing Forward! 🚀</h3>
         <p className="text-neutral-300 mb-6 max-w-2xl mx-auto">
           You're building an impressive track record. Stay consistent, make strategic bets, and watch your portfolio grow.
         </p>
@@ -275,7 +275,7 @@ const DashboardView = ({
           {/* FIX 2: was setEditMode(false) — now correctly toggles */}
           <button
             onClick={() => setEditMode(!editMode)}
-            className="px-8 py-3 bg-dark-800 hover:bg-dark-700 border border-dark-700 text-white font-bold rounded-lg transition-all"
+            className="px-8 py-3 bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-900 dark:text-white font-bold rounded-lg transition-all"
           >
             {editMode ? 'Exit Customize' : 'Customize Dashboard'}
           </button>

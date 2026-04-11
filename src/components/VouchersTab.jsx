@@ -198,7 +198,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
   return (
     <div className="space-y-8">
       {/* Batch Distribution */}
-      <div className="bg-dark-800 border-2 border-dark-600 rounded-2xl p-8">
+      <div className="bg-white dark:bg-dark-800 border-2 border-neutral-200 dark:border-dark-600 rounded-2xl p-8">
         <h3 className="text-2xl font-bold text-primary mb-6 flex items-center gap-3">
           <Upload size={24} />
           Batch Voucher Campaign
@@ -215,15 +215,15 @@ export default function VouchersTab({ vouchersContractAddress }) {
               value={campaignId}
               onChange={(e) => setCampaignId(e.target.value)}
               placeholder="e.g., waitlist_2025, launch_promo"
-              className="w-full px-4 py-3 bg-dark-900 border-2 border-dark-600 rounded-lg text-white focus:border-primary outline-none"
+              className="w-full px-4 py-3 bg-neutral-50 dark:bg-dark-900 border-2 border-neutral-200 dark:border-dark-600 rounded-lg text-neutral-900 dark:text-white focus:border-primary outline-none"
             />
             <p className="text-xs text-neutral-500 mt-2">Used to track and identify the campaign</p>
           </div>
 
           {/* CSV Upload Instructions */}
-          <div className="bg-dark-900/50 border-l-4 border-primary/30 p-4 rounded">
+          <div className="bg-neutral-50 dark:bg-dark-900/50 border-l-4 border-primary/30 p-4 rounded">
             <p className="text-sm text-neutral-300 mb-2 font-semibold">CSV Format:</p>
-            <code className="text-xs text-neutral-400 block bg-dark-950 p-3 rounded mt-2">
+            <code className="text-xs text-neutral-400 block bg-white dark:bg-dark-950 p-3 rounded mt-2">
               0x123...abc, 10<br/>
               0x456...def, 15<br/>
               0x789...ghi, 20
@@ -242,17 +242,17 @@ export default function VouchersTab({ vouchersContractAddress }) {
                 type="file"
                 accept=".csv,.txt"
                 onChange={handleFileUpload}
-                className="flex-1 px-4 py-3 bg-dark-900 border-2 border-dark-600 rounded-lg text-neutral-400 file:text-white cursor-pointer"
+                className="flex-1 px-4 py-3 bg-neutral-50 dark:bg-dark-900 border-2 border-neutral-200 dark:border-dark-600 rounded-lg text-neutral-400 file:text-neutral-900 dark:text-white cursor-pointer"
               />
             </div>
           </div>
 
           {/* Preview */}
           {parsedData && parsedData.length > 0 && (
-            <div className="bg-dark-900/30 border-2 border-primary/20 rounded-lg p-4">
+            <div className="bg-neutral-50 dark:bg-dark-900/30 border-2 border-primary/20 rounded-lg p-4">
               <div className="flex items-center gap-2 mb-3">
                 <CheckCircle size={18} className="text-green-500" />
-                <span className="font-semibold text-white">{parsedData.length} valid entries</span>
+                <span className="font-semibold text-neutral-900 dark:text-white">{parsedData.length} valid entries</span>
               </div>
 
               <div className="max-h-40 overflow-y-auto space-y-1 text-xs">
@@ -266,7 +266,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-dark-600">
+              <div className="mt-4 pt-4 border-t border-neutral-200 dark:border-dark-600">
                 <p className="text-neutral-300">
                   Total vouchers: <span className="font-bold text-primary">
                     ${parsedData.reduce((sum, d) => sum + (d.amount / 1e6), 0).toFixed(2)}
@@ -289,7 +289,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
       </div>
 
       {/* Single Voucher Award */}
-      <div className="bg-dark-800 border-2 border-dark-600 rounded-2xl p-8">
+      <div className="bg-white dark:bg-dark-800 border-2 border-neutral-200 dark:border-dark-600 rounded-2xl p-8">
         <h3 className="text-2xl font-bold text-primary mb-6 flex items-center gap-3">
           <Send size={24} />
           Award Single Voucher
@@ -306,7 +306,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
               value={singleUser}
               onChange={(e) => setSingleUser(e.target.value)}
               placeholder="0x..."
-              className="w-full px-4 py-3 bg-dark-900 border-2 border-dark-600 rounded-lg text-white focus:border-primary outline-none"
+              className="w-full px-4 py-3 bg-neutral-50 dark:bg-dark-900 border-2 border-neutral-200 dark:border-dark-600 rounded-lg text-neutral-900 dark:text-white focus:border-primary outline-none"
             />
           </div>
 
@@ -323,7 +323,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
                 placeholder="10"
                 step="0.01"
                 min="0"
-                className="w-full px-4 py-3 bg-dark-900 border-2 border-dark-600 rounded-lg text-white focus:border-primary outline-none"
+                className="w-full px-4 py-3 bg-neutral-50 dark:bg-dark-900 border-2 border-neutral-200 dark:border-dark-600 rounded-lg text-neutral-900 dark:text-white focus:border-primary outline-none"
               />
             </div>
 
@@ -335,7 +335,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
               <select
                 value={singleReason}
                 onChange={(e) => setSingleReason(e.target.value)}
-                className="w-full px-4 py-3 bg-dark-900 border-2 border-dark-600 rounded-lg text-white focus:border-primary outline-none"
+                className="w-full px-4 py-3 bg-neutral-50 dark:bg-dark-900 border-2 border-neutral-200 dark:border-dark-600 rounded-lg text-neutral-900 dark:text-white focus:border-primary outline-none"
               >
                 <option value="manual_award">Manual Award</option>
                 <option value="contest_winner">Contest Winner</option>

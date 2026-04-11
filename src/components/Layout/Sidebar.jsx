@@ -43,10 +43,10 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
         isSubmenu ? 'ml-4 text-sm px-3' : 'px-3',
         // FIX 2: Active state now correctly applied with left border glow
         isActive
-          ? 'text-white bg-primary/10 border-l-4 border-primary pl-2'
+          ? 'text-neutral-900 dark:text-white bg-primary/10 border-l-4 border-primary pl-2'
           : isDisabled
           ? 'text-neutral-600 cursor-not-allowed opacity-40'
-          : 'text-neutral-400 hover:text-white hover:bg-dark-700/60',
+          : 'text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-neutral-100 dark:bg-dark-700/60',
       ].join(' ')}
     >
       {/* Active background glow — spring animated */}
@@ -89,7 +89,7 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
             <Tooltip.Content
               side="right"
               sideOffset={10}
-              className="px-3 py-1.5 bg-dark-700 text-white text-xs rounded-lg shadow-2xl z-[100] border border-dark-600"
+              className="px-3 py-1.5 bg-neutral-100 dark:bg-dark-700 text-neutral-900 dark:text-white text-xs rounded-lg shadow-2xl z-[100] border border-neutral-200 dark:border-dark-600"
             >
               {item.label}
               {item.badge && (
@@ -135,7 +135,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
   // ── Nav item definitions ────────────────────────────────────────────────
   const mainItems = [
     { id: 'dashboard',   label: 'Dashboard',    icon: Home,    requiresConnect: true  },
-    { id: 'portfolio',   label: 'My Portfolio', icon: BarChart3, requiresConnect: true },
+    { id: 'myBets',      label: 'My Portfolio', icon: BarChart3, requiresConnect: true },
     { id: 'markets',     label: 'Markets',      icon: Target,  requiresConnect: false, badge: 'LIVE' },
     { id: 'leaderboard', label: 'Leaderboard',  icon: Trophy,  requiresConnect: false },
   ];
@@ -163,7 +163,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
       {/* ── Mobile hamburger ─────────────────────────────────────────── */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="md:hidden fixed top-3.5 left-3 z-50 p-2 bg-dark-800 rounded-lg border border-dark-700 text-neutral-400 hover:text-white transition-colors"
+        className="md:hidden fixed top-3.5 left-3 z-50 p-2 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-neutral-900 dark:text-white transition-colors"
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -180,14 +180,14 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
       {/* ── Sidebar ──────────────────────────────────────────────────── */}
       <aside
         className={[
-          'fixed left-0 top-0 h-screen bg-dark-900 border-r border-dark-700',
+          'fixed left-0 top-0 h-screen bg-neutral-50 dark:bg-dark-900 border-r border-neutral-200 dark:border-dark-700',
           'transition-all duration-300 z-40 flex flex-col',
           isCollapsed ? 'w-20' : 'w-64',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         ].join(' ')}
       >
         {/* Header */}
-        <div className="h-14 px-3 border-b border-dark-700 flex items-center justify-between flex-shrink-0">
+        <div className="h-14 px-3 border-b border-neutral-200 dark:border-dark-700 flex items-center justify-between flex-shrink-0">
           {!isCollapsed && (
             <div className="flex items-center gap-2">
               <TrenchyBetLogo className="w-7 h-7" />
@@ -195,7 +195,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
           )}
           <button
             onClick={toggleCollapsed}
-            className="hidden md:flex ml-auto p-1.5 hover:bg-dark-700 rounded-lg transition-colors text-neutral-400 hover:text-white"
+            className="hidden md:flex ml-auto p-1.5 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors text-neutral-400 hover:text-neutral-900 dark:text-white"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
@@ -216,7 +216,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
           ))}
 
           {/* Divider */}
-          <div className="my-3 h-px bg-dark-700/80" />
+          <div className="my-3 h-px bg-neutral-100 dark:bg-dark-700/80" />
 
           {/* Community group */}
           {!isCollapsed && (
@@ -230,7 +230,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
         </nav>
 
         {/* Settings section */}
-        <div className="border-t border-dark-700 py-3 px-2 space-y-1 flex-shrink-0">
+        <div className="border-t border-neutral-200 dark:border-dark-700 py-3 px-2 space-y-1 flex-shrink-0">
           {!isCollapsed && (
             <p className="px-2 pb-1 text-[9px] text-neutral-600 uppercase tracking-[0.15em] font-bold">
               System
@@ -244,7 +244,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
         {/* Connected status footer */}
         {!isCollapsed && (
           <div className="px-3 pb-3 flex-shrink-0">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected ? 'bg-success/10 border border-success/20' : 'bg-dark-800 border border-dark-700'}`}>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected ? 'bg-success/10 border border-success/20' : 'bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700'}`}>
               <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-success animate-pulse' : 'bg-neutral-600'}`} />
               <span className={`text-xs font-medium ${isConnected ? 'text-success' : 'text-neutral-500'}`}>
                 {isConnected ? 'Connected' : 'Not Connected'}

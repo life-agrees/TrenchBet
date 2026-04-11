@@ -27,7 +27,7 @@ export const TestimonialsSection = () => {
     <section className="py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-white mb-4">Loved by Predictors</h2>
+          <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">Loved by Predictors</h2>
           <p className="text-gray-400">Join thousands of traders earning daily</p>
         </div>
 
@@ -45,7 +45,7 @@ export const TestimonialsSection = () => {
               </div>
               <p className="text-gray-300 mb-6 italic">"{testimonial.quote}"</p>
               <div>
-                <div className="text-white font-semibold">{testimonial.author}</div>
+                <div className="text-neutral-900 dark:text-white font-semibold">{testimonial.author}</div>
                 <div className="text-gray-500 text-sm">{testimonial.role}</div>
               </div>
             </div>

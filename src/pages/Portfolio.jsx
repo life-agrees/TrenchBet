@@ -137,7 +137,7 @@ const Portfolio = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh] bg-dark-950">
+      <div className="flex items-center justify-center min-h-[60vh] bg-white dark:bg-dark-950">
         <div className="text-center">
           <Loader2 size={48} className="animate-spin text-primary mx-auto mb-4" />
           <p className="text-neutral-400">Loading your portfolio...</p>
@@ -177,7 +177,7 @@ const Portfolio = () => {
 
   return (
     // FIX 1: dark-950/dark-800 instead of gray-900/gray-800 throughout
-    <div className="min-h-screen bg-dark-950 text-white p-6">
+    <div className="min-h-screen bg-white dark:bg-dark-950 text-neutral-900 dark:text-white p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -194,7 +194,7 @@ const Portfolio = () => {
               className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                 timeRange === range
                   ? 'bg-primary text-dark-950 font-bold'
-                  : 'bg-dark-800 text-neutral-400 hover:bg-dark-700 border border-dark-700'
+                  : 'bg-white dark:bg-dark-800 text-neutral-400 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700'
               }`}
             >
               {range === 'all' ? 'All Time' : range}
@@ -247,8 +247,8 @@ const Portfolio = () => {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Performance Chart */}
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+          <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-neutral-900 dark:text-white">
               <BarChart3 className="w-5 h-5 text-primary" />
               Profit/Loss Over Time
             </h3>
@@ -269,8 +269,8 @@ const Portfolio = () => {
           </div>
 
           {/* Win/Loss Pie Chart */}
-          <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+          <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-neutral-900 dark:text-white">
               <PieChart className="w-5 h-5 text-primary" />
               Win/Loss Distribution
             </h3>
@@ -313,12 +313,12 @@ const Portfolio = () => {
         </div>
 
         {/* Recent Bets Table */}
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-          <h3 className="text-lg font-semibold mb-4 text-white">Recent Bets</h3>
+        <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
+          <h3 className="text-lg font-semibold mb-4 text-neutral-900 dark:text-white">Recent Bets</h3>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-left text-neutral-500 border-b border-dark-700 text-sm">
+                <tr className="text-left text-neutral-500 border-b border-neutral-200 dark:border-dark-700 text-sm">
                   <th className="pb-3">Market</th>
                   <th className="pb-3">Prediction</th>
                   <th className="pb-3">Amount</th>
@@ -328,8 +328,8 @@ const Portfolio = () => {
               </thead>
               <tbody>
                 {(stats?.recentBets ?? []).map((bet, idx) => (
-                  <tr key={idx} className="border-b border-dark-700/50">
-                    <td className="py-3 text-white">{bet.asset}</td>
+                  <tr key={idx} className="border-b border-neutral-200 dark:border-dark-700/50">
+                    <td className="py-3 text-neutral-900 dark:text-white">{bet.asset}</td>
                     <td className="py-3">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                         bet.choice === 1 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
@@ -337,7 +337,7 @@ const Portfolio = () => {
                         {bet.choice === 1 ? 'UP' : 'DOWN'}
                       </span>
                     </td>
-                    <td className="py-3 text-white">${bet.bet_amount}</td>
+                    <td className="py-3 text-neutral-900 dark:text-white">${bet.bet_amount}</td>
                     <td className="py-3">
                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                         bet.won ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
@@ -367,17 +367,17 @@ const StatCard = ({ title, value, icon, color, bgColor, borderColor, subtitle })
       <span className="text-neutral-400 text-sm">{title}</span>
       <div className={color}>{icon}</div>
     </div>
-    <div className="text-2xl font-bold text-white">{value}</div>
+    <div className="text-2xl font-bold text-neutral-900 dark:text-white">{value}</div>
     {subtitle && <div className="text-sm text-neutral-500 mt-1">{subtitle}</div>}
   </div>
 );
 
 const TopMarkets = ({ markets, type, title }) => (
-  <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-    <h3 className="text-lg font-semibold mb-4 text-white">{title}</h3>
+  <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
+    <h3 className="text-lg font-semibold mb-4 text-neutral-900 dark:text-white">{title}</h3>
     <div className="space-y-3">
       {(markets ?? []).map((market, idx) => (
-        <div key={idx} className="flex items-center justify-between p-3 bg-dark-700/50 rounded-lg">
+        <div key={idx} className="flex items-center justify-between p-3 bg-neutral-100 dark:bg-dark-700/50 rounded-lg">
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
               type === 'best' ? 'bg-green-500/20' : 'bg-red-500/20'
@@ -387,7 +387,7 @@ const TopMarkets = ({ markets, type, title }) => (
               </span>
             </div>
             <div>
-              <div className="font-medium text-white">{market.asset}</div>
+              <div className="font-medium text-neutral-900 dark:text-white">{market.asset}</div>
               <div className="text-sm text-neutral-400">{market.bets} bets</div>
             </div>
           </div>

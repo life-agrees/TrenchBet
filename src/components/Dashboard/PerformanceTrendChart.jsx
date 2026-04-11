@@ -39,16 +39,16 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
   // FIX 2: loading skeleton
   if (isLoading) {
     return (
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6 h-80 flex flex-col">
-        <div className="h-5 w-40 bg-dark-700 rounded animate-pulse mb-6" />
-        <div className="flex-1 bg-dark-700/50 rounded-lg animate-pulse" />
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6 h-80 flex flex-col">
+        <div className="h-5 w-40 bg-neutral-100 dark:bg-dark-700 rounded animate-pulse mb-6" />
+        <div className="flex-1 bg-neutral-100 dark:bg-dark-700/50 rounded-lg animate-pulse" />
       </div>
     );
   }
 
   if (data.length === 0) {
     return (
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6 flex flex-col items-center justify-center h-80">
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6 flex flex-col items-center justify-center h-80">
         <TrendingUp size={48} className="text-neutral-600 mb-3" />
         <p className="text-neutral-500">No trend data yet</p>
         <p className="text-xs text-neutral-600">Place bets over time to see trends</p>
@@ -57,8 +57,8 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
   }
 
   return (
-    <div className="bg-dark-800 border border-secondary/30 rounded-xl p-6">
-      <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+    <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-6">
+      <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-6 flex items-center gap-2">
         <TrendingUp size={20} className="text-secondary" />
         P&L Trend (Last 14 Days)
       </h3>

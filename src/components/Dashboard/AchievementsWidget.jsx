@@ -14,24 +14,24 @@ const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
     : 0;
 
   return (
-    <div className="bg-dark-800 border border-secondary/30 rounded-xl p-6 hover:border-secondary transition-all duration-300">
+    <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-6 hover:border-secondary transition-all duration-300">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-yellow-500/20 flex items-center justify-center">
             <Trophy size={20} className="text-yellow-400" />
           </div>
           <div>
-            <h3 className="font-bold text-white">Achievements</h3>
+            <h3 className="font-bold text-neutral-900 dark:text-white">Achievements</h3>
             <p className="text-xs text-neutral-400">{totalUnlocked} of {totalAchievements}</p>
           </div>
         </div>
-        <button onClick={onViewAll} className="p-2 hover:bg-dark-700 rounded-lg transition-colors">
+        <button onClick={onViewAll} className="p-2 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors">
           <ArrowRight size={18} className="text-neutral-400 hover:text-primary" />
         </button>
       </div>
 
       <div className="mb-6">
-        <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+        <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-500"
             style={{ width: `${progressPercent}%` }}
@@ -43,7 +43,7 @@ const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
       {isLoading ? (
         <div className="space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-10 bg-dark-700 rounded-lg animate-pulse" />
+            <div key={i} className="h-10 bg-neutral-100 dark:bg-dark-700 rounded-lg animate-pulse" />
           ))}
         </div>
       ) : unlockedAchievements.length > 0 ? (
@@ -51,11 +51,11 @@ const AchievementsWidget = ({ achievements = [], onViewAll, isLoading }) => {
           {unlockedAchievements.map(achievement => (
             <div
               key={achievement.id}
-              className="flex items-center gap-3 p-3 bg-dark-900 rounded-lg hover:bg-dark-700/50 transition-all"
+              className="flex items-center gap-3 p-3 bg-neutral-50 dark:bg-dark-900 rounded-lg hover:bg-neutral-100 dark:bg-dark-700/50 transition-all"
             >
               <CheckCircle size={16} className="text-success flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{achievement.name}</p>
+                <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate">{achievement.name}</p>
                 <p className="text-xs text-neutral-400 truncate">{achievement.description}</p>
               </div>
               {achievement.rarity && (

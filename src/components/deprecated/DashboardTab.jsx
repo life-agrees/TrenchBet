@@ -319,13 +319,13 @@ const DashboardTab = ({
       <div className="space-y-6">
         <div className="flex items-center gap-2 mb-4">
           <Activity className="w-5 h-5 text-[#c0ff00] animate-pulse" />
-          <h2 className="text-lg font-semibold text-white">Dashboard Overview</h2>
+          <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Dashboard Overview</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-dark-800/50 rounded-xl p-6 border border-dark-700 animate-pulse">
-              <div className="h-8 bg-dark-700 rounded w-1/2 mb-2"></div>
-              <div className="h-4 bg-dark-700 rounded w-3/4"></div>
+            <div key={i} className="bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-neutral-200 dark:border-dark-700 animate-pulse">
+              <div className="h-8 bg-neutral-100 dark:bg-dark-700 rounded w-1/2 mb-2"></div>
+              <div className="h-4 bg-neutral-100 dark:bg-dark-700 rounded w-3/4"></div>
             </div>
           ))}
         </div>
@@ -342,7 +342,7 @@ const DashboardTab = ({
             <Activity className="w-5 h-5 text-[#c0ff00]" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white">Platform Analytics</h2>
+            <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Platform Analytics</h2>
             <p className="text-sm text-gray-400 flex items-center gap-2">
               <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></span>
               {autoRefresh ? 'Live' : 'Paused'} • Last updated {lastUpdate.toLocaleTimeString()}
@@ -356,7 +356,7 @@ const DashboardTab = ({
             className={`p-2 rounded-lg border transition-all ${
               autoRefresh 
                 ? 'bg-[#c0ff00]/20 border-[#c0ff00] text-[#c0ff00]' 
-                : 'bg-dark-700 border-dark-600 text-gray-400 hover:text-white'
+                : 'bg-neutral-100 dark:bg-dark-700 border-neutral-200 dark:border-dark-600 text-gray-400 hover:text-neutral-900 dark:text-white'
             }`}
             title={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
           >
@@ -364,7 +364,7 @@ const DashboardTab = ({
           </button>
           <button
             onClick={exportReport}
-            className="px-4 py-2 bg-dark-700 hover:bg-dark-600 border border-dark-600 text-white rounded-lg flex items-center gap-2 transition-all"
+            className="px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 text-neutral-900 dark:text-white rounded-lg flex items-center gap-2 transition-all"
           >
             <Download size={16} />
             Export Report
@@ -417,7 +417,7 @@ const DashboardTab = ({
           return (
             <div 
               key={index}
-              className={`bg-dark-800/50 rounded-xl p-5 border ${stat.borderColor} hover:bg-dark-800 transition-all relative overflow-hidden group`}
+              className={`bg-white dark:bg-dark-800/50 rounded-xl p-5 border ${stat.borderColor} hover:bg-white dark:bg-dark-800 transition-all relative overflow-hidden group`}
             >
               {/* Hover glow effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
@@ -452,8 +452,8 @@ const DashboardTab = ({
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-dark-800/50 rounded-xl p-5 border border-[#c0ff00]/20">
-        <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+      <div className="bg-white dark:bg-dark-800/50 rounded-xl p-5 border border-[#c0ff00]/20">
+        <h3 className="text-neutral-900 dark:text-white font-bold mb-3 flex items-center gap-2">
           <Zap size={18} className="text-[#c0ff00]" />
           Quick Actions
         </h3>
@@ -495,9 +495,9 @@ const DashboardTab = ({
         {/* Left Column - Recent Activity + Top Users */}
         <div className="lg:col-span-2 space-y-6">
           {/* Recent Activity */}
-          <div className="bg-dark-800/50 rounded-xl border border-dark-700">
-            <div className="p-5 border-b border-dark-700 flex items-center justify-between">
-              <h3 className="text-white font-bold flex items-center gap-2">
+          <div className="bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700">
+            <div className="p-5 border-b border-neutral-200 dark:border-dark-700 flex items-center justify-between">
+              <h3 className="text-neutral-900 dark:text-white font-bold flex items-center gap-2">
                 <Clock size={18} className="text-[#c0ff00]" />
                 Recent Activity
               </h3>
@@ -520,14 +520,14 @@ const DashboardTab = ({
                   {recentActivity.map(activity => (
                     <div 
                       key={activity.id}
-                      className="bg-dark-900/50 p-3 rounded-lg border border-dark-700 hover:border-[#c0ff00]/30 transition-all"
+                      className="bg-neutral-50 dark:bg-dark-900/50 p-3 rounded-lg border border-neutral-200 dark:border-dark-700 hover:border-[#c0ff00]/30 transition-all"
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div className="w-6 h-6 bg-[#c0ff00]/20 rounded-full flex items-center justify-center">
                             <TrendingUp size={12} className="text-[#c0ff00]" />
                           </div>
-                          <span className="text-white font-semibold text-sm">
+                          <span className="text-neutral-900 dark:text-white font-semibold text-sm">
                             Market #{activity.marketId}
                           </span>
                         </div>
@@ -551,8 +551,8 @@ const DashboardTab = ({
           </div>
 
           {/* Contract Management */}
-          <div className="bg-dark-800/50 rounded-xl p-6 border border-[#c0ff00]/20">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+          <div className="bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-[#c0ff00]/20">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-neutral-900 dark:text-white">
               <Wallet size={20} className="text-[#c0ff00]"/> 
               Smart Contract
             </h3>
@@ -560,8 +560,8 @@ const DashboardTab = ({
             <div className="space-y-4">
               <div>
                 <p className="text-gray-400 text-sm mb-2 font-semibold">Contract Address</p>
-                <div className="flex items-center gap-2 bg-dark-900 p-3 rounded-lg border border-dark-700">
-                  <p className="font-mono text-sm text-white flex-1 break-all">
+                <div className="flex items-center gap-2 bg-neutral-50 dark:bg-dark-900 p-3 rounded-lg border border-neutral-200 dark:border-dark-700">
+                  <p className="font-mono text-sm text-neutral-900 dark:text-white flex-1 break-all">
                     {contractAddress || 'Not connected'}
                   </p>
                   {contractAddress && (
@@ -579,7 +579,7 @@ const DashboardTab = ({
               </div>
               
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-dark-900 p-4 rounded-lg border border-dark-700">
+                <div className="bg-neutral-50 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700">
                   <p className="text-gray-400 text-xs mb-1 uppercase tracking-wide">Contract TVL</p>
                   <p className="text-2xl font-bold text-[#00FF88]">
                     {stats?.contractBalance 
@@ -590,16 +590,16 @@ const DashboardTab = ({
                   <p className="text-xs text-gray-500 mt-1">USDC Balance</p>
                 </div>
 
-                <div className="bg-dark-900 p-4 rounded-lg border border-dark-700">
+                <div className="bg-neutral-50 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700">
                   <p className="text-gray-400 text-xs mb-1 uppercase tracking-wide">Network</p>
-                  <p className="text-lg font-bold text-white">Base</p>
+                  <p className="text-lg font-bold text-neutral-900 dark:text-white">Base</p>
                   <p className="text-xs text-gray-500 mt-1">Sepolia Testnet</p>
                 </div>
               </div>
 
               {/* Withdraw Section */}
               <div className="bg-gradient-to-br from-[#c0ff00]/10 to-[#00FF88]/10 border border-[#c0ff00]/30 rounded-xl p-5 mt-4">
-                <h4 className="text-white font-bold mb-2 flex items-center gap-2">
+                <h4 className="text-neutral-900 dark:text-white font-bold mb-2 flex items-center gap-2">
                   <DollarSign size={18} className="text-[#c0ff00]" />
                   Revenue Withdrawal
                 </h4>
@@ -607,7 +607,7 @@ const DashboardTab = ({
                   Total pending fees available for withdrawal to your admin wallet.
                 </p>
                 
-                <div className="bg-dark-900/50 p-3 rounded-lg mb-4 border border-dark-700">
+                <div className="bg-neutral-50 dark:bg-dark-900/50 p-3 rounded-lg mb-4 border border-neutral-200 dark:border-dark-700">
                   <p className="text-xs text-gray-400 mb-1">Available Revenue</p>
                   <p className="text-3xl font-black text-[#c0ff00]">
                     {stats?.pendingFees 
@@ -645,9 +645,9 @@ const DashboardTab = ({
 
         {/* Right Column - Top Users Leaderboard */}
         <div className="space-y-6">
-          <div className="bg-dark-800/50 rounded-xl border border-dark-700">
-            <div className="p-5 border-b border-dark-700">
-              <h3 className="text-white font-bold flex items-center gap-2">
+          <div className="bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700">
+            <div className="p-5 border-b border-neutral-200 dark:border-dark-700">
+              <h3 className="text-neutral-900 dark:text-white font-bold flex items-center gap-2">
                 <Award size={18} className="text-[#c0ff00]" />
                 Top Predictors
               </h3>
@@ -677,7 +677,7 @@ const DashboardTab = ({
                           ? 'bg-gray-400/10 border-gray-400/30'
                           : user.rank === 3
                           ? 'bg-orange-500/10 border-orange-500/30'
-                          : 'bg-dark-900/50 border-dark-700'
+                          : 'bg-neutral-50 dark:bg-dark-900/50 border-neutral-200 dark:border-dark-700'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -688,12 +688,12 @@ const DashboardTab = ({
                             ? 'bg-gray-400 text-dark-950'
                             : user.rank === 3
                             ? 'bg-orange-500 text-dark-950'
-                            : 'bg-dark-700 text-gray-400'
+                            : 'bg-neutral-100 dark:bg-dark-700 text-gray-400'
                         }`}>
                           #{user.rank}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-mono text-sm text-white truncate">
+                          <div className="font-mono text-sm text-neutral-900 dark:text-white truncate">
                             {user.address.slice(0, 8)}...{user.address.slice(-6)}
                           </div>
                           <div className="text-xs text-gray-500">
@@ -717,8 +717,8 @@ const DashboardTab = ({
           </div>
 
           {/* System Status */}
-          <div className="bg-dark-800/50 rounded-xl p-5 border border-dark-700">
-            <h3 className="text-white font-bold mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-dark-800/50 rounded-xl p-5 border border-neutral-200 dark:border-dark-700">
+            <h3 className="text-neutral-900 dark:text-white font-bold mb-3 flex items-center gap-2">
               <Target size={18} className="text-[#c0ff00]" />
               System Status
             </h3>
@@ -732,15 +732,15 @@ const DashboardTab = ({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Protocol Fee</span>
-                <span className="text-white text-sm font-bold">2%</span>
+                <span className="text-neutral-900 dark:text-white text-sm font-bold">2%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Version</span>
-                <span className="text-white text-sm font-bold">v2.1.0</span>
+                <span className="text-neutral-900 dark:text-white text-sm font-bold">v2.1.0</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-400 text-sm">Uptime</span>
-                <span className="text-white text-sm font-bold">99.9%</span>
+                <span className="text-neutral-900 dark:text-white text-sm font-bold">99.9%</span>
               </div>
             </div>
           </div>

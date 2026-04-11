@@ -242,7 +242,7 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
                 Points
                 {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </div>
-              <div className="text-base sm:text-lg font-bold text-white">
+              <div className="text-base sm:text-lg font-bold text-neutral-900 dark:text-white">
                 {totalPoints.toLocaleString()}
               </div>
             </div>
@@ -257,12 +257,12 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
           {showTooltip && (
             <div
               ref={tooltipRef}
-              className="absolute top-full mt-2 left-0 z-50 bg-dark-800 border border-primary/30 rounded-lg p-3 shadow-xl animate-in slide-in-from-top-2 duration-200 min-w-[200px]"
+              className="absolute top-full mt-2 left-0 z-50 bg-white dark:bg-dark-800 border border-primary/30 rounded-lg p-3 shadow-xl animate-in slide-in-from-top-2 duration-200 min-w-[200px]"
             >
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-400">Total Points:</span>
-                  <span className="font-bold text-white">{totalPoints.toLocaleString()}</span>
+                  <span className="font-bold text-neutral-900 dark:text-white">{totalPoints.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-400">Available:</span>
@@ -285,7 +285,7 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
 
         {/* Expanded Details Panel */}
         {isExpanded && (
-          <div className="absolute top-full mt-2 left-0 z-50 bg-dark-800 border border-primary/30 rounded-xl p-4 shadow-xl animate-in slide-in-from-top-2 duration-300 min-w-[280px]">
+          <div className="absolute top-full mt-2 left-0 z-50 bg-white dark:bg-dark-800 border border-primary/30 rounded-xl p-4 shadow-xl animate-in slide-in-from-top-2 duration-300 min-w-[280px]">
             {/* Progress Bar */}
             {progress && (
               <div className="mb-4">
@@ -293,7 +293,7 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
                   <span className="text-sm text-gray-400">Progress to {tier?.name === 'Diamond' ? 'Max Level' : 'Next Tier'}</span>
                   <span className="text-xs text-gray-500">{progress.current}/{progress.target}</span>
                 </div>
-                <div className="w-full bg-dark-700 rounded-full h-2">
+                <div className="w-full bg-neutral-100 dark:bg-dark-700 rounded-full h-2">
                   <div
                     className="bg-gradient-to-r from-primary to-success h-2 rounded-full transition-all duration-500"
                     style={{ width: `${progress.progress}%` }}
@@ -334,7 +334,7 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
             <div className="flex gap-2">
               <button
                 onClick={onOpenHistory}
-                className="flex-1 bg-dark-700 hover:bg-dark-600 border border-dark-600 hover:border-primary text-white font-bold py-2 px-3 rounded-lg text-sm transition-all flex items-center justify-center gap-1"
+                className="flex-1 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 hover:border-primary text-neutral-900 dark:text-white font-bold py-2 px-3 rounded-lg text-sm transition-all flex items-center justify-center gap-1"
                 aria-label="View points history"
               >
                 <Target size={14} />
@@ -342,7 +342,7 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
               </button>
               <button
                 onClick={refreshPoints}
-                className="bg-dark-700 hover:bg-dark-600 border border-dark-600 hover:border-primary text-white font-bold py-2 px-3 rounded-lg text-sm transition-all hover:scale-105 flex items-center justify-center"
+                className="bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 hover:border-primary text-neutral-900 dark:text-white font-bold py-2 px-3 rounded-lg text-sm transition-all hover:scale-105 flex items-center justify-center"
                 aria-label="Refresh points data"
               >
                 <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
@@ -357,9 +357,9 @@ const PointsBalance = ({ walletAddress, onOpenHistory }) => {
             <Flame className={`text-xl ${currentStreak >= 7 ? 'animate-pulse' : ''}`} />
             <div className="text-left hidden sm:block">
               <div className="text-xs text-orange-400">Streak</div>
-              <div className="text-sm font-bold text-white">{currentStreak}d</div>
+              <div className="text-sm font-bold text-neutral-900 dark:text-white">{currentStreak}d</div>
             </div>
-            <div className="text-sm font-bold text-white sm:hidden">{currentStreak}d</div>
+            <div className="text-sm font-bold text-neutral-900 dark:text-white sm:hidden">{currentStreak}d</div>
           </div>
         )}
 

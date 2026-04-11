@@ -41,7 +41,7 @@ const StakingDashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6">
+    <div className="min-h-screen bg-gray-900 text-neutral-900 dark:text-white p-6">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -118,7 +118,7 @@ const StakingDashboard = () => {
             <button
               onClick={() => setActiveTab('stake')}
               className={`flex-1 py-3 rounded-lg font-medium transition-colors ${
-                activeTab === 'stake' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'
+                activeTab === 'stake' ? 'bg-blue-600 text-neutral-900 dark:text-white' : 'bg-gray-700 text-gray-400'
               }`}
             >
               <Lock className="w-4 h-4 inline mr-2" />
@@ -127,7 +127,7 @@ const StakingDashboard = () => {
             <button
               onClick={() => setActiveTab('unstake')}
               className={`flex-1 py-3 rounded-lg font-medium transition-colors ${
-                activeTab === 'unstake' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-gray-400'
+                activeTab === 'unstake' ? 'bg-blue-600 text-neutral-900 dark:text-white' : 'bg-gray-700 text-gray-400'
               }`}
             >
               <Unlock className="w-4 h-4 inline mr-2" />
@@ -145,9 +145,9 @@ const StakingDashboard = () => {
                     value={stakeAmount}
                     onChange={(e) => setStakeAmount(e.target.value)}
                     placeholder="0.00"
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+                    className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-neutral-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
                   />
-                  <button className="px-4 py-3 bg-gray-700 rounded-lg text-sm text-gray-400 hover:text-white">
+                  <button className="px-4 py-3 bg-gray-700 rounded-lg text-sm text-gray-400 hover:text-neutral-900 dark:text-white">
                     MAX
                   </button>
                 </div>

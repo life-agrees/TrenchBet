@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+    darkMode: 'class',
     content: [
       "./index.html",
       "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,13 +8,13 @@ export default {
     theme: {
       extend: {
         colors: {
-          // Base colors
+          // Base colors - updated for purely neutral blacks (Polymarket style)
           'dark': {
-            950: '#0a0e12',
-            900: '#0f1419',
-            800: '#16181d',
-            700: '#1f2228',
-            600: '#2a2d35',
+            950: '#000000',
+            900: '#111111',
+            800: '#18181A',
+            700: '#27272A',
+            600: '#3F3F46',
           },
           // Primary - Electric Lime/Chartreuse
           'primary': {
@@ -74,8 +75,8 @@ export default {
           xs: '2px',
         },
         fontFamily: {
-          sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'sans-serif'],
-          mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'monospace'],
+          sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', 'sans-serif'],
+          mono: ['Roboto Mono', 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'monospace'],
         },
         keyframes: {
           'slide-in-from-top-4': {
@@ -86,9 +87,6 @@ export default {
             '0%': { opacity: '1' },
             '100%': { opacity: '0' }
           }
-        },
-        backdropBlur: {
-          xs: '2px',
         }
       },
     },

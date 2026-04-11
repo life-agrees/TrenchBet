@@ -28,6 +28,7 @@ const AchievementsPage = ({
   onClose,
   achievements: achievementsProp,
   onShare: onShareProp,
+  stats: userStats, // Real stats passed from App.jsx
 }) => {
   const { isConnected } = useAccount();
   const {
@@ -45,24 +46,9 @@ const AchievementsPage = ({
 
   const [filter, setFilter] = useState('all');
 
-  // FIX 2: memoized so getAllAchievementsWithProgress doesn't recompute every render
-  const mockStats = useMemo(() => ({
-    totalBets:        5,
-    currentStreak:    2,
-    largestBet:       500,
-    winRate:          60,
-    earlyBets:        1,
-    betsInADay:       3,
-    referralCount:    2,
-    stakedDuration:   15,
-    totalWins:        3,
-    firstBettorCount: 0,
-    hasClaimedAirdrop: false,
-  }), []);
-
   const allAchievements = useMemo(
-    () => getAllAchievementsWithProgress(mockStats),
-    [getAllAchievementsWithProgress, mockStats]
+    () => getAllAchievementsWithProgress(userStats || {}),
+    [getAllAchievementsWithProgress, userStats]
   );
 
   const filteredAchievements = useMemo(() => {
@@ -112,7 +98,7 @@ const AchievementsPage = ({
       {/* Header */}
       <div className="mb-8 flex items-start justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+          <h1 className="text-4xl font-bold text-neutral-900 dark:text-white mb-2 flex items-center gap-3">
             <Trophy className="text-yellow-400" size={40} />
             Achievements
           </h1>
@@ -121,7 +107,7 @@ const AchievementsPage = ({
         {onClose && (
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-neutral-400 hover:text-white rounded-lg text-sm transition-colors"
+            className="px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 text-neutral-400 hover:text-neutral-900 dark:text-white rounded-lg text-sm transition-colors"
           >
             ← Back
           </button>
@@ -130,28 +116,28 @@ const AchievementsPage = ({
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+        <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
           <div className="text-3xl font-bold text-primary mb-1">{achievementCount}</div>
           <div className="text-sm text-neutral-400">Unlocked</div>
         </div>
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+        <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
           <div className="text-3xl font-bold text-secondary mb-1">{totalPoints}</div>
           <div className="text-sm text-neutral-400">Total Points</div>
         </div>
         {/* FIX 3: safe division */}
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
+        <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
           <div className="text-3xl font-bold text-accent mb-1">{completionPct}%</div>
           <div className="text-sm text-neutral-400">Completion</div>
         </div>
-        <div className="bg-dark-800 border border-dark-700 rounded-xl p-6">
-          <div className="text-3xl font-bold text-white mb-1">—</div>
+        <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6">
+          <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-1">—</div>
           <div className="text-sm text-neutral-400">Global Rank</div>
         </div>
       </div>
 
       {/* Rarity Distribution */}
-      <div className="bg-dark-800 border border-dark-700 rounded-xl p-6 mb-8">
-        <h3 className="text-lg font-semibold text-white mb-4">Rarity Distribution</h3>
+      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-6 mb-8">
+        <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">Rarity Distribution</h3>
         <div className="flex flex-wrap gap-4">
           {Object.entries(rarityStats).map(([rarity, count]) => {
             const totalOfRarity = allAchievements.filter(a => a.rarity === rarity).length;
@@ -159,7 +145,7 @@ const AchievementsPage = ({
               <div key={rarity} className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded-full" style={{ backgroundColor: RARITY_COLORS[rarity] }} />
                 <span className="text-sm text-neutral-400 capitalize">{rarity}:</span>
-                <span className="text-sm font-semibold text-white">{count}/{totalOfRarity}</span>
+                <span className="text-sm font-semibold text-neutral-900 dark:text-white">{count}/{totalOfRarity}</span>
               </div>
             );
           })}
@@ -174,8 +160,8 @@ const AchievementsPage = ({
             onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               filter === f
-                ? 'bg-primary text-white'
-                : 'bg-dark-700 text-neutral-400 hover:bg-dark-600'
+                ? 'bg-primary text-neutral-900 dark:text-white'
+                : 'bg-neutral-100 dark:bg-dark-700 text-neutral-400 hover:bg-neutral-200 dark:bg-dark-600'
             }`}
           >
             {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -188,10 +174,10 @@ const AchievementsPage = ({
         {filteredAchievements.map((achievement) => (
           <div
             key={achievement.id}
-            className={`relative bg-dark-800 border-2 rounded-xl p-6 transition-all ${
+            className={`relative bg-white dark:bg-dark-800 border-2 rounded-xl p-6 transition-all ${
               achievement.unlocked
                 ? 'border-primary/50 shadow-lg shadow-primary/10'
-                : 'border-dark-700 opacity-75'
+                : 'border-neutral-200 dark:border-dark-700 opacity-75'
             }`}
           >
             <div className="absolute top-4 right-4">
@@ -202,7 +188,7 @@ const AchievementsPage = ({
             </div>
 
             <div className="text-4xl mb-4">{achievement.icon}</div>
-            <h3 className="text-lg font-bold text-white mb-1">{achievement.name}</h3>
+            <h3 className="text-lg font-bold text-neutral-900 dark:text-white mb-1">{achievement.name}</h3>
             <p className="text-sm text-neutral-400 mb-3">{achievement.description}</p>
 
             <div
@@ -223,7 +209,7 @@ const AchievementsPage = ({
                 <span className="text-neutral-500">Progress</span>
                 <span className="text-neutral-400">{achievement.progress}%</span>
               </div>
-              <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+              <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
                 <div className="h-full bg-primary transition-all duration-500" style={{ width: `${achievement.progress}%` }} />
               </div>
             </div>
@@ -231,7 +217,7 @@ const AchievementsPage = ({
             {achievement.unlocked && (
               <button
                 onClick={() => shareAchievement(achievement)}
-                className="w-full flex items-center justify-center gap-2 py-2 bg-dark-700 hover:bg-dark-600 rounded-lg text-sm text-neutral-300 transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 rounded-lg text-sm text-neutral-300 transition-colors"
               >
                 <Share2 size={16} />
                 Share on Twitter
