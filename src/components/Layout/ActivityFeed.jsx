@@ -1,27 +1,24 @@
 import React, { useState, useMemo, useRef, memo, useCallback } from 'react';
 import {
   Bell, TrendingUp, Target, Award, Users,
-  X, RefreshCw, Loader2
+  X, RefreshCw, Loader2, Zap
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import useActivityFeed from '../../hooks/useActivityFeed';
 import { useAccount } from 'wagmi';
 
 /**
- * Shared helpers — defined once at module level, used by both
- * ActivityCard and ActivityFeed.
- *
- * FIX 4: getActivityIcon and formatTime were defined twice each (once in
- *         ActivityCard, once in ActivityFeed body). Now defined once here.
+ * Shared helpers
  */
 const getActivityIcon = (type) => {
   switch (type) {
     case 'market':
     case 'resolution':
-      return <TrendingUp size={18} className="text-green-400" />;
+      return <TrendingUp size={18} className="text-blue-400" />;
     case 'achievement':
       return <Award size={18} className="text-yellow-400" />;
     case 'bet_won':
-      return <TrendingUp size={18} className="text-success" />;
+      return <Zap size={18} className="text-success" />;
     case 'bet_placed':
       return <Target size={18} className="text-primary" />;
     default:
@@ -44,14 +41,14 @@ const formatTime = (timestamp) => {
 const getPriorityBadge = (type) => {
   if (type === 'bet_won') {
     return (
-      <span className="px-1.5 py-0.5 bg-success/20 text-success text-[9px] font-bold rounded uppercase tracking-wide">
+      <span className="px-1.5 py-0.5 bg-success/20 text-success text-[9px] font-bold rounded uppercase tracking-wide border border-success/20">
         Win!
       </span>
     );
   }
   if (type === 'resolution') {
     return (
-      <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[9px] font-bold rounded uppercase tracking-wide">
+      <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-[9px] font-bold rounded uppercase tracking-wide border border-blue-500/20">
         Resolved
       </span>
     );
@@ -63,9 +60,8 @@ const getPriorityBadge = (type) => {
 
 /**
  * ActivityCard — memoized individual activity item.
- * Read state is local for instant feedback; real sync would go to backend.
  */
-const ActivityCard = memo(({ activity, onMarkRead }) => {
+const ActivityCard = memo(({ activity, index, onMarkRead }) => {
   const [isRead, setIsRead] = useState(activity.read ?? false);
 
   const handleMarkRead = useCallback((e) => {
@@ -75,48 +71,44 @@ const ActivityCard = memo(({ activity, onMarkRead }) => {
   }, [activity.id, onMarkRead]);
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, x: 20, y: 10 }}
+      animate={{ opacity: 1, x: 0, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
       className={[
-        'relative p-3.5 rounded-xl transition-all cursor-pointer group',
+        'relative p-3.5 rounded-2xl transition-all cursor-pointer group mb-2',
         isRead
-          ? 'bg-white dark:bg-dark-800 opacity-60 border border-neutral-200 dark:border-dark-700'
-          : 'bg-white dark:bg-dark-800 border-l-4 border-primary shadow-md shadow-primary/5',
-        'hover:opacity-100 active:scale-[0.98]',
+          ? 'bg-white/50 dark:bg-dark-800/40 opacity-70 border border-neutral-200/50 dark:border-dark-700/50'
+          : 'bg-white dark:bg-dark-800 border-l-4 border-primary shadow-xl shadow-primary/5',
+        'hover:scale-[1.02] hover:bg-white dark:hover:bg-dark-700 active:scale-[0.98]',
       ].join(' ')}
     >
       {/* Unread dot */}
       {!isRead && (
-        <div className="absolute top-2.5 right-2.5 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+        <div className="absolute top-3 right-3 w-2 h-2 bg-primary rounded-full animate-pulse shadow-sm shadow-primary" />
       )}
 
-      <div className="flex gap-3">
-        {/* Icon */}
-        <div className="w-9 h-9 rounded-lg bg-neutral-100 dark:bg-dark-700 flex items-center justify-center flex-shrink-0">
+      <div className="flex gap-4">
+        {/* Icon container with glass effect */}
+        <div className="w-10 h-10 rounded-xl bg-neutral-100 dark:bg-dark-700/80 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
           {getActivityIcon(activity.type)}
         </div>
 
         {/* Body */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <p className="text-sm font-semibold text-neutral-900 dark:text-white truncate group-hover:text-primary transition-colors">
+            <p className="text-sm font-bold text-neutral-900 dark:text-white truncate group-hover:text-primary transition-colors">
               {activity.title}
             </p>
             {getPriorityBadge(activity.type)}
           </div>
-          <p className="text-xs text-neutral-400 truncate">{activity.desc}</p>
-          <p className="text-[10px] text-neutral-600 mt-1.5">{formatTime(activity.time)}</p>
+          <p className="text-xs text-neutral-500 truncate dark:text-neutral-400">{activity.desc}</p>
+          <p className="text-[10px] text-neutral-400 dark:text-neutral-600 mt-2 flex items-center gap-1">
+             {formatTime(activity.time)}
+          </p>
         </div>
       </div>
-
-      {!isRead && (
-        <button
-          onClick={handleMarkRead}
-          className="absolute bottom-2 right-2.5 text-[10px] text-primary hover:underline"
-        >
-          Mark read
-        </button>
-      )}
-    </div>
+    </motion.div>
   );
 });
 
@@ -126,78 +118,34 @@ ActivityCard.displayName = 'ActivityCard';
 
 /**
  * ActivityFeed sidebar component.
- *
- * FIX 4: Removed dead `groupedActivities` useMemo (was computed, never used).
- *         Grouping now happens only in renderTimeGroupedActivities.
- * FIX 5: Removed duplicate getActivityIcon / formatTime definitions.
- * FIX 6: Pull-to-refresh guarded so rapid touch events don't double-fire.
  */
 const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
   const { address } = useAccount();
   const { activities, isLoading, refresh } = useActivityFeed(address, isConnected);
   const [activeTab, setActiveTab] = useState('live');
 
-  // Pull-to-refresh
-  const [isPulling, setIsPulling]   = useState(false);
-  const startY    = useRef(0);
   const contentRef = useRef(null);
-  const hasRefreshed = useRef(false); // FIX 6: prevents double-fire
-
-  const handleTouchStart = useCallback((e) => {
-    startY.current = e.touches[0].clientY;
-    hasRefreshed.current = false;
-  }, []);
-
-  const handleTouchMove = useCallback((e) => {
-    const diff = e.touches[0].clientY - startY.current;
-    const atTop = (contentRef.current?.scrollTop ?? 0) === 0;
-    if (diff > 70 && atTop) setIsPulling(true);
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (isPulling && !hasRefreshed.current) {
-      hasRefreshed.current = true;
-      refresh();
-    }
-    setIsPulling(false);
-  }, [isPulling, refresh]);
 
   // Categorise activities by tab
   const categorizedActivities = useMemo(() => ({
-    live:         activities.filter(a => a.type === 'market' || a.type === 'resolution'),
+    live:         activities.filter(a => a.type === 'bet_placed' || a.type === 'resolution'),
     achievements: activities.filter(a => a.type === 'achievement' || a.type === 'bet_won'),
-    friends:      activities.filter(a => a.type === 'bet_placed' || a.type === 'social'),
-  }), [activities]);
+    friends:      activities.filter(a => a.type === 'bet_placed' && a.user?.toLowerCase() !== address?.toLowerCase()),
+  }), [activities, address]);
 
   const handleMarkRead = useCallback((activityId) => {
-    // TODO: sync to backend
     console.log('Marked as read:', activityId);
   }, []);
 
-  // Group a flat activity list into time buckets and render them
   const renderTimeGroupedActivities = useCallback((items) => {
-    const now = Date.now();
-    const H = 3_600_000;
-    const buckets = {
-      '🔥 Today':    items.filter(a => now - new Date(a.time) <  24 * H),
-      'Yesterday':   items.filter(a => { const d = now - new Date(a.time); return d >= 24*H && d < 48*H; }),
-      'This Week':   items.filter(a => { const d = now - new Date(a.time); return d >= 48*H && d < 168*H; }),
-      'Older':       items.filter(a => now - new Date(a.time) >= 168 * H),
-    };
+    if (items.length === 0) return null;
 
-    return Object.entries(buckets).map(([label, group]) =>
-      group.length > 0 && (
-        <div key={label}>
-          <p className="px-1 py-2 text-[9px] text-neutral-500 uppercase tracking-[0.15em] font-bold sticky top-0 bg-neutral-50 dark:bg-dark-900 z-10">
-            {label}
-          </p>
-          <div className="space-y-2">
-            {group.map(item => (
-              <ActivityCard key={item.id} activity={item} onMarkRead={handleMarkRead} />
-            ))}
-          </div>
-        </div>
-      )
+    return (
+      <div className="space-y-3">
+        {items.map((item, idx) => (
+          <ActivityCard key={item.id} index={idx} activity={item} onMarkRead={handleMarkRead} />
+        ))}
+      </div>
     );
   }, [handleMarkRead]);
 
@@ -211,145 +159,140 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
 
   return (
     <>
-      {/* Mobile backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/70 md:hidden z-30"
-          onClick={onClose}
-        />
-      )}
+      {/* Mobile backdrop with heavy blur */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm md:hidden z-30"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Feed panel */}
+      {/* Feed panel - Glassmorphic design */}
       <aside
         className={[
-          'fixed right-0 top-0 h-screen bg-neutral-50 dark:bg-dark-900 border-l border-neutral-200 dark:border-dark-700',
-          'w-full sm:w-96 md:w-80 z-40 flex flex-col',
-          'transition-transform duration-300',
+          'fixed right-0 top-0 h-screen border-l border-neutral-200/50 dark:border-dark-700/50 flex flex-col',
+          'bg-white/80 dark:bg-dark-900/80 backdrop-blur-xl',
+          'w-full sm:w-96 md:w-80 z-40',
+          'transition-transform duration-500 cubic-bezier(0.4, 0, 0.2, 1)',
           isOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0',
         ].join(' ')}
       >
+        {/* Decorative Top Gradient */}
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary via-secondary to-primary/50 opacity-40" />
+
         {/* Header */}
-        <div className="h-14 px-4 border-b border-neutral-200 dark:border-dark-700 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-              <Bell size={16} className="text-primary" />
+        <div className="h-20 px-6 border-b border-neutral-200/50 dark:border-dark-700/50 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <Bell size={20} className="text-primary" />
             </div>
             <div>
-              <h3 className="font-bold text-neutral-900 dark:text-white text-sm leading-none">Activity Feed</h3>
-              <p className="text-[10px] text-neutral-500 mt-0.5">
-                {isConnected ? 'Live updates' : 'Connect wallet'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {isConnected && (
-              <button
-                onClick={refresh}
-                disabled={isLoading}
-                className="p-1.5 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors disabled:opacity-40"
-                aria-label="Refresh feed"
-              >
-                <RefreshCw size={15} className={`text-neutral-400 ${isLoading ? 'animate-spin' : ''}`} />
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="md:hidden p-1.5 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors"
-              aria-label="Close activity feed"
-            >
-              <X size={15} className="text-neutral-400" />
-            </button>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-neutral-200 dark:border-dark-700 flex-shrink-0">
-          {tabs.map(tab => {
-            const count = categorizedActivities[tab.key]?.length ?? 0;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
-                className={[
-                  'flex-1 py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-1.5',
-                  activeTab === tab.key
-                    ? 'text-primary border-b-2 border-primary bg-primary/5'
-                    : 'text-neutral-500 hover:text-neutral-300',
-                ].join(' ')}
-              >
-                {tab.label}
-                {count > 0 && (
-                  <span className="px-1.5 py-0.5 text-[9px] bg-primary/20 text-primary rounded-full font-bold">
-                    {Math.min(count, 9)}{count > 9 ? '+' : ''}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Content */}
-        <div
-          ref={contentRef}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-thin scrollbar-track-dark-900 scrollbar-thumb-dark-700"
-        >
-          {/* Pull-to-refresh indicator */}
-          {isPulling && (
-            <div className="flex justify-center py-3">
-              <RefreshCw size={20} className="animate-spin text-primary" />
-            </div>
-          )}
-
-          {/* Not connected */}
-          {!isConnected && (
-            <div className="flex flex-col items-center justify-center h-48 text-neutral-600">
-              <Bell size={28} className="mb-2 opacity-40" />
-              <p className="text-sm text-center">Connect wallet to see activity</p>
-            </div>
-          )}
-
-          {/* Loading */}
-          {isConnected && isLoading && (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 size={28} className="animate-spin text-primary" />
-            </div>
-          )}
-
-          {/* Activities */}
-          {isConnected && !isLoading && (
-            currentActivities.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-neutral-600">
-                {activeTab === 'achievements'
-                  ? <Award size={28} className="mb-2 opacity-30" />
-                  : activeTab === 'friends'
-                  ? <Users size={28} className="mb-2 opacity-30" />
-                  : <Bell size={28} className="mb-2 opacity-30" />
-                }
-                <p className="text-sm">
-                  {activeTab === 'live'         && 'No live activity'}
-                  {activeTab === 'achievements' && 'No achievements yet'}
-                  {activeTab === 'friends'      && 'No friend activity'}
+              <h3 className="font-extrabold text-neutral-900 dark:text-white text-base leading-none tracking-tight">Activity Feed</h3>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                 <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
+                 <p className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">
+                  {isConnected ? 'Real-time syncing' : 'Wallet disconnected'}
                 </p>
               </div>
-            ) : (
-              <div className="space-y-1">
-                {renderTimeGroupedActivities(currentActivities)}
+            </div>
+          </div>
+          
+          <button
+            onClick={onClose}
+            className="md:hidden p-2 hover:bg-neutral-100 dark:hover:bg-dark-700 rounded-xl transition-colors"
+          >
+            <X size={18} className="text-neutral-400" />
+          </button>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="px-4 py-3 flex-shrink-0">
+          <div className="flex p-1 bg-neutral-100 dark:bg-dark-950/50 rounded-xl gap-1">
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={[
+                    'flex-1 py-2 text-[11px] font-black uppercase tracking-wider rounded-lg transition-all',
+                    isActive
+                      ? 'bg-white dark:bg-dark-800 text-primary shadow-sm'
+                      : 'text-neutral-500 hover:text-neutral-900 dark:hover:text-white',
+                  ].join(' ')}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div
+          ref={contentRef}
+          className="flex-1 overflow-y-auto p-4 scrollbar-none"
+        >
+          {/* Connection status */}
+          {!isConnected && (
+            <div className="flex flex-col items-center justify-center h-64 text-neutral-500 text-center px-6">
+              <div className="w-16 h-16 bg-neutral-100 dark:bg-dark-800 rounded-full flex items-center justify-center mb-4">
+                 <Users size={32} className="opacity-20" />
               </div>
-            )
+              <p className="text-sm font-bold text-neutral-900 dark:text-white mb-2">Connect to Track Props</p>
+              <p className="text-xs">Join the real-time activity stream to see global betting trends.</p>
+            </div>
+          )}
+
+          {/* Loading state */}
+          {isConnected && isLoading && (
+            <div className="flex flex-col items-center justify-center py-20">
+              <Loader2 size={32} className="animate-spin text-primary mb-4" />
+              <p className="text-[10px] uppercase font-black text-neutral-500 tracking-widest">Scanning History...</p>
+            </div>
+          )}
+
+          {/* Activity List */}
+          {isConnected && !isLoading && (
+            <AnimatePresence mode="popLayout">
+              {currentActivities.length === 0 ? (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center h-64 text-neutral-500 text-center opacity-40 px-6"
+                >
+                  <TrendingUp size={48} className="mb-4" />
+                  <p className="text-sm font-bold">Quiet on the chain...</p>
+                  <p className="text-xs mt-1">Be the first to place a bet in this category!</p>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }}
+                  className="pb-10"
+                >
+                  {renderTimeGroupedActivities(currentActivities)}
+                </motion.div>
+              )}
+            </AnimatePresence>
           )}
         </div>
 
-        {/* Footer CTA */}
-        {isConnected && (
-          <div className="p-3 border-t border-neutral-200 dark:border-dark-700 flex-shrink-0">
-            <button className="w-full py-2 px-4 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-primary text-xs font-bold transition-all active:scale-95">
-              View All Activity →
-            </button>
-          </div>
-        )}
+        {/* Bottom Actions */}
+        <div className="p-6 bg-gradient-to-t from-white dark:from-dark-900 to-transparent flex-shrink-0">
+          <button 
+             onClick={refresh}
+             className="w-full py-3 px-4 bg-primary text-dark-950 font-black rounded-xl text-xs uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          >
+             <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+             {isLoading ? 'Syncing...' : 'Refresh Logs'}
+          </button>
+        </div>
       </aside>
     </>
   );

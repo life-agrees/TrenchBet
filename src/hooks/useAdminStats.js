@@ -46,25 +46,36 @@ export const useAdminStats = (contractAddress) => {
 
       // Get current block for safe range calculation
       const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock > BigInt(MAX_BLOCK_RANGE) 
-        ? currentBlock - BigInt(MAX_BLOCK_RANGE) 
-        : BigInt(0);
+      const totalBlocks = 490000n;
+      const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
+      const CHUNK_SIZE = 49999n;
 
-      // Get bet logs to calculate total volume and unique users
-      const logs = await publicClient.getLogs({
-        address: contractAddress,
-        event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount)'),
-        fromBlock,
-        toBlock: 'latest'
-      });
+      logger.info(`Fetching bet logs from block ${fromBlock} to ${currentBlock}...`);
 
+      let logs = [];
+      const event = parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)');
+      
+      for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+        const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+        try {
+          const chunk = await publicClient.getLogs({
+            address: contractAddress,
+            event,
+            fromBlock: from,
+            toBlock: to
+          });
+          logs.push(...chunk);
+        } catch (err) {
+          logger.warn(`Failed to fetch chunk ${from}-${to}:`, err.message);
+        }
+      }
 
       const uniqueUsers = new Set();
       let volume = 0n;
 
       logs.forEach(log => {
-        uniqueUsers.add(log.args.user);
-        volume += log.args.amount;
+        if (log.args?.user) uniqueUsers.add(log.args.user.toLowerCase());
+        if (log.args?.amount) volume += log.args.amount;
       });
 
       setStats({

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ActivityFeed from './ActivityFeed';
+import GlobalActivityTicker from './GlobalActivityTicker';
 import { Bell, Wallet, Plus, Coins, Sun, Moon } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -74,8 +75,14 @@ const MainLayout = ({
   const ACTIVITY_W  = 'md:pr-80'; // ActivityFeed is w-80 on desktop
 
   return (
-    <div className="min-h-screen bg-white dark:bg-dark-950 text-neutral-900 dark:text-white flex flex-col">
-      <div className="flex flex-1 overflow-hidden">
+    <div className="min-h-screen bg-neutral-50 dark:bg-dark-950 text-neutral-900 dark:text-white flex flex-col relative overflow-hidden">
+      {/* Premium Background Effects */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] opacity-50 dark:opacity-30 animate-pulse" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-secondary/20 rounded-full blur-[120px] opacity-50 dark:opacity-30 animate-pulse" />
+      </div>
+
+      <div className="flex flex-1 overflow-hidden relative z-10">
 
         {/* ── Left Sidebar ─────────────────────────────────────────────── */}
         <Sidebar
@@ -92,11 +99,14 @@ const MainLayout = ({
           spacers that don't account for fixed-position children.
         */}
         <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 w-full ${SIDEBAR_W} ${ACTIVITY_W}`}>
+          
+          {/* Global Activity Ticker */}
+          <GlobalActivityTicker />
 
           {/* ── Top Header ───────────────────────────────────────────────── */}
           <header
             role="banner"
-            className="sticky top-0 z-30 bg-neutral-50 dark:bg-dark-900/95 border-b border-neutral-200 dark:border-dark-700 backdrop-blur-md"
+            className="sticky top-0 z-30 bg-white/70 dark:bg-dark-900/60 border-b border-neutral-200/50 dark:border-white/5 backdrop-blur-xl"
           >
             <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
 
@@ -211,7 +221,7 @@ const MainLayout = ({
           </header>
 
           {/* ── Scrollable Content ───────────────────────────────────────── */}
-          <div className="flex-1 overflow-y-auto bg-white dark:bg-dark-950">
+          <div className="flex-1 overflow-y-auto bg-transparent">
             <div className="px-4 sm:px-6 lg:px-8 py-6 w-full">
               <AnimatePresence mode="wait">
                 <motion.div

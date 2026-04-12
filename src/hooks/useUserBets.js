@@ -62,12 +62,6 @@ const fetchRawBets = useCallback(async (force = false) => {
       return;
     }
 
-    if (isFetchingRef.current) {
-      logger.debug('Skipping fetch - already in progress');
-      return;
-    }
-    isFetchingRef.current = true;
-
     // FIX 1: use ref instead of rawBets.length in closure/deps
     if (rawBetsLengthRef.current === 0 || force) {
       setIsLoading(true);
@@ -79,10 +73,10 @@ const fetchRawBets = useCallback(async (force = false) => {
     try {
       const currentBlock = await publicClient.getBlockNumber();
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 10000n; // Reduced from 3000000n to 10k to prevent strict Infura 429 Error rate limit
+      const totalBlocks = 500000n; // Increase lookback from 10k to 500k (~11 days)
       const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
 
-      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 490k blocks)...`);
+      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 500k blocks)...`);
 
       let allLogs = [];
       for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
@@ -194,7 +188,7 @@ const rawBetData = allLogs
           // Chunk fallback
           const currentBlock = await publicClient.getBlockNumber();
           const CHUNK_SIZE = 49999n;
-          const totalBlocks = 10000n; // Reduced to 10k to prevent strict Infura 429 rate limit
+          const totalBlocks = 500000n; // Use 500k blocks
           const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
           for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
             const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
@@ -243,7 +237,7 @@ const rawBetData = allLogs
               if (raw.resolved && Number(raw.marketType) !== 0) {
                 try {
                   const currentBlock = await publicClient.getBlockNumber();
-                  const from = currentBlock > 10000n ? currentBlock - 10000n : 0n; // Reduced lookback
+                  const from = currentBlock > 500000n ? currentBlock - 500000n : 0n; // Use 500k lookback
                   for (let f = from; f < currentBlock; f += 49999n) {
                     const t = f + 49999n > currentBlock ? currentBlock : f + 49999n;
                     const logs = await publicClient.getLogs({
@@ -358,7 +352,7 @@ const rawBetData = allLogs
       logger.info(`[useUserBets] Loading older bets before block ${oldestBetBlock}`);
       
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 10000n; // Reduced to 10k to prevent RPC rate-limits
+      const totalBlocks = 500000n; // Use 500k blocks
       const fromBlock = oldestBetBlock > totalBlocks ? oldestBetBlock - totalBlocks : 0n;
       
       let olderLogs = [];

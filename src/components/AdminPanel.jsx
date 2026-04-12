@@ -436,17 +436,33 @@ function getContractForMarketType(marketType) {
       let uniqueUsers = new Set();
 
       try {
-        const logs = await publicClient.getLogs({
-          address: PROXY_ADDRESS,
-event: parseAbiItem('event BetPlaced(uint256 indexed gameId, address indexed player, uint8 betType, uint256 number, uint256 amount)'),
-          fromBlock: 'earliest',
-          toBlock: 'latest'
-        }).catch(() => []);
+        const currentBlock = await publicClient.getBlockNumber();
+        const totalBlocks = 500000n;
+        const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
+        const CHUNK_SIZE = 49999n;
+        
+        let logs = [];
+        const event = parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)');
+
+        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+          try {
+            const chunk = await publicClient.getLogs({
+              address: PROXY_ADDRESS,
+              event,
+              fromBlock: from,
+              toBlock: to
+            });
+            logs.push(...chunk);
+          } catch (chunkErr) {
+            console.warn(`[Admin] Chunk ${from}-${to} failed:`, chunkErr.message);
+          }
+        }
 
         console.log(`✅ Found ${logs.length} bet events from PROXY`);
 
         logs.forEach(log => {
-          if (log.args?.player) uniqueUsers.add(log.args.player.toLowerCase()); // was user
+          if (log.args?.user) uniqueUsers.add(log.args.user.toLowerCase());
           if (log.args?.amount) totalVolume += log.args.amount;
         });
 
