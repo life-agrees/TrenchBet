@@ -26,18 +26,18 @@ import { MarketCardSkeleton } from './SkeletonLoader';
 // ── Static helpers ────────────────────────────────────────────────────────────
 
 const ASSET_STYLES = {
-  BTC:  { color: 'text-orange-400', bg: 'bg-orange-500/10',  border: 'border-orange-500/20',  icon: Bitcoin },
-  ETH:  { color: 'text-blue-400',   bg: 'bg-blue-500/10',    border: 'border-blue-500/20',    icon: CircleDollarSign },
-  SOL:  { color: 'text-purple-400', bg: 'bg-purple-500/10',  border: 'border-purple-500/20',  icon: Layers },
-  LINK: { color: 'text-blue-300',   bg: 'bg-blue-400/10',    border: 'border-blue-400/20',    icon: Layers },
+  BTC:  { color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-500/10',  border: 'border-orange-200 dark:border-orange-500/20',  icon: Bitcoin },
+  ETH:  { color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-500/10',    border: 'border-blue-200 dark:border-blue-500/20',    icon: CircleDollarSign },
+  SOL:  { color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-500/10',  border: 'border-purple-200 dark:border-purple-500/20',  icon: Layers },
+  LINK: { color: 'text-blue-500 dark:text-blue-300',   bg: 'bg-blue-50 dark:bg-blue-400/10',    border: 'border-blue-200 dark:border-blue-400/20',    icon: Layers },
 };
-const getAsset = (a) => ASSET_STYLES[a] || { color: 'text-[#CDFF00]', bg: 'bg-[#CDFF00]/10', border: 'border-[#CDFF00]/20', icon: Layers };
+const getAsset = (a) => ASSET_STYLES[a] || { color: 'text-neutral-900 dark:text-[#CDFF00]', bg: 'bg-primary/20 dark:bg-[#CDFF00]/10', border: 'border-primary/30 dark:border-[#CDFF00]/20', icon: Layers };
 
 const TYPE_META = {
-  0: { label: 'Binary', Icon: TrendingUp,  accent: '#CDFF00' },
-  1: { label: 'Multi',  Icon: BarChart3,   accent: '#60a5fa' },
-  2: { label: 'Range',  Icon: Target,      accent: '#a78bfa' },
-  3: { label: 'Time',   Icon: Timer,       accent: '#fb923c' },
+  0: { label: 'Binary', Icon: TrendingUp,  accent: '#a3cc00', darkAccent: '#CDFF00' },
+  1: { label: 'Multi',  Icon: BarChart3,   accent: '#2563eb', darkAccent: '#60a5fa' },
+  2: { label: 'Range',  Icon: Target,      accent: '#7c3aed', darkAccent: '#a78bfa' },
+  3: { label: 'Time',   Icon: Timer,       accent: '#ea580c', darkAccent: '#fb923c' },
 };
 
 const OPTION_COLORS = [
@@ -62,8 +62,8 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
         <AssetIcon className="w-3.5 h-3.5" />
         <span>{market.asset}</span>
       </div>
-      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-100 dark:bg-dark-700/60 border border-neutral-200 dark:border-dark-600 text-[10px] font-semibold text-neutral-400">
-        <TypeIcon className="w-3 h-3" style={{ color: typeMeta.accent }} />
+      <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-neutral-100 dark:bg-dark-700/60 border border-neutral-200 dark:border-dark-600 text-[10px] font-bold text-neutral-500 dark:text-neutral-400">
+        <TypeIcon className="w-3 h-3" style={{ color: document.documentElement.classList.contains('dark') ? typeMeta.darkAccent : typeMeta.accent }} />
         {typeMeta.label}
       </div>
       {decayDisplay.showBadge && (
@@ -91,20 +91,20 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
 // ── Stats Bar ─────────────────────────────────────────────────────────────────
 
 const StatsBar = ({ market, totalPool, countdown, urgency }) => (
-  <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700/50 text-xs">
-    <div className="flex items-center gap-1 text-neutral-500">
+  <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-neutral-100/50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700/50 text-xs">
+    <div className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
       <Users className="w-3 h-3" />
-      <span className="text-neutral-900 dark:text-white font-semibold">{safeToFixed(totalPool, 1)}</span>
-      <span>USDC</span>
+      <span className="text-neutral-900 dark:text-white font-bold">{safeToFixed(totalPool, 1)}</span>
+      <span className="font-medium">USDC</span>
     </div>
-    <div className="w-px h-3 bg-neutral-200 dark:bg-dark-600" />
-    <div className="flex items-center gap-1 text-neutral-500">
+    <div className="w-px h-3 bg-neutral-300 dark:bg-dark-600" />
+    <div className="flex items-center gap-1 text-neutral-500 dark:text-neutral-400">
       <Trophy className="w-3 h-3" />
-      <span className="text-neutral-900 dark:text-white font-semibold">{market.totalBets || 0}</span>
-      <span>bets</span>
+      <span className="text-neutral-900 dark:text-white font-bold">{market.totalBets || 0}</span>
+      <span className="font-medium">bets</span>
     </div>
-    <div className="w-px h-3 bg-neutral-200 dark:bg-dark-600" />
-    <div className={`flex items-center gap-1 ml-auto font-semibold ${urgency.color || 'text-green-400'}`}>
+    <div className="w-px h-3 bg-neutral-300 dark:bg-dark-600" />
+    <div className={`flex items-center gap-1 ml-auto font-bold ${urgency.color || 'text-green-600 dark:text-green-400'}`}>
       <Clock className="w-3 h-3" />
       <span>{countdown.formatted}</span>
     </div>

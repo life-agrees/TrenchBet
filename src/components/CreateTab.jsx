@@ -91,24 +91,24 @@ const CreateTab = ({
   // ============================================================
 
   const PriceDisplay = ({ asset, showTarget = false, targetPrice = null }) => (
-    <div className="bg-neutral-50 dark:bg-dark-900/50 p-4 rounded-lg mb-4 border border-neutral-200 dark:border-dark-700">
+    <div className="bg-neutral-100/50 dark:bg-dark-900/50 p-4 rounded-lg mb-4 border border-neutral-200 dark:border-dark-700">
       {isPriceLoading ? (
-        <span className="text-gray-400 flex items-center justify-center gap-2">
+        <span className="text-neutral-500 dark:text-neutral-400 flex items-center justify-center gap-2">
           <Loader2 className="animate-spin" size={14} /> Fetching price...
         </span>
       ) : currentAssetPrice ? (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-sm flex items-center gap-2">
+            <span className="text-neutral-600 dark:text-neutral-400 text-sm flex items-center gap-2 font-medium">
               <DollarSign size={14} />
               Current {asset} Price
             </span>
-            <span className="text-yellow-400 font-mono font-bold text-lg">
+            <span className="text-yellow-600 dark:text-yellow-400 font-mono font-bold text-lg">
               ${formatPrice(currentAssetPrice)}
             </span>
           </div>
           {showTarget && targetPrice > 0 && (
-            <div className="text-xs text-gray-400 text-right">
+            <div className="text-xs text-neutral-500 dark:text-neutral-400 text-right font-medium">
               Target: ${formatPrice(targetPrice)} (
               {((targetPrice - currentAssetPrice) / currentAssetPrice * 100).toFixed(1)}% 
               {targetPrice > currentAssetPrice ? ' ↑' : ' ↓'})
@@ -116,18 +116,18 @@ const CreateTab = ({
           )}
         </div>
       ) : (
-        <span className="text-red-400 text-sm">Could not fetch live price</span>
+        <span className="text-red-500 dark:text-red-400 text-sm font-bold">Could not fetch live price</span>
       )}
     </div>
   );
 
   const AssetSelector = ({ value, onChange }) => (
     <div>
-      <label className="block text-sm font-semibold text-gray-300 mb-2">Asset</label>
+      <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">Asset</label>
       <select 
         value={value} 
         onChange={(e) => onChange('asset', e.target.value)}
-        className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-[#c0ff00] transition-colors"
+        className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-primary transition-colors shadow-sm dark:shadow-none"
       >
         {ASSETS.map(asset => (
           <option key={asset.value} value={asset.value}>{asset.label}</option>
@@ -138,12 +138,12 @@ const CreateTab = ({
 
   const DurationInput = ({ value, onChange }) => (
     <div>
-      <label className="block text-sm font-semibold text-gray-300 mb-2">Duration (mins)</label>
+      <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">Duration (mins)</label>
       <input 
         type="number" 
         value={value} 
         onChange={(e) => onChange('duration', parseInt(e.target.value) || 0)}
-        className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-[#c0ff00] transition-colors"
+        className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-primary transition-colors shadow-sm dark:shadow-none"
         min="1"
         placeholder="e.g. 15"
       />
@@ -151,15 +151,15 @@ const CreateTab = ({
   );
 
   const FixedOddsToggle = ({ id, checked, onChange }) => (
-    <div className="flex items-center gap-3 p-4 bg-[#c0ff00]/10 border border-[#c0ff00]/30 rounded-lg">
+    <div className="flex items-center gap-3 p-4 bg-primary/10 border border-primary/30 rounded-lg shadow-sm">
       <input 
         type="checkbox" 
         id={id}
         checked={checked} 
         onChange={(e) => onChange('useFixedOdds', e.target.checked)}
-        className="w-5 h-5 rounded border-neutral-200 dark:border-dark-600 text-[#c0ff00] focus:ring-[#c0ff00] focus:ring-offset-dark-800" 
+        className="w-5 h-5 rounded border-neutral-200 dark:border-dark-600 text-primary focus:ring-primary focus:ring-offset-white dark:focus:ring-offset-dark-800" 
       />
-      <label htmlFor={id} className="text-sm font-semibold cursor-pointer select-none text-[#c0ff00]">
+      <label htmlFor={id} className="text-sm font-bold cursor-pointer select-none text-neutral-900 dark:text-primary">
         Use Fixed Odds (Casino Mode)
       </label>
     </div>
@@ -300,15 +300,15 @@ const CreateTab = ({
             onClick={() => setMarketType(type)}
             className={`p-4 rounded-xl border-2 transition-all ${
               marketType === type 
-                ? 'bg-[#c0ff00]/20 border-[#c0ff00] shadow-lg shadow-[#c0ff00]/20' 
-                : 'bg-white dark:bg-dark-800/50 border-neutral-200 dark:border-dark-700 hover:border-[#c0ff00]/50'
+                ? 'bg-primary/20 dark:bg-[#c0ff00]/20 border-primary shadow-lg dark:shadow-primary/20' 
+                : 'bg-white dark:bg-dark-800/50 border-neutral-200 dark:border-dark-700 hover:border-primary/50'
             }`}
           >
-            <Icon className={`mx-auto mb-2 ${marketType === type ? 'text-[#c0ff00]' : 'text-gray-400'}`} size={24} />
-            <div className={`text-sm font-semibold ${marketType === type ? 'text-[#c0ff00]' : 'text-gray-300'}`}>
+            <Icon className={`mx-auto mb-2 ${marketType === type ? 'text-primary' : 'text-neutral-400'}`} size={24} />
+            <div className={`text-sm font-bold ${marketType === type ? 'text-neutral-900 dark:text-primary' : 'text-neutral-600 dark:text-neutral-400'}`}>
               {label}
             </div>
-            <div className="text-xs text-gray-500 mt-1">{description}</div>
+            <div className="text-[11px] text-neutral-500 dark:text-neutral-500 mt-1 font-medium">{description}</div>
           </button>
         ))}
       </div>
@@ -377,12 +377,12 @@ const CreateTab = ({
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">Question</label>
+              <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">Question</label>
               <input 
                 type="text" 
                 value={multiChoiceForm.question} 
                 onChange={(e) => setMultiChoiceForm('question', e.target.value)}
-                className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-[#c0ff00] transition-colors" 
+                className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-primary transition-colors shadow-sm dark:shadow-none" 
                 placeholder="Which coin will pump the most?" 
               />
             </div>
@@ -399,7 +399,7 @@ const CreateTab = ({
             />
 
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">
+              <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">
                 Options (2-10)
               </label>
               {multiChoiceForm.options.map((option, idx) => (
@@ -573,23 +573,23 @@ const CreateTab = ({
 
             {/* Quick Range Presets */}
             {currentAssetPrice && (
-              <div className="p-4 bg-neutral-50 dark:bg-dark-900/30 border border-neutral-200 dark:border-dark-700 rounded-lg">
+              <div className="p-4 bg-neutral-100/30 dark:bg-dark-900/30 border border-neutral-200 dark:border-dark-700 rounded-lg">
                 <div className="flex items-center gap-2 mb-3">
-                  <Zap size={16} className="text-[#c0ff00]" />
-                  <span className="text-sm font-semibold text-gray-300">Quick Range Presets</span>
+                  <Zap size={16} className="text-primary" />
+                  <span className="text-sm font-bold text-neutral-700 dark:text-neutral-300">Quick Range Presets</span>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   {[5, 10, 20].map(percent => (
                     <button
                       key={percent}
                       onClick={() => handleQuickRange(percent)}
-                      className="px-3 py-2 bg-[#c0ff00]/10 hover:bg-[#c0ff00]/20 border border-[#c0ff00]/30 rounded-lg text-sm text-[#c0ff00] transition-colors"
+                      className="px-3 py-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 rounded-lg text-sm text-neutral-900 dark:text-primary font-bold transition-colors"
                     >
                       ±{percent}%
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-2 font-medium">
                   Auto-generates 3 ranges around ${formatPrice(currentAssetPrice)}
                 </p>
               </div>
@@ -602,7 +602,7 @@ const CreateTab = ({
             />
 
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">
+              <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">
                 Price Ranges {rangeForm.ranges.length > 0 && `(${rangeForm.ranges.length})`}
               </label>
               {rangeForm.ranges.map((range, idx) => {
@@ -610,8 +610,8 @@ const CreateTab = ({
                 const max = range.max || 0;
                 const isActive = currentAssetPrice && currentAssetPrice >= min && currentAssetPrice <= max;
                 return (
-                  <div key={idx} className={`flex gap-2 mb-2 items-center p-2 rounded-lg ${isActive ? 'bg-[#c0ff00]/10 border border-[#c0ff00]/30' : ''}`}>
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-[#c0ff00] text-dark-900' : 'bg-neutral-100 dark:bg-dark-700 text-gray-400'}`}>
+                  <div key={idx} className={`flex gap-2 mb-2 items-center p-2 rounded-lg ${isActive ? 'bg-primary/10 border border-primary/30' : ''}`}>
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${isActive ? 'bg-primary text-neutral-900' : 'bg-neutral-200 dark:bg-dark-700 text-neutral-500 dark:text-neutral-400'}`}>
                       {idx + 1}
                     </div>
                     <input 
@@ -717,12 +717,12 @@ const CreateTab = ({
             <div className="grid grid-cols-2 gap-4">
               <AssetSelector value={timeForm.asset} onChange={setTimeForm} />
               <div>
-                <label className="block text-sm font-semibold text-gray-300 mb-2">Target Price ($)</label>
+                <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">Target Price ($)</label>
                 <input 
                   type="number" 
                   value={timeForm.targetPrice} 
                   onChange={(e) => setTimeForm('targetPrice', parseFloat(e.target.value) || 0)}
-                  className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-[#c0ff00] transition-colors" 
+                  className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-primary transition-colors shadow-sm dark:shadow-none" 
                   placeholder="e.g. 100000" 
                 />
               </div>
@@ -731,7 +731,7 @@ const CreateTab = ({
             {/* Quick Target Suggestions */}
             {currentAssetPrice && (
               <div className="flex gap-2 flex-wrap items-center">
-                <span className="text-xs text-gray-500">Quick targets:</span>
+                <span className="text-xs text-neutral-500 font-bold">Quick targets:</span>
                 {[5, 10, 20].map(percent => (
                   <button
                     key={percent}
@@ -760,10 +760,10 @@ const CreateTab = ({
             />
 
             {/* Timeframe Presets */}
-            <div className="p-4 bg-neutral-50 dark:bg-dark-900/30 border border-neutral-200 dark:border-dark-700 rounded-lg">
+            <div className="p-4 bg-neutral-100/30 dark:bg-dark-900/30 border border-neutral-200 dark:border-dark-700 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
-                <Clock size={16} className="text-[#c0ff00]" />
-                <span className="text-sm font-semibold text-gray-300">Quick Timeframe Presets</span>
+                <Clock size={16} className="text-primary" />
+                <span className="text-sm font-bold text-neutral-700 dark:text-neutral-300">Quick Timeframe Presets</span>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {getTimeframePresets().map((preset) => {
@@ -773,16 +773,16 @@ const CreateTab = ({
                       key={preset.seconds}
                       onClick={() => handleTimeframePreset(preset.seconds)}
                       disabled={isAdded || timeForm.timeframes.length >= 5}
-                      className={`px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                      className={`px-3 py-2 rounded-lg text-sm transition-colors text-left border shadow-sm ${
                         isAdded 
-                          ? 'bg-[#c0ff00]/20 text-[#c0ff00] border border-[#c0ff00]/30 cursor-default' 
+                          ? 'bg-primary/20 text-neutral-900 dark:text-primary border-primary/30 cursor-default font-bold' 
                           : timeForm.timeframes.length >= 5
-                            ? 'bg-white dark:bg-dark-800 text-gray-600 cursor-not-allowed'
-                            : 'bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 text-gray-300 border border-neutral-200 dark:border-dark-700'
+                            ? 'bg-neutral-100 dark:bg-dark-800 text-neutral-400 cursor-not-allowed border-transparent'
+                            : 'bg-white dark:bg-dark-800 hover:bg-neutral-200 dark:bg-dark-700 text-neutral-700 dark:text-neutral-300 border-neutral-200 dark:border-dark-700 font-bold'
                       }`}
                     >
-                      <div className="font-semibold">{preset.label}</div>
-                      <div className="text-xs opacity-70">{preset.description}</div>
+                      <div className="font-bold">{preset.label}</div>
+                      <div className="text-[10px] opacity-70 font-medium">{preset.description}</div>
                     </button>
                   );
                 })}
@@ -790,7 +790,7 @@ const CreateTab = ({
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-300 mb-2">
+              <label className="block text-sm font-bold text-neutral-700 dark:text-neutral-300 mb-2">
                 Timeframes {timeForm.timeframes.length > 0 && `(${timeForm.timeframes.length})`}
               </label>
               {timeForm.timeframes.map((tf, idx) => (

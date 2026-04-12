@@ -1590,31 +1590,31 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
           }}
         >
           <div 
-            className="bg-neutral-50 dark:bg-dark-900 border border-[#c0ff00]/30 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl shadow-[#c0ff00]/20 relative"
-            style={{ backgroundColor: '#1a1a1a' }}
+            className="bg-neutral-50 dark:bg-dark-900 border border-primary/30 rounded-xl w-full max-w-6xl max-h-[90vh] overflow-hidden shadow-2xl dark:shadow-primary/20 relative"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-[#c0ff00]/20">
-              <h2 className="text-2xl font-bold text-[#c0ff00]">Admin Panel</h2>
+            <div className="flex items-center justify-between p-6 border-b border-primary/20">
+              <h2 className="text-2xl font-black text-neutral-900 dark:text-primary tracking-tight">Admin Panel</h2>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-white dark:bg-dark-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-neutral-200 dark:bg-dark-800 rounded-lg transition-colors"
+                aria-label="Close admin panel"
               >
-                <X className="w-5 h-5 text-gray-400" />
+                <X className="w-5 h-5 text-neutral-500 dark:text-neutral-400" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-[#c0ff00]/20 px-6">
+            <div className="flex border-b border-primary/20 px-6">
               {['dashboard', 'create', 'manage', 'bot', 'vouchers'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3 font-medium capitalize transition-colors ${
+                  className={`px-6 py-3 font-bold capitalize transition-all border-b-2 ${
                     activeTab === tab
-                      ? 'text-[#c0ff00] border-b-2 border-[#c0ff00]'
-                      : 'text-gray-400 hover:text-gray-300'
+                      ? 'text-neutral-900 dark:text-primary border-primary'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 border-transparent'
                   }`}
                 >
                   {tab}

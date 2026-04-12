@@ -75,11 +75,11 @@ const MainLayout = ({
   const ACTIVITY_W  = 'md:pr-80'; // ActivityFeed is w-80 on desktop
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-dark-950 text-neutral-900 dark:text-white flex flex-col relative overflow-hidden">
+    <div className="main-container min-h-screen text-neutral-900 dark:text-white flex flex-col relative overflow-hidden">
       {/* Premium Background Effects */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] opacity-50 dark:opacity-30 animate-pulse" />
-        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-secondary/20 rounded-full blur-[120px] opacity-50 dark:opacity-30 animate-pulse" />
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] opacity-40 dark:opacity-20 animate-pulse" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-secondary/20 rounded-full blur-[120px] opacity-40 dark:opacity-20 animate-pulse" />
       </div>
 
       <div className="flex flex-1 overflow-hidden relative z-10">
@@ -93,12 +93,7 @@ const MainLayout = ({
         />
 
         {/* ── Main Content ─────────────────────────────────────────────── */}
-        {/*
-          FIX 1: We use padding-left + padding-right to push content away from
-          the fixed sidebar and fixed activity feed, instead of relying on flex
-          spacers that don't account for fixed-position children.
-        */}
-        <main className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 w-full ${SIDEBAR_W} ${ACTIVITY_W}`}>
+        <main className={`app-main flex-1 transition-all duration-300 w-full ${SIDEBAR_W} ${ACTIVITY_W}`}>
           
           {/* Global Activity Ticker */}
           <GlobalActivityTicker />
@@ -106,12 +101,11 @@ const MainLayout = ({
           {/* ── Top Header ───────────────────────────────────────────────── */}
           <header
             role="banner"
-            className="sticky top-0 z-30 bg-white/70 dark:bg-dark-900/60 border-b border-neutral-200/50 dark:border-white/5 backdrop-blur-xl"
+            className="app-header sticky top-0 bg-white/80 dark:bg-dark-900/60 border-b border-neutral-200 dark:border-white/5 backdrop-blur-xl"
           >
             <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
 
               {/* LEFT: Page Title + BETA badge */}
-              {/* FIX 3: Added pl-10 on mobile so title doesn't sit under hamburger */}
               <div className="flex items-center gap-3 pl-10 md:pl-0">
                 <h1
                   className="text-xl font-bold text-neutral-900 dark:text-white"
@@ -130,7 +124,7 @@ const MainLayout = ({
                 {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all"
+                  className="p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all shadow-sm dark:shadow-none"
                   aria-label="Toggle theme"
                 >
                   {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
@@ -139,47 +133,47 @@ const MainLayout = ({
                 {/* Activity Feed toggle — mobile only */}
                 <button
                   onClick={() => setActivityFeedOpen(!activityFeedOpen)}
-                  className="md:hidden relative p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all"
+                  className="md:hidden relative p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all shadow-sm dark:shadow-none"
                   aria-label="Toggle activity feed"
                 >
                   <Bell size={17} />
                   <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-primary rounded-full" />
                 </button>
 
-                {/* Stats — desktop only, connected only */}
+                {/* Account Details & Connect Button */}
                 {isConnected && (
                   <div className="hidden md:flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700">
-                      <Coins size={14} className="text-yellow-400" />
-                      <div className="flex flex-col leading-none">
-                        <span className="text-[9px] text-neutral-500 uppercase tracking-wider">Points</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
+                      <Coins size={14} className="text-yellow-500" />
+                      <div className="flex flex-col leading-none text-left">
+                        <span className="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Points</span>
                         <span className="text-sm font-bold text-neutral-900 dark:text-white">{userPoints.toLocaleString()}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
                       <Wallet size={14} className="text-primary" />
-                      <div className="flex flex-col leading-none">
-                        <span className="text-[9px] text-neutral-500 uppercase tracking-wider">Balance</span>
+                      <div className="flex flex-col leading-none text-left">
+                        <span className="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Balance</span>
                         <span className="text-sm font-bold text-neutral-900 dark:text-white">{formattedUsdcBalance}</span>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Compact points — mobile only, connected only */}
+                {/* Compact points — mobile only */}
                 {isConnected && (
-                  <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700">
-                    <Coins size={13} className="text-yellow-400" />
-                    <span className="text-xs font-semibold">{userPoints}</span>
+                  <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
+                    <Coins size={13} className="text-yellow-500" />
+                    <span className="text-xs font-bold text-neutral-900 dark:text-white">{userPoints}</span>
                   </div>
                 )}
 
-                {/* Add Funds — unified style matching Points/Balance */}
+                {/* Add Funds */}
                 {isConnected && (
                   <>
                     <div 
                       onClick={onAddFunds}
-                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group cursor-pointer select-none" 
+                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group cursor-pointer select-none shadow-sm dark:shadow-none" 
                       role="button" 
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onAddFunds(); }}
@@ -190,7 +184,7 @@ const MainLayout = ({
                     </div>
                     <button
                       onClick={onAddFunds}
-                      className="flex sm:hidden items-center justify-center p-2.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group"
+                      className="flex sm:hidden items-center justify-center p-2.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group shadow-sm dark:shadow-none"
                       aria-label="Add funds"
                     >
                       <Plus size={16} className="text-primary group-hover:scale-110 transition-transform" />
@@ -198,13 +192,13 @@ const MainLayout = ({
                   </>
                 )}
 
-                {/* Chain status — desktop */}
+                {/* Chain status */}
                 {isConnected && (
                   <>
-                    <div className="hidden md:block w-px h-7 bg-neutral-100 dark:bg-dark-700 mx-1" />
-                    <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700/50">
-                      <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
-                      <span className="text-xs text-neutral-300 font-medium">{chainName}</span>
+                    <div className="hidden md:block w-px h-7 bg-neutral-200 dark:bg-dark-700 mx-1" />
+                    <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700/50 shadow-sm dark:shadow-none">
+                      <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse shadow-[0_0_8px_rgba(0,255,136,0.4)]" />
+                      <span className="text-xs text-neutral-600 dark:text-neutral-300 font-bold whitespace-nowrap">{chainName}</span>
                     </div>
                   </>
                 )}
@@ -221,8 +215,9 @@ const MainLayout = ({
           </header>
 
           {/* ── Scrollable Content ───────────────────────────────────────── */}
-          <div className="flex-1 overflow-y-auto bg-transparent">
+          <div className="app-content bg-transparent">
             <div className="px-4 sm:px-6 lg:px-8 py-6 w-full">
+
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentView}

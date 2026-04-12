@@ -158,8 +158,8 @@ const DashboardTab = ({
         <div className="grid grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-neutral-200 dark:border-dark-700 animate-pulse">
-              <div className="h-8 bg-neutral-100 dark:bg-dark-700 rounded w-1/2 mb-2"></div>
-              <div className="h-4 bg-neutral-100 dark:bg-dark-700 rounded w-3/4"></div>
+              <div className="h-8 bg-neutral-200 dark:bg-dark-700 rounded w-1/2 mb-2"></div>
+              <div className="h-4 bg-neutral-200 dark:bg-dark-700 rounded w-3/4"></div>
             </div>
           ))}
         </div>
@@ -172,19 +172,19 @@ const DashboardTab = ({
       {/* HEADER */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-3xl font-black text-neutral-900 dark:text-white mb-1">Platform Analytics</h2>
-          <p className="text-sm text-gray-400 flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></span>
+          <h2 className="text-3xl font-black text-neutral-900 dark:text-white mb-1 tracking-tight">Platform Analytics</h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 flex items-center gap-2 font-medium">
+            <span className={`w-2 h-2 rounded-full ${autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-neutral-400'}`}></span>
             {autoRefresh ? 'Live' : 'Paused'} • Last updated {lastUpdate.toLocaleTimeString()}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`p-2 rounded-lg border transition-all ${
+            className={`p-2 rounded-lg border transition-all shadow-sm ${
               autoRefresh 
-                ? 'bg-primary/20 border-primary text-primary' 
-                : 'bg-neutral-100 dark:bg-dark-700 border-neutral-200 dark:border-dark-600 text-gray-400'
+                ? 'bg-primary/20 border-primary text-neutral-900 dark:text-primary' 
+                : 'bg-white dark:bg-dark-700 border-neutral-200 dark:border-dark-600 text-neutral-400'
             }`}
             title={autoRefresh ? 'Pause' : 'Resume'}
           >
@@ -192,7 +192,7 @@ const DashboardTab = ({
           </button>
           <button
             onClick={() => {/* Export */}}
-            className="px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 text-neutral-900 dark:text-white rounded-lg flex items-center gap-2 transition-all"
+            className="px-4 py-2 bg-white dark:bg-dark-700 hover:bg-neutral-100 dark:bg-dark-600 border border-neutral-200 dark:border-dark-600 text-neutral-900 dark:text-white rounded-lg flex items-center gap-2 transition-all font-bold shadow-sm"
           >
             <Download size={16} />
             Export
@@ -201,37 +201,37 @@ const DashboardTab = ({
       </div>
 
       {/* EXECUTIVE SUMMARY */}
-      <div className="bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20 rounded-xl p-6">
-        <div className="grid grid-cols-3 gap-8">
+      <div className="bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded-xl p-6 shadow-sm">
+        <div className="grid grid-cols-3 gap-8 text-center md:text-left">
           <div>
-            <p className="text-xs text-neutral-400 uppercase font-bold">Period Change</p>
-            <p className="text-3xl font-black text-primary mt-2">{analyticsData.metrics.periodChange}</p>
-            <p className="text-xs text-neutral-500 mt-1">vs previous period</p>
+            <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-black tracking-widest">Period Change</p>
+            <p className="text-3xl font-black text-neutral-900 dark:text-primary mt-2">{analyticsData.metrics.periodChange}</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1 font-bold">vs previous period</p>
           </div>
           <div>
-            <p className="text-xs text-neutral-400 uppercase font-bold">Avg Bet Size</p>
-            <p className="text-3xl font-black text-secondary mt-2">${analyticsData.metrics.avgBetSize}</p>
-            <p className="text-xs text-neutral-500 mt-1">stable trend</p>
+            <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-black tracking-widest">Avg Bet Size</p>
+            <p className="text-3xl font-black text-neutral-900 dark:text-secondary mt-2">${analyticsData.metrics.avgBetSize}</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1 font-bold">stable trend</p>
           </div>
           <div>
-            <p className="text-xs text-neutral-400 uppercase font-bold">Success Rate</p>
-            <p className="text-3xl font-black text-success mt-2">{analyticsData.metrics.successRate}</p>
-            <p className="text-xs text-neutral-500 mt-1">market predictability</p>
+            <p className="text-[10px] text-neutral-500 dark:text-neutral-400 uppercase font-black tracking-widest">Success Rate</p>
+            <p className="text-3xl font-black text-green-600 dark:text-success mt-2">{analyticsData.metrics.successRate}</p>
+            <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1 font-bold">market predictability</p>
           </div>
         </div>
       </div>
 
       {/* TIME RANGE & FILTERS */}
       <div className="flex items-center gap-3">
-        <div className="flex gap-1 bg-white dark:bg-dark-800 rounded-lg p-1 border border-neutral-200 dark:border-dark-700">
+        <div className="flex gap-1 bg-neutral-200/50 dark:bg-dark-800 rounded-lg p-1 border border-neutral-200 dark:border-dark-700 shadow-inner">
           {['24h', '7d', '30d', 'All'].map(period => (
             <button 
               key={period}
               onClick={() => setTimeRange(period)}
-              className={`px-3 py-1.5 rounded transition-all text-sm font-semibold ${
+              className={`px-4 py-1.5 rounded-md transition-all text-sm font-bold ${
                 timeRange === period 
-                  ? 'bg-primary text-dark-950' 
-                  : 'text-neutral-400 hover:text-neutral-900 dark:text-white'
+                  ? 'bg-neutral-900 dark:bg-primary text-white dark:text-dark-950 shadow-md' 
+                  : 'text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-white'
               }`}
             >
               {period}
@@ -242,7 +242,7 @@ const DashboardTab = ({
         <select 
           value={marketFilter}
           onChange={(e) => setMarketFilter(e.target.value)}
-          className="bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-600 rounded-lg px-3 py-1.5 text-neutral-900 dark:text-white text-sm font-semibold"
+          className="bg-white dark:bg-dark-700 border border-neutral-200 dark:border-dark-600 rounded-lg px-4 py-2 text-neutral-900 dark:text-white text-sm font-bold shadow-sm"
         >
           <option value="all">All Markets</option>
           <option value="binary">Binary</option>
@@ -254,13 +254,13 @@ const DashboardTab = ({
 
       {/* ALERTS BANNER */}
       {analyticsData.alerts.length > 0 && (
-        <div className="space-y-2 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+        <div className="space-y-2 p-4 bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-xl shadow-sm">
           {analyticsData.alerts.slice(0, 2).map(alert => (
-            <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg ${alert.severity === 'critical' ? 'bg-red-500/10 border border-red-500/20' : 'bg-yellow-500/10 border border-yellow-500/20'}`}>
-              <AlertCircle size={16} className={alert.severity === 'critical' ? 'text-red-400 flex-shrink-0 mt-0.5' : 'text-yellow-400 flex-shrink-0 mt-0.5'} />
+            <div key={alert.id} className={`flex items-start gap-3 p-3 rounded-lg ${alert.severity === 'critical' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20' : 'bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20'}`}>
+              <AlertCircle size={16} className={alert.severity === 'critical' ? 'text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5' : 'text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5'} />
               <div className="flex-1">
-                <p className={`font-bold text-sm ${alert.severity === 'critical' ? 'text-red-400' : 'text-yellow-400'}`}>{alert.title}</p>
-                <p className="text-xs text-gray-300 mt-1">{alert.message}</p>
+                <p className={`font-bold text-sm ${alert.severity === 'critical' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}`}>{alert.title}</p>
+                <p className="text-xs text-neutral-600 dark:text-neutral-300 mt-1 font-medium">{alert.message}</p>
               </div>
             </div>
           ))}
@@ -280,14 +280,14 @@ const DashboardTab = ({
             </div>
             <div className="p-3 space-y-2 max-h-96 overflow-y-auto">
               {analyticsData.alerts.map(alert => (
-                <div key={alert.id} className={`p-3 rounded-lg border text-xs ${alert.severity === 'critical' ? 'bg-red-500/5 border-red-500/20' : alert.severity === 'warning' ? 'bg-yellow-500/5 border-yellow-500/20' : 'bg-blue-500/5 border-blue-500/20'}`}>
-                  <div className={`font-bold ${alert.severity === 'critical' ? 'text-red-400' : alert.severity === 'warning' ? 'text-yellow-400' : 'text-blue-400'}`}>{alert.title}</div>
-                  <div className="text-gray-400 mt-1">{alert.message}</div>
+                <div key={alert.id} className={`p-3 rounded-lg border text-xs shadow-sm ${alert.severity === 'critical' ? 'bg-red-50 dark:bg-red-500/5 border-red-200 dark:border-red-500/20' : alert.severity === 'warning' ? 'bg-yellow-50 dark:bg-yellow-500/5 border-yellow-200 dark:border-yellow-500/20' : 'bg-blue-50 dark:bg-blue-500/5 border-blue-200 dark:border-blue-500/20'}`}>
+                  <div className={`font-bold ${alert.severity === 'critical' ? 'text-red-700 dark:text-red-400' : alert.severity === 'warning' ? 'text-yellow-700 dark:text-yellow-400' : 'text-blue-700 dark:text-blue-400'}`}>{alert.title}</div>
+                  <div className="text-neutral-500 dark:text-neutral-400 mt-1 font-medium">{alert.message}</div>
                 </div>
               ))}
               {analyticsData.alerts.length === 0 && (
-                <div className="text-center py-6 text-gray-500 text-xs">
-                  <CheckCircle size={20} className="mx-auto mb-2 opacity-50" />
+                <div className="text-center py-6 text-neutral-400 dark:text-neutral-500 text-xs font-bold">
+                  <CheckCircle size={20} className="mx-auto mb-2 opacity-30" />
                   All systems healthy
                 </div>
               )}
@@ -300,50 +300,50 @@ const DashboardTab = ({
           {/* KEY METRICS - PRIMARY */}
           <div className="grid grid-cols-2 gap-4">
             {/* Primary Metric 1: Volume */}
-            <div className="col-span-1 lg:col-span-1 bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-primary/30 hover:border-primary/50 transition-all group relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+            <div className="col-span-1 lg:col-span-1 bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-primary/30 hover:border-primary/50 transition-all group relative overflow-hidden shadow-sm dark:shadow-none">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-gray-400 text-xs font-semibold uppercase">Total Volume</h3>
-                  <div className="bg-primary/20 p-2 rounded-lg"><DollarSign className="text-primary" size={18} /></div>
+                  <h3 className="text-neutral-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Total Volume</h3>
+                  <div className="bg-primary/20 p-2 rounded-lg shadow-inner"><DollarSign className="text-neutral-900 dark:text-primary" size={18} /></div>
                 </div>
-                <div className="text-4xl font-black text-primary">${formatNumber(stats?.totalVolume || 0)}</div>
-                <div className="text-xs text-gray-500 mt-2">{stats?.totalBets || 0} total bets</div>
-                {stats?.totalVolume > 0 && <div className="text-green-400 text-xs font-bold mt-2">↑ 18.5% increase</div>}
+                <div className="text-4xl font-black text-neutral-900 dark:text-primary tracking-tight">${formatNumber(stats?.totalVolume || 0)}</div>
+                <div className="text-xs text-neutral-500 dark:text-neutral-500 mt-2 font-bold">{stats?.totalBets || 0} total bets</div>
+                {stats?.totalVolume > 0 && <div className="text-green-600 dark:text-green-400 text-xs font-black mt-2">↑ 18.5% increase</div>}
               </div>
             </div>
 
             {/* Primary Metric 2: Active Users */}
-            <div className="col-span-1 lg:col-span-1 bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-secondary/30 hover:border-secondary/50 transition-all group relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
+            <div className="col-span-1 lg:col-span-1 bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-secondary/30 hover:border-secondary/50 transition-all group relative overflow-hidden shadow-sm dark:shadow-none">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
               <div className="relative">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-gray-400 text-xs font-semibold uppercase">Active Users</h3>
-                  <div className="bg-secondary/20 p-2 rounded-lg"><Users className="text-secondary" size={18} /></div>
+                  <h3 className="text-neutral-500 dark:text-neutral-400 text-[10px] font-black uppercase tracking-widest">Active Users</h3>
+                  <div className="bg-secondary/20 p-2 rounded-lg shadow-inner"><Users className="text-neutral-900 dark:text-secondary" size={18} /></div>
                 </div>
-                <div className="text-4xl font-black text-secondary">{stats?.totalUsers || 0}</div>
-                <div className="text-xs text-gray-500 mt-2">unique participants</div>
-                {stats?.totalUsers > 0 && <div className="text-green-400 text-xs font-bold mt-2">↑ 12.3% growth</div>}
+                <div className="text-4xl font-black text-neutral-900 dark:text-secondary tracking-tight">{stats?.totalUsers || 0}</div>
+                <div className="text-xs text-neutral-500 dark:text-neutral-500 mt-2 font-bold">unique participants</div>
+                {stats?.totalUsers > 0 && <div className="text-green-600 dark:text-green-400 text-xs font-black mt-2">↑ 12.3% growth</div>}
               </div>
             </div>
           </div>
 
           {/* KEY METRICS - SECONDARY */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
-              <p className="text-gray-400 text-xs uppercase font-bold mb-2">Total Bets</p>
-              <p className="text-2xl font-black text-primary">{formatNumber(stats?.totalBets || 0)}</p>
-              <p className="text-xs text-gray-500 mt-1">all-time</p>
+            <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700 shadow-sm">
+              <p className="text-neutral-500 dark:text-neutral-400 text-[10px] uppercase font-black tracking-widest mb-2">Total Bets</p>
+              <p className="text-2xl font-black text-neutral-900 dark:text-primary tracking-tight">{formatNumber(stats?.totalBets || 0)}</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1 font-bold">all-time</p>
             </div>
-            <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
-              <p className="text-gray-400 text-xs uppercase font-bold mb-2">Pending Revenue</p>
-              <p className="text-2xl font-black text-yellow-400">${Number(formatUnits(stats?.pendingFees || 0n, 6)).toFixed(0)}</p>
-              <p className="text-xs text-gray-500 mt-1">withdrawable</p>
+            <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700 shadow-sm">
+              <p className="text-neutral-500 dark:text-neutral-400 text-[10px] uppercase font-black tracking-widest mb-2">Pending Revenue</p>
+              <p className="text-2xl font-black text-yellow-600 dark:text-yellow-400 tracking-tight">${Number(formatUnits(stats?.pendingFees || 0n, 6)).toFixed(0)}</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1 font-bold">withdrawable</p>
             </div>
-            <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700">
-              <p className="text-gray-400 text-xs uppercase font-bold mb-2">Contract TVL</p>
-              <p className="text-2xl font-black text-secondary">${Number(formatUnits(stats?.contractBalance || 0n, 6)).toFixed(0)}</p>
-              <p className="text-xs text-gray-500 mt-1">USDC balance</p>
+            <div className="bg-white dark:bg-dark-800/50 rounded-xl p-4 border border-neutral-200 dark:border-dark-700 shadow-sm">
+              <p className="text-neutral-500 dark:text-neutral-400 text-[10px] uppercase font-black tracking-widest mb-2">Contract TVL</p>
+              <p className="text-2xl font-black text-neutral-900 dark:text-secondary tracking-tight">${Number(formatUnits(stats?.contractBalance || 0n, 6)).toFixed(0)}</p>
+              <p className="text-xs text-neutral-500 dark:text-neutral-500 mt-1 font-bold">USDC balance</p>
             </div>
           </div>
 
@@ -394,24 +394,24 @@ const DashboardTab = ({
           </div>
 
           {/* MARKET STATUS OVERVIEW */}
-          <div className="bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-neutral-200 dark:border-dark-700">
-            <h3 className="text-neutral-900 dark:text-white font-bold mb-4">Market Status Overview</h3>
+          <div className="bg-white dark:bg-dark-800/50 rounded-xl p-6 border border-neutral-200 dark:border-dark-700 shadow-sm">
+            <h3 className="text-neutral-900 dark:text-white font-black text-sm mb-4 uppercase tracking-widest">Market Status Overview</h3>
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
-                <p className="text-3xl font-black text-primary">{analyticsData.marketStatus.activeMarkets}</p>
-                <p className="text-xs text-gray-400 mt-2">Active</p>
+                <p className="text-3xl font-black text-neutral-900 dark:text-primary tracking-tight">{analyticsData.marketStatus.activeMarkets}</p>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-2 font-black uppercase tracking-widest">Active</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-black text-secondary">{analyticsData.marketStatus.resolvedMarkets}</p>
-                <p className="text-xs text-gray-400 mt-2">Resolved</p>
+                <p className="text-3xl font-black text-neutral-900 dark:text-secondary tracking-tight">{analyticsData.marketStatus.resolvedMarkets}</p>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-2 font-black uppercase tracking-widest">Resolved</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-black text-yellow-400">{analyticsData.marketStatus.pendingResolution}</p>
-                <p className="text-xs text-gray-400 mt-2">Pending</p>
+                <p className="text-3xl font-black text-yellow-600 dark:text-yellow-400 tracking-tight">{analyticsData.marketStatus.pendingResolution}</p>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-2 font-black uppercase tracking-widest">Pending</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl font-black text-red-400">{analyticsData.marketStatus.issues}</p>
-                <p className="text-xs text-gray-400 mt-2">Attention</p>
+                <p className="text-3xl font-black text-red-600 dark:text-red-400 tracking-tight">{analyticsData.marketStatus.issues}</p>
+                <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mt-2 font-black uppercase tracking-widest">Attention</p>
               </div>
             </div>
           </div>
@@ -436,23 +436,23 @@ const DashboardTab = ({
           </div>
 
           {/* ADVANCED ACTIVITY TABLE */}
-          <div className="bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700 overflow-hidden">
+          <div className="bg-white dark:bg-dark-800/50 rounded-xl border border-neutral-200 dark:border-dark-700 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-neutral-200 dark:border-dark-700 flex items-center justify-between">
-              <h3 className="text-neutral-900 dark:text-white font-bold flex items-center gap-2">
+              <h3 className="text-neutral-900 dark:text-white font-black text-sm uppercase tracking-widest flex items-center gap-2">
                 <Clock size={16} className="text-primary" />
                 Recent Activity
               </h3>
-              <span className="text-xs text-gray-500">Last 15 transactions</span>
+              <span className="text-[10px] text-neutral-500 dark:text-neutral-500 font-bold uppercase tracking-widest">Last 15 transactions</span>
             </div>
             {isLoadingActivity ? (
-              <div className="p-8 text-center text-gray-400"><Loader2 className="animate-spin mx-auto" /></div>
+              <div className="p-8 text-center text-neutral-500"><Loader2 className="animate-spin mx-auto" /></div>
             ) : recentActivity.length === 0 ? (
-              <div className="p-8 text-center text-gray-500">No recent activity</div>
+              <div className="p-8 text-center text-neutral-500 font-bold text-sm">No recent activity</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-neutral-50 dark:bg-dark-900/50 border-b border-neutral-200 dark:border-dark-700">
-                    <tr className="text-left text-xs text-gray-400 font-bold uppercase">
+                    <tr className="text-left text-[10px] text-neutral-500 dark:text-neutral-400 font-black uppercase tracking-widest">
                       <th className="px-4 py-3">Time</th>
                       <th className="px-4 py-3">Market</th>
                       <th className="px-4 py-3">User</th>
@@ -460,14 +460,14 @@ const DashboardTab = ({
                       <th className="px-4 py-3">Hash</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-dark-700">
+                  <tbody className="divide-y divide-neutral-100 dark:divide-dark-700">
                     {recentActivity.map(activity => (
-                      <tr key={activity.id} className="hover:bg-neutral-100 dark:bg-dark-700/30 transition">
-                        <td className="px-4 py-3 text-gray-300">{formatTimeString(activity.timestamp)}</td>
-                        <td className="px-4 py-3 font-mono text-primary text-sm">#{activity.marketId}</td>
-                        <td className="px-4 py-3 font-mono text-gray-400 text-sm">{activity.user.slice(0, 6)}...</td>
-                        <td className="px-4 py-3 text-secondary font-bold">${activity.amount.toFixed(2)}</td>
-                        <td className="px-4 py-3"><a href="#" className="text-primary hover:underline text-xs">View</a></td>
+                      <tr key={activity.id} className="hover:bg-neutral-50 dark:hover:bg-dark-700/30 transition">
+                        <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 font-medium">{formatTimeString(activity.timestamp)}</td>
+                        <td className="px-4 py-3 font-mono text-neutral-900 dark:text-primary font-bold">#{activity.marketId}</td>
+                        <td className="px-4 py-3 font-mono text-neutral-500 dark:text-neutral-400 font-bold">{activity.user.slice(0, 6)}...</td>
+                        <td className="px-4 py-3 text-secondary font-black tracking-tight">${activity.amount.toFixed(2)}</td>
+                        <td className="px-4 py-3"><a href="#" className="text-primary hover:text-primary-dark font-bold text-xs underline underline-offset-2">View</a></td>
                       </tr>
                     ))}
                   </tbody>
@@ -487,21 +487,21 @@ const DashboardTab = ({
             {isLoadingLeaderboard ? (
               <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-primary" /></div>
             ) : (
-              <div className="divide-y divide-dark-700">
+              <div className="divide-y divide-neutral-100 dark:divide-dark-700">
                 {topUsers.map(user => (
-                  <div key={user.address} className="p-4 hover:bg-neutral-100 dark:bg-dark-700/30 transition">
+                  <div key={user.address} className="p-4 hover:bg-neutral-50 dark:hover:bg-dark-700/30 transition">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                          user.rank === 1 ? 'bg-yellow-500 text-dark-950' : 
-                          user.rank === 2 ? 'bg-gray-400 text-dark-950' : 
-                          'bg-neutral-100 dark:bg-dark-700 text-gray-400'
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-sm shadow-sm ${
+                          user.rank === 1 ? 'bg-yellow-400 text-neutral-900' : 
+                          user.rank === 2 ? 'bg-neutral-300 dark:bg-gray-400 text-neutral-900' : 
+                          'bg-neutral-100 dark:bg-dark-700 text-neutral-500 dark:text-neutral-400'
                         }`}>#{user.rank}</div>
-                        <div className="font-mono text-sm text-neutral-900 dark:text-white">{user.address.slice(0, 10)}...</div>
+                        <div className="font-mono text-sm text-neutral-900 dark:text-white font-bold">{user.address.slice(0, 10)}...</div>
                       </div>
                       <div className="text-right">
-                        <p className="text-secondary font-bold">${formatNumber(user.volume)}</p>
-                        <p className="text-xs text-gray-500">{user.bets} bets</p>
+                        <p className="text-secondary font-black tracking-tight">${formatNumber(user.volume)}</p>
+                        <p className="text-[10px] text-neutral-500 dark:text-neutral-500 font-bold uppercase tracking-widest">{user.bets} bets</p>
                       </div>
                     </div>
                   </div>
@@ -518,11 +518,11 @@ const DashboardTab = ({
             </h3>
             <div className="space-y-4">
               <div>
-                <p className="text-gray-400 text-sm mb-2 font-bold">Contract Address</p>
-                <div className="flex items-center gap-2 bg-neutral-50 dark:bg-dark-900 p-3 rounded-lg border border-neutral-200 dark:border-dark-700">
-                  <p className="font-mono text-sm text-neutral-900 dark:text-white flex-1 break-all">{contractAddress || 'Not connected'}</p>
+                <p className="text-neutral-500 dark:text-neutral-400 text-[10px] mb-2 font-black uppercase tracking-widest">Contract Address</p>
+                <div className="flex items-center gap-2 bg-neutral-100 dark:bg-dark-900 p-3 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-inner">
+                  <p className="font-mono text-sm text-neutral-900 dark:text-white flex-1 break-all font-bold">{contractAddress || 'Not connected'}</p>
                   {contractAddress && (
-                    <a href={`https://sepolia.basescan.org/address/${contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-400">
+                    <a href={`https://sepolia.basescan.org/address/${contractAddress}`} target="_blank" rel="noopener noreferrer" className="text-primary hover:text-primary-dark">
                       <ExternalLink size={16} />
                     </a>
                   )}
@@ -530,37 +530,37 @@ const DashboardTab = ({
               </div>
 
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-neutral-50 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700">
-                  <p className="text-gray-400 text-xs mb-2 uppercase font-bold">Status</p>
+                <div className="bg-neutral-100 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm">
+                  <p className="text-neutral-500 dark:text-neutral-400 text-[10px] mb-2 uppercase font-black tracking-widest">Status</p>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
-                    <p className="text-neutral-900 dark:text-white font-bold">Operational</p>
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <p className="text-neutral-900 dark:text-white font-black text-sm uppercase tracking-widest">Operational</p>
                   </div>
                 </div>
-                <div className="bg-neutral-50 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700">
-                  <p className="text-gray-400 text-xs mb-2 uppercase font-bold">Version</p>
-                  <p className="text-neutral-900 dark:text-white font-bold">v2.1.0</p>
+                <div className="bg-neutral-100 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm">
+                  <p className="text-neutral-500 dark:text-neutral-400 text-[10px] mb-2 uppercase font-black tracking-widest">Version</p>
+                  <p className="text-neutral-900 dark:text-white font-black text-sm">v2.1.0</p>
                 </div>
-                <div className="bg-neutral-50 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700">
-                  <p className="text-gray-400 text-xs mb-2 uppercase font-bold">Uptime</p>
-                  <p className="text-neutral-900 dark:text-white font-bold">99.9%</p>
+                <div className="bg-neutral-100 dark:bg-dark-900 p-4 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm">
+                  <p className="text-neutral-500 dark:text-neutral-400 text-[10px] mb-2 uppercase font-black tracking-widest">Uptime</p>
+                  <p className="text-neutral-900 dark:text-white font-black text-sm">99.9%</p>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/30 rounded-xl p-5">
-                <h4 className="text-neutral-900 dark:text-white font-bold mb-3 flex items-center gap-2">
+              <div className="bg-gradient-to-br from-primary/20 via-primary/5 to-secondary/20 border border-primary/30 rounded-xl p-5 shadow-sm">
+                <h4 className="text-neutral-900 dark:text-white font-black text-sm uppercase tracking-widest mb-3 flex items-center gap-2">
                   <DollarSign size={16} className="text-primary" />
                   Revenue Withdrawal
                 </h4>
-                <p className="text-gray-300 text-sm mb-4">Pending fees available for withdrawal.</p>
-                <div className="bg-neutral-50 dark:bg-dark-900/50 p-3 rounded-lg mb-4">
-                  <p className="text-xs text-gray-400 mb-1">Available Revenue</p>
-                  <p className="text-3xl font-black text-primary">${Number(formatUnits(stats?.pendingFees || 0n, 6)).toFixed(2)}</p>
+                <p className="text-neutral-600 dark:text-neutral-300 text-xs mb-4 font-bold">Pending fees available for withdrawal from the smart contract.</p>
+                <div className="bg-white/50 dark:bg-dark-900/50 p-4 rounded-lg mb-4 border border-primary/20 shadow-inner">
+                  <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mb-1 font-black uppercase tracking-widest">Available Revenue</p>
+                  <p className="text-4xl font-black text-neutral-900 dark:text-primary tracking-tighter">${Number(formatUnits(stats?.pendingFees || 0n, 6)).toFixed(2)}</p>
                 </div>
                 <button 
                   onClick={handleWithdraw}
                   disabled={isPending || isConfirming || !stats?.pendingFees || stats.pendingFees === 0n}
-                  className="w-full bg-primary hover:bg-primary-400 disabled:bg-gray-700 text-dark-950 font-bold py-3 rounded-lg transition-all disabled:cursor-not-allowed"
+                  className="w-full bg-neutral-900 dark:bg-primary hover:bg-black dark:hover:bg-primary-dark disabled:bg-neutral-300 dark:disabled:bg-gray-700 text-white dark:text-dark-950 font-black py-4 rounded-lg transition-all disabled:cursor-not-allowed uppercase tracking-widest text-sm shadow-lg shadow-primary/10"
                 >
                   {isPending || isConfirming ? 'Processing...' : 'Withdraw Revenue'}
                 </button>

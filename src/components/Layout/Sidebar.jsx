@@ -39,40 +39,39 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
       aria-disabled={isDisabled}
       title={isDisabled ? 'Connect wallet to access' : undefined}
       className={[
-        'w-full flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 relative',
+        'w-full flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 relative nav-item-btn',
         isSubmenu ? 'ml-4 text-sm px-3' : 'px-3',
-        // FIX 2: Active state now correctly applied with left border glow
         isActive
-          ? 'text-neutral-900 dark:text-white bg-primary/10 border-l-4 border-primary pl-2'
+          ? 'text-neutral-900 dark:text-white bg-primary/20 dark:bg-primary/10 border-l-4 border-primary pl-2'
           : isDisabled
-          ? 'text-neutral-600 cursor-not-allowed opacity-40'
-          : 'text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-neutral-100 dark:bg-dark-700/60',
+          ? 'text-neutral-400 dark:text-neutral-600 cursor-not-allowed opacity-40'
+          : 'text-neutral-500 hover:text-neutral-900 dark:text-white hover:bg-neutral-200/50 dark:hover:bg-dark-700/60',
       ].join(' ')}
     >
       {/* Active background glow — spring animated */}
       {isActive && (
         <motion.div
           layoutId="activeIndicator"
-          className="absolute inset-0 bg-primary/5 rounded-xl pointer-events-none"
+          className="absolute inset-0 bg-primary/10 dark:bg-primary/5 rounded-xl pointer-events-none"
           transition={{ type: 'spring', duration: 0.5 }}
         />
       )}
 
       {/* Icon */}
-      <div className={`relative z-10 flex-shrink-0 ${isActive ? 'text-primary drop-shadow-[0_0_6px_rgba(251,191,36,0.6)]' : ''}`}>
+      <div className={`relative z-10 flex-shrink-0 ${isActive ? 'text-primary drop-shadow-[0_0_8px_rgba(205,255,0,0.4)]' : ''}`}>
         <Icon size={isCollapsed ? 22 : 19} />
       </div>
 
       {/* Label */}
       {!isCollapsed && (
-        <span className="relative z-10 flex-1 text-left font-medium text-sm leading-none">
+        <span className="relative z-10 flex-1 text-left font-bold text-sm leading-none">
           {item.label}
         </span>
       )}
 
       {/* Badge */}
       {!isCollapsed && item.badge && (
-        <span className="relative z-10 ml-auto text-[10px] px-1.5 py-0.5 bg-primary/25 text-primary rounded-full font-bold tracking-wide">
+        <span className="relative z-10 ml-auto text-[10px] px-1.5 py-0.5 bg-primary/30 dark:bg-primary/25 text-neutral-900 dark:text-primary rounded-full font-bold tracking-wide">
           {item.badge}
         </span>
       )}
@@ -89,7 +88,7 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
             <Tooltip.Content
               side="right"
               sideOffset={10}
-              className="px-3 py-1.5 bg-neutral-100 dark:bg-dark-700 text-neutral-900 dark:text-white text-xs rounded-lg shadow-2xl z-[100] border border-neutral-200 dark:border-dark-600"
+              className="px-3 py-1.5 bg-neutral-900 dark:bg-dark-700 text-white text-xs rounded-lg shadow-2xl z-[100] border border-dark-600"
             >
               {item.label}
               {item.badge && (
@@ -97,7 +96,7 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
                   {item.badge}
                 </span>
               )}
-              <Tooltip.Arrow className="fill-dark-700" />
+              <Tooltip.Arrow className="fill-neutral-900 dark:fill-dark-700" />
             </Tooltip.Content>
           </Tooltip.Portal>
         </Tooltip.Root>
@@ -163,7 +162,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
       {/* ── Mobile hamburger ─────────────────────────────────────────── */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="md:hidden fixed top-3.5 left-3 z-50 p-2 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-neutral-900 dark:text-white transition-colors"
+        className="md:hidden fixed top-3.5 left-3 z-50 p-2 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-neutral-900 dark:text-white transition-colors shadow-sm"
         aria-label={isMobileOpen ? 'Close menu' : 'Open menu'}
       >
         {isMobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -172,7 +171,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
       {/* ── Mobile backdrop ──────────────────────────────────────────── */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/70 md:hidden z-30"
+          className="fixed inset-0 bg-black/70 md:hidden z-30 backdrop-blur-sm"
           onClick={() => setIsMobileOpen(false)}
         />
       )}
@@ -180,7 +179,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
       {/* ── Sidebar ──────────────────────────────────────────────────── */}
       <aside
         className={[
-          'fixed left-0 top-0 h-screen bg-neutral-50 dark:bg-dark-900 border-r border-neutral-200 dark:border-dark-700',
+          'app-sidebar fixed left-0 top-0 h-screen bg-neutral-50 dark:bg-dark-900 border-r border-neutral-200 dark:border-dark-700',
           'transition-all duration-300 z-40 flex flex-col',
           isCollapsed ? 'w-20' : 'w-64',
           isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
@@ -195,7 +194,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
           )}
           <button
             onClick={toggleCollapsed}
-            className="hidden md:flex ml-auto p-1.5 hover:bg-neutral-100 dark:bg-dark-700 rounded-lg transition-colors text-neutral-400 hover:text-neutral-900 dark:text-white"
+            className="hidden md:flex ml-auto p-1.5 hover:bg-neutral-200 dark:bg-dark-700 rounded-lg transition-colors text-neutral-400 hover:text-neutral-900 dark:text-white"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
@@ -207,7 +206,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
 
           {/* Main group */}
           {!isCollapsed && (
-            <p className="px-2 pb-1 text-[9px] text-neutral-600 uppercase tracking-[0.15em] font-bold">
+            <p className="px-2 pb-1 text-[9px] text-neutral-500 dark:text-neutral-600 uppercase tracking-[0.15em] font-bold">
               Main
             </p>
           )}
@@ -216,11 +215,11 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
           ))}
 
           {/* Divider */}
-          <div className="my-3 h-px bg-neutral-100 dark:bg-dark-700/80" />
+          <div className="my-3 h-px bg-neutral-200 dark:bg-dark-700/80" />
 
           {/* Community group */}
           {!isCollapsed && (
-            <p className="px-2 pb-1 text-[9px] text-neutral-600 uppercase tracking-[0.15em] font-bold">
+            <p className="px-2 pb-1 text-[9px] text-neutral-500 dark:text-neutral-600 uppercase tracking-[0.15em] font-bold">
               Community
             </p>
           )}
@@ -232,7 +231,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
         {/* Settings section */}
         <div className="border-t border-neutral-200 dark:border-dark-700 py-3 px-2 space-y-1 flex-shrink-0">
           {!isCollapsed && (
-            <p className="px-2 pb-1 text-[9px] text-neutral-600 uppercase tracking-[0.15em] font-bold">
+            <p className="px-2 pb-1 text-[9px] text-neutral-500 dark:text-neutral-600 uppercase tracking-[0.15em] font-bold">
               System
             </p>
           )}
@@ -244,9 +243,9 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
         {/* Connected status footer */}
         {!isCollapsed && (
           <div className="px-3 pb-3 flex-shrink-0">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected ? 'bg-success/10 border border-success/20' : 'bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-success animate-pulse' : 'bg-neutral-600'}`} />
-              <span className={`text-xs font-medium ${isConnected ? 'text-success' : 'text-neutral-500'}`}>
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected ? 'bg-success/10 border border-success/20' : 'bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-success animate-pulse' : 'bg-neutral-600'}`} title={isConnected ? 'Connected' : 'Disconnected'} />
+              <span className={`text-xs font-bold ${isConnected ? 'text-success' : 'text-neutral-500'}`}>
                 {isConnected ? 'Connected' : 'Not Connected'}
               </span>
             </div>
