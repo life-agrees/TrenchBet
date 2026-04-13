@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Award, Target, Zap, DollarSign } from 'lucide-react';
+import { TrendingUp, TrendingDown, Award, Target, Zap, DollarSign, Star } from 'lucide-react';
 
 /**
  * Performance Card Component
