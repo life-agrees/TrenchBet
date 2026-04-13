@@ -87,7 +87,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h2 className="text-xl font-bold text-neutral-900 dark:text-white">Referral Program</h2>
-              <p className="text-sm text-neutral-400">Earn TRENCHY by inviting friends</p>
+              <p className="text-sm text-neutral-400">Earn Points by inviting friends</p>
             </div>
           </div>
           <button 
@@ -185,7 +185,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
                     <Gift size={16} className="text-primary" />
                     <span className="text-xs text-neutral-400">Earnings</span>
                   </div>
-                  <div className="text-2xl font-black text-primary">{referralEarnings} TRENCHY</div>
+                  <div className="text-2xl font-black text-primary">{(referralEarnings * 100).toLocaleString()} Points</div>
                 </div>
               </div>
 
@@ -237,7 +237,7 @@ const ReferralDashboard = ({ isOpen, onClose }) => {
         {/* Footer */}
         <div className="p-4 border-t border-neutral-200 dark:border-dark-700 text-center">
           <p className="text-xs text-neutral-500">
-            Earn 10 TRENCHY for each friend who places their first bet
+            Earn 1,000 Points for each friend who places their first bet
           </p>
         </div>
       </div>

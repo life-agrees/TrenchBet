@@ -21,6 +21,8 @@ const getActivityIcon = (type) => {
       return <Zap size={18} className="text-success" />;
     case 'bet_placed':
       return <Target size={18} className="text-primary" />;
+    case 'referral':
+      return <Users size={18} className="text-secondary" />;
     default:
       return <Bell size={18} className="text-neutral-400" />;
   }
@@ -128,7 +130,7 @@ const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
 
   // Categorise activities by tab
   const categorizedActivities = useMemo(() => ({
-    live:         activities.filter(a => a.type === 'bet_placed' || a.type === 'resolution'),
+    live:         activities.filter(a => a.type === 'bet_placed' || a.type === 'resolution' || a.type === 'referral'),
     achievements: activities.filter(a => a.type === 'achievement' || a.type === 'bet_won'),
     friends:      activities.filter(a => a.type === 'bet_placed' && a.user?.toLowerCase() !== address?.toLowerCase()),
   }), [activities, address]);

@@ -25,7 +25,9 @@ const DashboardView = ({
   achievements = [],
   isLoading = false,
   error = null,
-  onViewAchievements = () => {}
+  userPoints = 0,
+  onViewAchievements = () => {},
+  onExploreMarkets = () => {}
 }) => {
   const { address } = useAccount();
   const preferences = useUserPreferences(address);
@@ -113,7 +115,7 @@ const DashboardView = ({
             </button>
           )}
         </div>
-        {isWidgetVisible('performance') && <PerformanceCard userStats={userStats} />}
+        {isWidgetVisible('performance') && <PerformanceCard userStats={userStats} userPoints={userPoints} />}
       </section>
 
       {/* Charts Section */}
@@ -269,7 +271,10 @@ const DashboardView = ({
           You're building an impressive track record. Stay consistent, make strategic bets, and watch your portfolio grow.
         </p>
         <div className="flex gap-4 justify-center flex-wrap">
-          <button className="px-8 py-3 bg-primary hover:bg-primary/90 text-dark-950 font-bold rounded-lg transition-all hover:scale-105">
+          <button 
+            onClick={onExploreMarkets}
+            className="px-8 py-3 bg-primary hover:bg-primary/90 text-dark-950 font-bold rounded-lg transition-all hover:scale-105"
+          >
             Explore Markets
           </button>
           {/* FIX 2: was setEditMode(false) — now correctly toggles */}

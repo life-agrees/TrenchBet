@@ -207,7 +207,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
         <div className="space-y-6">
           {/* Campaign ID */}
           <div>
-            <label className="block text-sm font-semibold text-neutral-300 mb-2">
+            <label className="block text-sm font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
               Campaign ID
             </label>
             <input
@@ -221,8 +221,8 @@ export default function VouchersTab({ vouchersContractAddress }) {
           </div>
 
           {/* CSV Upload Instructions */}
-          <div className="bg-neutral-50 dark:bg-dark-900/50 border-l-4 border-primary/30 p-4 rounded">
-            <p className="text-sm text-neutral-300 mb-2 font-semibold">CSV Format:</p>
+          <div className="bg-neutral-100 dark:bg-dark-900/50 border-l-4 border-primary/30 p-4 rounded">
+            <p className="text-sm text-neutral-700 dark:text-neutral-300 mb-2 font-semibold">CSV Format:</p>
             <code className="text-xs text-neutral-400 block bg-white dark:bg-dark-950 p-3 rounded mt-2">
               0x123...abc, 10<br/>
               0x456...def, 15<br/>
@@ -233,7 +233,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
 
           {/* File Upload */}
           <div>
-            <label className="block text-sm font-semibold text-neutral-300 mb-2">
+            <label className="block text-sm font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
               Upload CSV File
             </label>
             <div className="flex gap-4">
@@ -298,7 +298,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
         <div className="space-y-5">
           {/* User Address */}
           <div>
-            <label className="block text-sm font-semibold text-neutral-300 mb-2">
+            <label className="block text-sm font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
               Wallet Address
             </label>
             <input
@@ -313,7 +313,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
           {/* Amount */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-neutral-300 mb-2">
+              <label className="block text-sm font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
                 Amount (USD)
               </label>
               <input
@@ -329,7 +329,7 @@ export default function VouchersTab({ vouchersContractAddress }) {
 
             {/* Reason */}
             <div>
-              <label className="block text-sm font-semibold text-neutral-300 mb-2">
+              <label className="block text-sm font-semibold text-neutral-600 dark:text-neutral-300 mb-2">
                 Reason
               </label>
               <select

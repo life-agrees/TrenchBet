@@ -156,8 +156,8 @@ export const useReferrals = () => {
   }, [address, isConnected, writeContract, fetchReferralData]);
 
   const getReferralLink  = useCallback(() => referralCode ? `https://trenchy.bet/ref/${referralCode}` : '', [referralCode]);
-  const shareToTwitter   = useCallback(() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join me on @TrenchyBet! Use my referral code: ${referralCode}`)}`, '_blank'), [referralCode]);
-  const shareToTelegram  = useCallback(() => window.open(`https://t.me/share/url?url=${encodeURIComponent(getReferralLink())}&text=${encodeURIComponent(`Join me on TrenchyBet! Code: ${referralCode}`)}`, '_blank'), [referralCode, getReferralLink]);
+  const shareToTwitter   = useCallback(() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Join me on @TrenchyBet and earn 1,000 Points! 🚀 Use my referral code: ${referralCode}`)}`, '_blank'), [referralCode]);
+  const shareToTelegram  = useCallback(() => window.open(`https://t.me/share/url?url=${encodeURIComponent(getReferralLink())}&text=${encodeURIComponent(`Join me on TrenchyBet! Get 1,000 Points using my code: ${referralCode}`)}`, '_blank'), [referralCode, getReferralLink]);
   const copyReferralCode = useCallback(async () => { try { await navigator.clipboard.writeText(referralCode); return true; } catch { return false; } }, [referralCode]);
   const copyReferralLink = useCallback(async () => { try { await navigator.clipboard.writeText(getReferralLink()); return true; } catch { return false; } }, [getReferralLink]);
 

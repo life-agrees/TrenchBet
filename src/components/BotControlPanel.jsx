@@ -158,8 +158,8 @@ export default function BotControlPanel() {
               { label: 'Resolved', value: status.stats.marketsResolved },
               { label: 'Errors',   value: status.stats.errors,  red: true },
             ].map(({ label, value, red }) => (
-              <div key={label} className="bg-neutral-50 dark:bg-dark-900/60 rounded-lg p-3 border border-neutral-200 dark:border-dark-700">
-                <p className="text-xs text-neutral-500">{label}</p>
+              <div key={label} className="bg-neutral-100 dark:bg-dark-900/60 rounded-lg p-3 border border-neutral-200 dark:border-dark-700">
+                <p className="text-xs text-neutral-600 dark:text-neutral-500">{label}</p>
                 <p className={`text-2xl font-black ${red && value > 0 ? 'text-red-400' : 'text-neutral-900 dark:text-white'}`}>{value}</p>
               </div>
             ))}
@@ -168,8 +168,8 @@ export default function BotControlPanel() {
       </div>
 
       {/* Manual cycle fire buttons */}
-      <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-5">
-        <h4 className="text-sm font-bold text-neutral-400 uppercase tracking-wide mb-3">Manual Fire</h4>
+  <div className="bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-xl p-5 shadow-sm">
+    <h4 className="text-sm font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-3">Manual Fire</h4>
         <div className="grid grid-cols-2 gap-2">
           {CYCLES.map(({ key, label, color }) => {
             const running = status?.cycleRunning?.[key];
@@ -179,7 +179,7 @@ export default function BotControlPanel() {
                 key={key}
                 onClick={() => handleFireCycle(key)}
                 disabled={firing[key] || running}
-                className="flex items-center justify-between px-4 py-3 bg-neutral-50 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700 hover:border-dark-500 rounded-lg transition-all disabled:opacity-50 text-left"
+                className="flex items-center justify-between px-4 py-3 bg-neutral-100 dark:bg-dark-900/60 border border-neutral-200 dark:border-dark-700 hover:border-neutral-300 dark:hover:border-dark-500 rounded-lg transition-all disabled:opacity-50 text-left"
               >
                 <div>
                   <p className={`text-sm font-bold ${color}`}>{label}</p>
@@ -212,7 +212,7 @@ export default function BotControlPanel() {
           <div className="px-5 pb-5 space-y-5 border-t border-neutral-200 dark:border-dark-700">
             {/* Assets */}
             <div className="pt-4">
-              <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Assets</label>
+              <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide block mb-2">Assets</label>
               <div className="flex gap-2">
                 {ASSETS.map(a => (
                   <button
@@ -232,7 +232,7 @@ export default function BotControlPanel() {
 
             {/* Durations */}
             <div>
-              <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Durations (minutes)</label>
+              <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide block mb-2">Durations (minutes)</label>
               <div className="grid grid-cols-5 gap-2">
                 {[
                   { key: 'binary', label: 'Binary' },
@@ -242,7 +242,7 @@ export default function BotControlPanel() {
                   { key: 'time', label: 'Time' },
                 ].map(({ key, label }) => (
                   <div key={key}>
-                    <p className="text-xs text-neutral-500 mb-1">{label}</p>
+                    <p className="text-xs text-neutral-600 dark:text-neutral-500 mb-1">{label}</p>
                     <input
                       type="number"
                       value={cfg.durations[key] / 60}
@@ -258,7 +258,7 @@ export default function BotControlPanel() {
             {/* Range band + time target */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Range Band %</label>
+                <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide block mb-2">Range Band %</label>
                 <input
                   type="number"
                   value={cfg.rangeBandPercent}
@@ -269,7 +269,7 @@ export default function BotControlPanel() {
                 <p className="text-[10px] text-neutral-600 mt-1">±{cfg.rangeBandPercent}% around current price</p>
               </div>
               <div>
-                <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Time Target %</label>
+                <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide block mb-2">Time Target %</label>
                 <input
                   type="number"
                   value={cfg.timePriceTargetPct}
@@ -283,7 +283,7 @@ export default function BotControlPanel() {
 
             {/* Schedules */}
             <div>
-              <label className="text-xs font-bold text-neutral-400 uppercase tracking-wide block mb-2">Cron Schedules</label>
+              <label className="text-xs font-bold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide block mb-2">Cron Schedules</label>
               <div className="space-y-2">
                 {['binary', 'range30', 'range45', 'range60', 'time', 'resolve'].map(k => (
                   <div key={k} className="flex items-center gap-3">
@@ -313,7 +313,7 @@ export default function BotControlPanel() {
                     onChange={e => setCfg(c => ({ ...c, useFixedOdds: e.target.checked }))}
                     className="w-4 h-4 cursor-pointer"
                   />
-                  <label htmlFor="useFixedOdds" className="text-sm text-neutral-300 cursor-pointer">
+                  <label htmlFor="useFixedOdds" className="text-sm text-neutral-700 dark:text-neutral-300 cursor-pointer">
                     Use Fixed Odds (Casino Mode)
                   </label>
                 </div>
@@ -327,7 +327,7 @@ export default function BotControlPanel() {
                     onChange={e => setCfg(c => ({ ...c, useTimeDecay: e.target.checked }))}
                     className="w-4 h-4 cursor-pointer"
                   />
-                  <label htmlFor="useTimeDecay" className="text-sm text-neutral-300 cursor-pointer">
+                  <label htmlFor="useTimeDecay" className="text-sm text-neutral-700 dark:text-neutral-300 cursor-pointer">
                     Enable Time-Decaying Odds
                   </label>
                 </div>

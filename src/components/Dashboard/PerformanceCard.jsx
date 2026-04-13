@@ -5,7 +5,7 @@ import { TrendingUp, TrendingDown, Award, Target, Zap, DollarSign } from 'lucide
 /**
  * Performance Card Component
  */
-const PerformanceCard = ({ userStats = {} }) => {
+const PerformanceCard = ({ userStats = {}, userPoints = 0 }) => {
   const {
     totalBets    = 0,
     wins         = 0,
@@ -63,7 +63,18 @@ const PerformanceCard = ({ userStats = {} }) => {
       bgColor: 'bg-primary/5 dark:bg-primary/10',
       borderColor: 'border-primary/20 dark:border-primary/20',
     },
-  ], [winRate, roi, streak, totalWinnings]);
+    {
+      id: 'points',
+      label: 'Platform Points',
+      value: userPoints.toLocaleString(),
+      trend: 'neutral',
+      icon: Star,
+      color: 'text-amber-500 dark:text-yellow-400',
+      shadowColor: 'shadow-yellow-500/10 dark:shadow-yellow-400/20',
+      bgColor: 'bg-yellow-50 dark:bg-yellow-400/10',
+      borderColor: 'border-yellow-100 dark:border-yellow-400/20',
+    },
+  ], [winRate, roi, streak, totalWinnings, userPoints]);
 
   const avgBetSize = totalBets > 0 ? (totalWagered / totalBets).toFixed(2) : '0.00';
 
@@ -89,7 +100,7 @@ const PerformanceCard = ({ userStats = {} }) => {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"
       >
         {stats.map((stat) => {
           const Icon = stat.icon;

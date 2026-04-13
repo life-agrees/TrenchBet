@@ -134,8 +134,15 @@ const {
   const { leaderboard, isLoading: isLoadingLeaderboard } = useLeaderboard(10);
   const { isOwner } = useAdminOwner();
 
-const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
+  const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
   const { pointsData, refreshPoints } = usePointsData(address);
+
+  // Unified Points Balance: API Points + Referral Points (Earnings * 100)
+  const unifiedPoints = useMemo(() => {
+    const apiPoints = pointsData?.total_points || 0;
+    const referralPoints = (referralStats?.referralEarnings || 0) * 100;
+    return apiPoints + referralPoints;
+  }, [pointsData, referralStats]);
 
   const { toggleFavorite, isFavorite } = useFavorites();
 
@@ -584,7 +591,9 @@ if (market?.resolved) {
             userBets={userBets}
             achievements={achievements}
             isLoading={isLoadingUserBets}
+            userPoints={unifiedPoints}
             onViewAchievements={() => setCurrentView('achievements')}
+            onExploreMarkets={() => setCurrentView('markets')}
           />
         ) : <EmptyState isConnected={isConnected} variant="empty" />;
 
@@ -899,7 +908,7 @@ if (market?.resolved) {
         isConnected={isConnected}
         isOwner={isOwner}
         formattedUsdcBalance={formattedUsdcBalance}
-        userPoints={pointsData?.total_points || 0}
+        userPoints={unifiedPoints}
         onAddFunds={() => setShowAddFundsModal(true)}
         chainName={chain?.name || 'Network'}
         isSidebarCollapsed={isSidebarCollapsed}  // FIX 4: now correctly passed

@@ -238,8 +238,9 @@ export const PROXY_CONTRACT_ADDRESS = PROXY_ADDRESS;
 // Referral System Configuration
 
 export const REFERRAL = {
-  REWARD_AMOUNT: '10', // TRENCHY tokens per referral
+  REWARD_AMOUNT: '1000', // Points awarded per referral (mapped from 10 TRENCHY)
   MAX_REFERRALS_PER_USER: 100,
+  UNIT_LABEL: 'Points',
 };
 
 // Achievement Configuration

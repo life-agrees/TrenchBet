@@ -19,7 +19,7 @@ const fetchRealActivities = async (publicClient, address) => {
     const fromBlock = currentBlock > LOOKBACK_BLOCKS ? currentBlock - LOOKBACK_BLOCKS : 0n;
     
     // Fetch Global events (not filtered by address for the "Live" feed)
-    const [betLogs, resolvedLogs, claimedLogs] = await Promise.all([
+    const [betLogs, resolvedLogs, claimedLogs, referralLogs] = await Promise.all([
       publicClient.getLogs({
         address: CONTRACTS.PROXY,
         event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
@@ -37,16 +37,21 @@ const fetchRealActivities = async (publicClient, address) => {
         event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
         fromBlock,
         toBlock: 'latest'
+      }).catch(() => []),
+      publicClient.getLogs({
+        address: CONTRACTS.REFERRALS,
+        event: parseAbiItem('event ReferralRegistered(address indexed user, address indexed referrer)'),
+        fromBlock,
+        toBlock: 'latest'
       }).catch(() => [])
     ]);
 
     // Get block timestamps for all logs in parallel (with caching if possible)
-    // For simplicity in a feed, we'll estimate time first, or fetch a few key ones.
-    // Optimization: eth_getLogs already returns blockNumber. We can approximate or fetch.
-    const blockNumbers = [...new Set([...betLogs, ...resolvedLogs, ...claimedLogs].map(l => l.blockNumber))];
+    const allLogs = [...betLogs, ...resolvedLogs, ...claimedLogs, ...referralLogs];
+    const blockNumbers = [...new Set(allLogs.map(l => l.blockNumber))];
     
-    // To keep it snappy, only fetch timestamps for the latest 20 logs
-    const latestLogs = [...betLogs, ...resolvedLogs, ...claimedLogs]
+    // To keep it snappy, only fetch timestamps for the latest logs
+    const latestLogs = allLogs
       .sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber))
       .slice(0, 30);
       
@@ -92,6 +97,19 @@ const fetchRealActivities = async (publicClient, address) => {
         };
       }
       
+      if (log.eventName === 'ReferralRegistered') {
+        const isUserReferrer = address && log.args.referrer?.toLowerCase() === address.toLowerCase();
+        return {
+          id: `ref-${log.transactionHash}-${log.logIndex}`,
+          type: 'referral',
+          title: isUserReferrer ? 'New Referral Earned! 👥' : 'New Referral',
+          desc: isUserReferrer ? 'Someone joined using your link! (+1,000 Points)' : `${log.args.user?.slice(0,6)}... was referred by ${log.args.referrer?.slice(0,6)}...`,
+          time: new Date(),
+          blockNumber: log.blockNumber,
+          user: log.args.user
+        };
+      }
+
       return null;
     }).filter(Boolean);
 
@@ -115,7 +133,7 @@ export const useActivityFeed = (address, isConnected) => {
     queryFn: () => fetchRealActivities(publicClient, address),
     enabled: !!isConnected,
     staleTime: 5_000,
-    refetchInterval: 12_000, // Refresh global feed every 12s
+    refetchInterval: 5_000, // Sync every 5s for real-time feel
   });
 
   const refresh = useCallback(() => {
