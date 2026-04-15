@@ -259,4 +259,4 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
   );
 };
 
-export default Sidebar;
+export default React.memo(Sidebar);

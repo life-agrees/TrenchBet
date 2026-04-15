@@ -900,6 +900,9 @@ if (market?.resolved) {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  const handleAddFunds = useCallback(() => setShowAddFundsModal(true), []);
+  const chainName = useMemo(() => chain?.name || 'Network', [chain?.name]);
+
   return (
     <>
       <MainLayout
@@ -909,9 +912,9 @@ if (market?.resolved) {
         isOwner={isOwner}
         formattedUsdcBalance={formattedUsdcBalance}
         userPoints={unifiedPoints}
-        onAddFunds={() => setShowAddFundsModal(true)}
-        chainName={chain?.name || 'Network'}
-        isSidebarCollapsed={isSidebarCollapsed}  // FIX 4: now correctly passed
+        onAddFunds={handleAddFunds}
+        chainName={chainName}
+        isSidebarCollapsed={isSidebarCollapsed}
       >
         <Toaster
           position="top-right"

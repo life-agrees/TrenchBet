@@ -22,7 +22,7 @@ export const HeroSection = ({ onLaunchApp }) => {
           </span>
         </h1>
 
-        <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
+        <p className="text-xl text-neutral-300 mb-10 max-w-2xl mx-auto drop-shadow-sm font-medium">
           The fastest prediction markets on Base. 15-minute cycles, instant payouts, 
           and earn points with every bet. Convert points to $TRENCHY tokens.
         </p>
@@ -37,7 +37,7 @@ export const HeroSection = ({ onLaunchApp }) => {
           </button>
           <button 
             onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
-            className="px-8 py-4 bg-gray-800/50 hover:bg-gray-800 text-neutral-900 dark:text-white font-semibold rounded-xl border border-gray-700 transition-all"
+            className="px-8 py-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 backdrop-blur-md transition-all"
           >
             Learn More
           </button>
@@ -47,15 +47,15 @@ export const HeroSection = ({ onLaunchApp }) => {
         <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
           <div className="text-center">
             <div className="text-3xl font-bold text-neutral-900 dark:text-white">$2.5M+</div>
-            <div className="text-gray-500 text-sm">Total Volume</div>
+            <div className="text-neutral-400 text-sm font-bold tracking-wider uppercase">Total Volume</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">50K+</div>
-            <div className="text-gray-500 text-sm">Active Users</div>
+            <div className="text-3xl font-black text-neutral-900 dark:text-white">50K+</div>
+            <div className="text-neutral-400 text-sm font-bold tracking-wider uppercase">Active Users</div>
           </div>
           <div className="text-center">
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">100+</div>
-            <div className="text-gray-500 text-sm">Markets</div>
+            <div className="text-3xl font-black text-neutral-900 dark:text-white">100+</div>
+            <div className="text-neutral-400 text-sm font-bold tracking-wider uppercase">Markets</div>
           </div>
         </div>
       </div>

@@ -45,7 +45,7 @@ const LandingHeader = ({ onLaunchApp }) => {
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-gray-900/95 backdrop-blur-md border-b border-gray-800 shadow-lg'
+          ? 'bg-dark-950/90 backdrop-blur-md border-b border-light/10 shadow-lg'
           : 'bg-transparent'
       }`}
     >
@@ -65,7 +65,7 @@ const LandingHeader = ({ onLaunchApp }) => {
               <button
                 key={item.sectionId}
                 onClick={() => scrollToSection(item.sectionId)}
-                className="text-gray-300 hover:text-[#c0ff00] font-medium transition-colors duration-200 text-sm"
+                className="text-neutral-200 hover:text-[#CDFF00] font-bold transition-all duration-200 text-sm tracking-tight"
               >
                 {item.label}
               </button>
@@ -76,7 +76,7 @@ const LandingHeader = ({ onLaunchApp }) => {
           <div className="hidden md:block">
             <button
               onClick={onLaunchApp}
-              className="group inline-flex items-center gap-2 px-6 py-2.5 bg-[#c0ff00] hover:bg-[#d4ff33] text-gray-900 font-bold rounded-lg transition-all hover:scale-105 text-sm"
+              className="group inline-flex items-center gap-2 px-6 py-2.5 bg-[#CDFF00] hover:bg-[#d4ff33] text-dark-950 font-black rounded-lg transition-all hover:scale-105 text-sm shadow-[0_0_20px_rgba(205,255,0,0.2)]"
             >
               Launch App
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -86,7 +86,7 @@ const LandingHeader = ({ onLaunchApp }) => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 text-gray-300 hover:text-neutral-900 dark:text-white transition-colors"
+            className="md:hidden p-2 text-neutral-200 hover:text-white transition-colors"
             aria-label="Toggle menu"
           >
             {isMobileMenuOpen ? (
@@ -104,12 +104,12 @@ const LandingHeader = ({ onLaunchApp }) => {
           isMobileMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="bg-gray-900/98 backdrop-blur-md border-b border-gray-800 px-4 py-4 space-y-4">
+        <div className="bg-dark-950/98 backdrop-blur-xl border-b border-white/10 px-6 py-6 space-y-2">
           {navItems.map((item) => (
             <button
               key={item.sectionId}
               onClick={() => scrollToSection(item.sectionId)}
-              className="block w-full text-left text-gray-300 hover:text-[#c0ff00] font-medium transition-colors duration-200 py-2"
+              className="block w-full text-left text-neutral-200 hover:text-[#CDFF00] font-bold transition-all duration-200 py-3 border-b border-white/5"
             >
               {item.label}
             </button>
@@ -119,7 +119,7 @@ const LandingHeader = ({ onLaunchApp }) => {
               onLaunchApp();
               setIsMobileMenuOpen(false);
             }}
-            className="w-full group inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#c0ff00] hover:bg-[#d4ff33] text-gray-900 font-bold rounded-lg transition-all text-sm mt-4"
+            className="w-full group inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#CDFF00] hover:bg-[#d4ff33] text-dark-950 font-black rounded-lg transition-all text-sm mt-4 shadow-lg"
           >
             Launch App
             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />

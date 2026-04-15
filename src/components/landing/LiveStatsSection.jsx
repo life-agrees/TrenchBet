@@ -36,28 +36,29 @@ export const LiveStatsSection = ({ liveStats, isLoading }) => {
   ];
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[#00FF88]/5 pointer-events-none blur-[100px]" />
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">Live Platform Stats</h2>
-          <p className="text-gray-400">Real-time data from Base network</p>
+        <div className="text-center mb-16">
+          <h2 className="text-4xl font-black text-neutral-900 dark:text-white mb-4 tracking-tight">Live Platform Stats</h2>
+          <p className="text-neutral-300 font-medium">Real-time data directly from the Base network</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
           {statItems.map((item, index) => (
             <div
               key={index}
-              className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 text-center hover:border-[#c0ff00]/30 transition-colors group"
+              className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-8 text-center hover:border-[#c0ff00]/40 hover:bg-white/10 transition-all duration-300 group shadow-2xl"
             >
-              <item.icon className={`w-8 h-8 ${item.color} mx-auto mb-4 group-hover:scale-110 transition-transform`} />
-              <div className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+              <item.icon className={`w-10 h-10 ${item.color} mx-auto mb-6 group-hover:scale-110 transition-transform duration-300`} />
+              <div className="text-3xl font-black text-neutral-900 dark:text-white mb-2 tracking-tight">
                 {isLoading ? (
-                  <span className="inline-block w-16 h-8 bg-gray-700 rounded animate-pulse"></span>
+                  <span className="inline-block w-20 h-9 bg-white/10 rounded-lg animate-pulse"></span>
                 ) : (
                   item.value
                 )}
               </div>
-              <div className="text-gray-500 text-sm">{item.label}</div>
+              <div className="text-neutral-400 text-xs font-bold uppercase tracking-widest">{item.label}</div>
             </div>
           ))}
         </div>

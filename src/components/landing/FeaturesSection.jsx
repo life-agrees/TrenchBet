@@ -36,11 +36,12 @@ export const FeaturesSection = ({ onLaunchApp }) => {
   ];
 
   return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
+    <section className="py-24 px-4 sm:px-6 lg:px-8 relative bg-dark-900/20">
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[#c0ff00]/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-4">Why TrenchyBet?</h2>
-          <p className="text-gray-400 max-w-2xl mx-auto">
+          <h2 className="text-4xl font-black text-neutral-900 dark:text-white mb-4 tracking-tight">Why TrenchyBet?</h2>
+          <p className="text-neutral-300 font-medium max-w-2xl mx-auto">
             The most advanced prediction market platform on Base
           </p>
         </div>
@@ -49,14 +50,14 @@ export const FeaturesSection = ({ onLaunchApp }) => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className="flex flex-col gap-4 p-6 bg-gray-800/30 border border-gray-700/50 rounded-xl hover:border-[#c0ff00]/30 transition-all group"
+              className="flex flex-col gap-5 p-8 bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl hover:border-[#c0ff00]/40 transition-all duration-300 group shadow-lg"
             >
               <div className="w-12 h-12 bg-[#c0ff00]/10 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:bg-[#c0ff00]/20 transition-colors">
                 <feature.icon className="w-6 h-6 text-[#c0ff00]" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-400 text-sm">{feature.description}</p>
+                <h3 className="text-xl font-bold text-neutral-900 dark:text-white mb-3 tracking-tight">{feature.title}</h3>
+                <p className="text-neutral-400 text-sm leading-relaxed font-medium">{feature.description}</p>
               </div>
             </div>
           ))}
@@ -65,7 +66,7 @@ export const FeaturesSection = ({ onLaunchApp }) => {
         <div className="text-center mt-12">
           <button
             onClick={onLaunchApp}
-            className="px-8 py-4 bg-[#c0ff00] hover:bg-[#d4ff33] text-gray-900 font-bold rounded-xl transition-all hover:scale-105"
+            className="px-10 py-4 bg-[#CDFF00] hover:bg-[#d4ff33] text-dark-950 font-black rounded-xl transition-all hover:scale-105 shadow-[0_0_30px_rgba(205,255,0,0.15)]"
           >
             Start Predicting Now
           </button>

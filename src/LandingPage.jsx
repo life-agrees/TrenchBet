@@ -35,35 +35,38 @@ const LandingPage = ({
 }) => {
   return (
     // FIX 2: dark-950/dark-900 instead of gray-900/gray-800
-    <div className="min-h-screen bg-gradient-to-b from-dark-950 via-dark-900 to-dark-950">
-      <LandingHeader onLaunchApp={onLaunchApp} />
+    <div className="min-h-screen bg-dark-950">
+      <div className="fixed inset-0 bg-gradient-to-b from-dark-950 via-dark-900 to-dark-950 pointer-events-none" />
+      <div className="relative z-10">
+        <LandingHeader onLaunchApp={onLaunchApp} />
 
-      <div className="pt-16 sm:pt-20">
-        <HeroSection onLaunchApp={onLaunchApp} />
+        <div className="pt-16 sm:pt-20">
+          <HeroSection onLaunchApp={onLaunchApp} />
+        </div>
+
+        <div id="live-stats">
+          {/* FIX 1: isLoadingStats now forwarded correctly */}
+          <LiveStatsSection liveStats={liveStats} isLoading={isLoadingStats} />
+        </div>
+
+        <div id="how-it-works">
+          <HowItWorksSection />
+        </div>
+
+        <div id="features">
+          <FeaturesSection onLaunchApp={onLaunchApp} />
+        </div>
+
+        <div id="about">
+          <AboutSection onLaunchApp={onLaunchApp} />
+        </div>
+
+        <div id="testimonials">
+          <TestimonialsSection />
+        </div>
+
+        <Footer />
       </div>
-
-      <div id="live-stats">
-        {/* FIX 1: isLoadingStats now forwarded correctly */}
-        <LiveStatsSection liveStats={liveStats} isLoading={isLoadingStats} />
-      </div>
-
-      <div id="how-it-works">
-        <HowItWorksSection />
-      </div>
-
-      <div id="features">
-        <FeaturesSection onLaunchApp={onLaunchApp} />
-      </div>
-
-      <div id="about">
-        <AboutSection onLaunchApp={onLaunchApp} />
-      </div>
-
-      <div id="testimonials">
-        <TestimonialsSection />
-      </div>
-
-      <Footer />
     </div>
   );
 };

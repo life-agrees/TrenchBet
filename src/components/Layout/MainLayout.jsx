@@ -7,6 +7,37 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { AnimatePresence, motion } from 'framer-motion';
 
 /**
+ * HeaderStats — memoized component to prevent re-rendering the whole layout
+ * when points or balance update via background polling.
+ */
+const HeaderStats = React.memo(({ userPoints, formattedUsdcBalance }) => (
+  <>
+    <div className="hidden md:flex items-center gap-2">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
+        <Coins size={14} className="text-yellow-500" />
+        <div className="flex flex-col leading-none text-left">
+          <span className="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Points</span>
+          <span className="text-sm font-bold text-neutral-900 dark:text-white">{userPoints.toLocaleString()}</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
+        <Wallet size={14} className="text-primary" />
+        <div className="flex flex-col leading-none text-left">
+          <span className="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Balance</span>
+          <span className="text-sm font-bold text-neutral-900 dark:text-white">{formattedUsdcBalance}</span>
+        </div>
+      </div>
+    </div>
+
+    <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
+      <Coins size={13} className="text-yellow-500" />
+      <span className="text-xs font-bold text-neutral-900 dark:text-white">{userPoints}</span>
+    </div>
+  </>
+));
+HeaderStats.displayName = 'HeaderStats';
+
+/**
  * Main Layout Component
  * Wraps the entire app with sidebar navigation and activity feed
  *
@@ -142,30 +173,10 @@ const MainLayout = ({
 
                 {/* Account Details & Connect Button */}
                 {isConnected && (
-                  <div className="hidden md:flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
-                      <Coins size={14} className="text-yellow-500" />
-                      <div className="flex flex-col leading-none text-left">
-                        <span className="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Points</span>
-                        <span className="text-sm font-bold text-neutral-900 dark:text-white">{userPoints.toLocaleString()}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
-                      <Wallet size={14} className="text-primary" />
-                      <div className="flex flex-col leading-none text-left">
-                        <span className="text-[9px] text-neutral-500 uppercase tracking-wider font-bold">Balance</span>
-                        <span className="text-sm font-bold text-neutral-900 dark:text-white">{formattedUsdcBalance}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Compact points — mobile only */}
-                {isConnected && (
-                  <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
-                    <Coins size={13} className="text-yellow-500" />
-                    <span className="text-xs font-bold text-neutral-900 dark:text-white">{userPoints}</span>
-                  </div>
+                  <HeaderStats 
+                    userPoints={userPoints} 
+                    formattedUsdcBalance={formattedUsdcBalance} 
+                  />
                 )}
 
                 {/* Add Funds */}
@@ -244,4 +255,4 @@ const MainLayout = ({
   );
 };
 
-export default MainLayout;
+export default React.memo(MainLayout);

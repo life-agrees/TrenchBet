@@ -73,4 +73,4 @@ const GlobalActivityTicker = () => {
   );
 };
 
-export default GlobalActivityTicker;
+export default React.memo(GlobalActivityTicker);
