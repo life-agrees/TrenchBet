@@ -576,9 +576,6 @@ if (market?.resolved) {
 
   // ── Early return (after all hooks) ────────────────────────────────────────
 
-  if (showLanding && !isConnected) {
-    return <LandingPage onLaunchApp={() => setShowLanding(false)} liveStats={liveStats} isLoadingStats={isLoadingMarkets} />;
-  }
 
   // ── Content renderer ───────────────────────────────────────────────────────
 
@@ -902,6 +899,10 @@ if (market?.resolved) {
 
   const handleAddFunds = useCallback(() => setShowAddFundsModal(true), []);
   const chainName = useMemo(() => chain?.name || 'Network', [chain?.name]);
+
+  if (showLanding && !isConnected) {
+    return <LandingPage onLaunchApp={() => setShowLanding(false)} liveStats={liveStats} isLoadingStats={isLoadingMarkets} />;
+  }
 
   return (
     <>
