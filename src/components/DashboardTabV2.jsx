@@ -14,6 +14,7 @@ import {
   generateVolumeTrendData, generateUserGrowthData, generateMarketTypeData,
   getMarketStatus, generateAlerts, getSystemStatus, getPlatformMetrics, formatTimeString
 } from '../utils/adminDashboardUtils';
+import { generateMarketTitle } from '../utils/marketDisplay';
 
 const DashboardTab = ({
   stats, isLoadingStats, handleWithdraw, contractAddress, isPending, isConfirming, 
@@ -76,7 +77,7 @@ const DashboardTab = ({
             id: log.transactionHash,
             type: 'bet',
             marketId,
-            marketQuestion: marketData?.question || `Market #${marketId}`,
+            marketQuestion: marketData ? generateMarketTitle(marketData) : `Market #${marketId}`,
             asset: marketData?.asset || 'Unknown',
             user: log.args.user,
             amount: Number(log.args.amount) / 1e6,

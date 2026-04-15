@@ -4,6 +4,7 @@ import { usePublicClient } from 'wagmi';
 import { parseAbiItem, formatUnits } from 'viem';
 import { createLogger } from '../utils/logger';
 import { CONTRACTS } from '../config/wagmi';
+import { generateMarketTitle } from '../utils/marketDisplay';
 
 const logger = createLogger('useActivityFeed');
 
@@ -198,12 +199,14 @@ export const useActivityFeed = (address, isConnected, markets = []) => {
       if (!market) return activity;
 
       let enhancedDesc = activity.desc;
+      const marketTitle = generateMarketTitle(market);
+      
       if (activity.type === 'bet_placed') {
-        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} bet on: ${market.question}`;
+        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} bet on: ${marketTitle}`;
       } else if (activity.type === 'resolution') {
-        enhancedDesc = `Resolved: ${market.question}`;
+        enhancedDesc = `Resolved: ${marketTitle}`;
       } else if (activity.type === 'bet_won') {
-        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} won on: ${market.question}`;
+        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} won on: ${marketTitle}`;
       }
 
       return { ...activity, desc: enhancedDesc };
