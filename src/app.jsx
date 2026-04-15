@@ -916,6 +916,7 @@ if (market?.resolved) {
         onAddFunds={handleAddFunds}
         chainName={chainName}
         isSidebarCollapsed={isSidebarCollapsed}
+        markets={markets}
       >
         <Toaster
           position="top-right"

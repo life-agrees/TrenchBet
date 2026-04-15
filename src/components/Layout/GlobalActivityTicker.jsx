@@ -10,9 +10,9 @@ import useActivityFeed from '../../hooks/useActivityFeed';
  * A premium, sportsbook-style marquee that scrolls through global platform activity.
  * Uses real-time data from the useActivityFeed hook.
  */
-const GlobalActivityTicker = () => {
+const GlobalActivityTicker = ({ markets = [] }) => {
   const { address } = useAccount();
-  const { activities, isLoading } = useActivityFeed(address, true);
+  const { activities, isLoading } = useActivityFeed(address, true, markets);
 
   // Filter for key activities to display in the ticker (bets and wins)
   const tickerItems = useMemo(() => {

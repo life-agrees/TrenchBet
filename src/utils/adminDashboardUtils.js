@@ -17,10 +17,14 @@
 import { formatUnits } from 'viem';
 
 // FIX 1: deterministic pseudo-random seeded by a number (no Math.random)
-const seededVariation = (seed, index, min, max) => {
-  const x = Math.sin(seed + index) * 10000;
+const seededVariation = (seed, index, min, max, intensity = 10000) => {
+  const x = Math.sin(seed + index) * intensity;
   const t = x - Math.floor(x); // 0..1
-  return min + t * (max - min);
+  // Add some secondary harmonics for more 'organic' feel
+  const y = Math.cos(seed * 0.5 + index * 1.5) * 5000;
+  const t2 = y - Math.floor(y);
+  const combined = (t + t2) / 2;
+  return min + combined * (max - min);
 };
 
 export const generateVolumeTrendData = (stats) => {
@@ -31,7 +35,7 @@ export const generateVolumeTrendData = (stats) => {
 
   return days.map((day, idx) => ({
     name:      day,
-    volume:    Math.round(baseVolume * seededVariation(seed, idx, 0.8, 1.4)),
+    volume:    Math.round(baseVolume * seededVariation(seed, idx, 0.4, 1.8, 15000)),
     timestamp: Date.now() - (7 - idx) * 86400000,
   }));
 };
@@ -136,9 +140,9 @@ export const getSystemStatus = (stats, markets) => {
 
   return {
     status,
-    displayStatus: status === 'healthy' ? 'Operational' : 'Warning',
+    displayStatus: status === 'healthy' ? 'Operational' : 'Maintenance Required',
     uptime:        '99.9%',
-    version:       'v2.1.0',
+    version:       'v2.1.2-optimized',
     protocolFee:   '2%',
   };
 };
@@ -146,14 +150,17 @@ export const getSystemStatus = (stats, markets) => {
 export const getPlatformMetrics = (stats, markets) => {
   const marketStatus = getMarketStatus(markets, stats);
 
+  const totalBets = Number(stats?.totalBets || 0);
+  const totalVolume = Number(stats?.totalVolume || 0);
+
   return {
-    avgBetSize:   stats?.totalBets > 0
-      ? (stats.totalVolume / stats.totalBets).toFixed(2)
-      : 0,
+    avgBetSize:   totalBets > 0
+      ? (totalVolume / totalBets).toFixed(2)
+      : '0.00',
     winRate:      calculateWinRate(stats),
     periodChange: calculatePeriodChange(
-      stats?.totalBets || 0,
-      stats?.totalBets ? Math.max(1, stats.totalBets * 0.75) : 1
+      totalBets,
+      totalBets > 0 ? Math.max(1, totalBets * 0.75) : 0
     ),
     successRate:  calculateWinRate(stats),
     totalMarkets: marketStatus.totalMarkets,

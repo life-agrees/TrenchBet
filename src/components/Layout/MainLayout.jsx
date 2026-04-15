@@ -69,6 +69,7 @@ const MainLayout = ({
   onAddFunds = () => {},
   chainName = 'Network',
   isSidebarCollapsed = false,
+  markets = [],
 }) => {
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -127,7 +128,7 @@ const MainLayout = ({
         <main className={`app-main flex-1 transition-all duration-300 w-full ${SIDEBAR_W} ${ACTIVITY_W}`}>
           
           {/* Global Activity Ticker */}
-          <GlobalActivityTicker />
+          <GlobalActivityTicker markets={markets} />
 
           {/* ── Top Header ───────────────────────────────────────────────── */}
           <header
@@ -249,6 +250,7 @@ const MainLayout = ({
           isOpen={activityFeedOpen}
           onClose={() => setActivityFeedOpen(false)}
           isConnected={isConnected}
+          markets={markets}
         />
       </div>
     </div>

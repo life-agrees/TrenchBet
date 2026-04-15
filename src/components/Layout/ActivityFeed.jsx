@@ -121,9 +121,9 @@ ActivityCard.displayName = 'ActivityCard';
 /**
  * ActivityFeed sidebar component.
  */
-const ActivityFeed = ({ isOpen, onClose, isConnected }) => {
+const ActivityFeed = ({ isOpen, onClose, isConnected, markets = [] }) => {
   const { address } = useAccount();
-  const { activities, isLoading, refresh } = useActivityFeed(address, isConnected);
+  const { activities, isLoading, refresh } = useActivityFeed(address, isConnected, markets);
   const [activeTab, setActiveTab] = useState('live');
 
   const contentRef = useRef(null);

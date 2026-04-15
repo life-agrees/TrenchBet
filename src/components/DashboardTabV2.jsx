@@ -29,6 +29,9 @@ const DashboardTab = ({
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  
+  // Cache for block timestamps to avoid redundant RPC calls
+  const blockCache = useRef({});
 
   // Format number helper
   const formatNumber = (num) => {
@@ -50,26 +53,44 @@ const DashboardTab = ({
       });
 
       const recentLogs = logs.slice(-15).reverse();
-      const activities = [];
-
-      for (const log of recentLogs) {
+      
+      // Parallel fetch block timestamps with caching
+      const activities = await Promise.all(recentLogs.map(async (log) => {
         try {
-          const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
-          activities.push({
+          const blockNumber = Number(log.blockNumber);
+          let timestamp;
+          
+          if (blockCache.current[blockNumber]) {
+            timestamp = blockCache.current[blockNumber];
+          } else {
+            const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+            timestamp = Number(block.timestamp) * 1000;
+            blockCache.current[blockNumber] = timestamp;
+          }
+
+          // Resolve market details (question/asset) from markets prop
+          const marketId = Number(log.args.marketId);
+          const marketData = markets.find(m => Number(m.id) === marketId);
+
+          return {
             id: log.transactionHash,
             type: 'bet',
-            marketId: Number(log.args.marketId),
+            marketId,
+            marketQuestion: marketData?.question || `Market #${marketId}`,
+            asset: marketData?.asset || 'Unknown',
             user: log.args.user,
             amount: Number(log.args.amount) / 1e6,
             choice: Number(log.args.choice),
-            timestamp: Number(block.timestamp) * 1000,
+            timestamp,
             txHash: log.transactionHash
-          });
+          };
         } catch (error) {
-          console.warn('Failed to fetch block:', error);
+          console.warn('Failed to process log:', error);
+          return null;
         }
-      }
-      setRecentActivity(activities);
+      }));
+
+      setRecentActivity(activities.filter(Boolean));
     } catch (error) {
       console.error('Failed to fetch activity:', error);
     } finally {
@@ -115,10 +136,11 @@ const DashboardTab = ({
   const getSafeBlockRange = async () => {
     try {
       const currentBlock = await publicClient.getBlockNumber();
-      const fromBlock = currentBlock > BigInt(5000) ? currentBlock - BigInt(5000) : BigInt(0);
+      // Increase scan window to 10,000 blocks for more comprehensive user metrics
+      const fromBlock = currentBlock > BigInt(10000) ? currentBlock - BigInt(10000) : BigInt(0);
       return { fromBlock, toBlock: 'latest' };
     } catch {
-      return { fromBlock: BigInt(-5000), toBlock: 'latest' };
+      return { fromBlock: BigInt(-10000), toBlock: 'latest' };
     }
   };
 
@@ -463,11 +485,34 @@ const DashboardTab = ({
                   <tbody className="divide-y divide-neutral-100 dark:divide-dark-700">
                     {recentActivity.map(activity => (
                       <tr key={activity.id} className="hover:bg-neutral-50 dark:hover:bg-dark-700/30 transition">
-                        <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 font-medium">{formatTimeString(activity.timestamp)}</td>
-                        <td className="px-4 py-3 font-mono text-neutral-900 dark:text-primary font-bold">#{activity.marketId}</td>
-                        <td className="px-4 py-3 font-mono text-neutral-500 dark:text-neutral-400 font-bold">{activity.user.slice(0, 6)}...</td>
+                        <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 font-medium whitespace-nowrap">{formatTimeString(activity.timestamp)}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-col">
+                            <span className="text-neutral-900 dark:text-primary font-bold line-clamp-1">{activity.marketQuestion}</span>
+                            <span className="text-[10px] text-neutral-500 uppercase font-black">{activity.asset} • #{activity.marketId}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-neutral-500 dark:text-neutral-400 font-bold">
+                          <a 
+                            href={`https://sepolia.basescan.org/address/${activity.user}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-primary transition-colors"
+                          >
+                            {activity.user.slice(0, 6)}...{activity.user.slice(-4)}
+                          </a>
+                        </td>
                         <td className="px-4 py-3 text-secondary font-black tracking-tight">${activity.amount.toFixed(2)}</td>
-                        <td className="px-4 py-3"><a href="#" className="text-primary hover:text-primary-dark font-bold text-xs underline underline-offset-2">View</a></td>
+                        <td className="px-4 py-3">
+                          <a 
+                            href={`https://sepolia.basescan.org/tx/${activity.txHash}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-primary-dark font-bold text-xs underline underline-offset-2"
+                          >
+                            View
+                          </a>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -7,6 +7,9 @@ import { CONTRACTS } from '../config/wagmi';
 
 const logger = createLogger('useActivityFeed');
 
+// Cache for block timestamps shared across all hook instances
+const blockTimestampCache = {};
+
 /**
  * Real event fetching logic
  */
@@ -46,73 +49,92 @@ const fetchRealActivities = async (publicClient, address) => {
       }).catch(() => [])
     ]);
 
-    // Get block timestamps for all logs in parallel (with caching if possible)
+    // Get block timestamps for all logs in parallel (with caching)
     const allLogs = [...betLogs, ...resolvedLogs, ...claimedLogs, ...referralLogs];
-    const blockNumbers = [...new Set(allLogs.map(l => l.blockNumber))];
     
-    // To keep it snappy, only fetch timestamps for the latest logs
+    // Sort and take latest 30 to keep it snappy
     const latestLogs = allLogs
       .sort((a, b) => Number(b.blockNumber) - Number(a.blockNumber))
       .slice(0, 30);
-      
-    // Map logs to Activity objects
-    const activities = latestLogs.map(log => {
-      const isUserAction = address && log.args.user?.toLowerCase() === address.toLowerCase();
-      
-      if (log.eventName === 'BetPlaced') {
-        const amt = formatUnits(log.args.amount || 0n, 6);
-        return {
-          id: `bet-${log.transactionHash}-${log.logIndex}`,
-          type: 'bet_placed',
-          title: isUserAction ? 'Your Bet Placed' : 'New Bet Placed',
-          desc: `${isUserAction ? 'You' : (log.args.user?.slice(0,6) + '...')} placed $${amt} on Market #${log.args.marketId}`,
-          time: new Date(), // We could fetch block timestamp here for accuracy
-          blockNumber: log.blockNumber,
-          amount: `$${amt}`,
-          user: log.args.user
-        };
-      }
-      
-      if (log.eventName === 'MarketResolved') {
-        return {
-          id: `res-${log.transactionHash}-${log.logIndex}`,
-          type: 'resolution',
-          title: 'Market Resolved',
-          desc: `Market #${log.args.marketId} has been resolved!`,
-          time: new Date(),
-          blockNumber: log.blockNumber,
-        };
-      }
-      
-      if (log.eventName === 'WinningsClaimed') {
-        const amt = formatUnits(log.args.amount || 0n, 6);
-        return {
-          id: `claim-${log.transactionHash}-${log.logIndex}`,
-          type: 'bet_won',
-          title: isUserAction ? 'You Claimed Wins! 🎉' : 'Payout Claimed',
-          desc: `${isUserAction ? 'You' : (log.args.user?.slice(0,6) + '...')} claimed $${amt} in winnings`,
-          time: new Date(),
-          blockNumber: log.blockNumber,
-          amount: `+$${amt}`
-        };
-      }
-      
-      if (log.eventName === 'ReferralRegistered') {
-        const isUserReferrer = address && log.args.referrer?.toLowerCase() === address.toLowerCase();
-        return {
-          id: `ref-${log.transactionHash}-${log.logIndex}`,
-          type: 'referral',
-          title: isUserReferrer ? 'New Referral Earned! 👥' : 'New Referral',
-          desc: isUserReferrer ? 'Someone joined using your link! (+1,000 Points)' : `${log.args.user?.slice(0,6)}... was referred by ${log.args.referrer?.slice(0,6)}...`,
-          time: new Date(),
-          blockNumber: log.blockNumber,
-          user: log.args.user
-        };
-      }
 
-      return null;
-    }).filter(Boolean);
+    // Fetch timestamps in parallel for the logs we decided to keep
+    const activitiesWithTime = await Promise.all(latestLogs.map(async (log) => {
+      try {
+        const blockNumber = Number(log.blockNumber);
+        let timestamp;
 
+        if (blockTimestampCache[blockNumber]) {
+          timestamp = blockTimestampCache[blockNumber];
+        } else {
+          const block = await publicClient.getBlock({ blockNumber: log.blockNumber });
+          timestamp = Number(block.timestamp) * 1000;
+          blockTimestampCache[blockNumber] = timestamp;
+        }
+
+        const isUserAction = address && log.args.user?.toLowerCase() === address.toLowerCase();
+      
+        if (log.eventName === 'BetPlaced') {
+          const amt = formatUnits(log.args.amount || 0n, 6);
+          return {
+            id: `bet-${log.transactionHash}-${log.logIndex}`,
+            type: 'bet_placed',
+            marketId: Number(log.args.marketId),
+            title: isUserAction ? 'Your Bet Placed' : 'New Bet Placed',
+            desc: `${isUserAction ? 'You' : (log.args.user?.slice(0,6) + '...')} placed $${amt} on a market`,
+            time: new Date(timestamp),
+            blockNumber: log.blockNumber,
+            amount: `$${amt}`,
+            user: log.args.user
+          };
+        }
+        
+        if (log.eventName === 'MarketResolved') {
+          return {
+            id: `res-${log.transactionHash}-${log.logIndex}`,
+            type: 'resolution',
+            marketId: Number(log.args.marketId),
+            title: 'Market Resolved',
+            desc: `Market #${log.args.marketId} resolution event`,
+            time: new Date(timestamp),
+            blockNumber: log.blockNumber,
+          };
+        }
+        
+        if (log.eventName === 'WinningsClaimed') {
+          const amt = formatUnits(log.args.amount || 0n, 6);
+          return {
+            id: `claim-${log.transactionHash}-${log.logIndex}`,
+            type: 'bet_won',
+            marketId: Number(log.args.marketId),
+            title: isUserAction ? 'You Claimed Wins! 🎉' : 'Payout Claimed',
+            desc: `${isUserAction ? 'You' : (log.args.user?.slice(0,6) + '...')} claimed winnings`,
+            time: new Date(timestamp),
+            blockNumber: log.blockNumber,
+            amount: `+$${amt}`
+          };
+        }
+        
+        if (log.eventName === 'ReferralRegistered') {
+          const isUserReferrer = address && log.args.referrer?.toLowerCase() === address.toLowerCase();
+          return {
+            id: `ref-${log.transactionHash}-${log.logIndex}`,
+            type: 'referral',
+            title: isUserReferrer ? 'New Referral Earned! 👥' : 'New Referral',
+            desc: isUserReferrer ? 'Someone joined using your link! (+1,000 Points)' : `${log.args.user?.slice(0,6)}... joined the trenches`,
+            time: new Date(timestamp),
+            blockNumber: log.blockNumber,
+            user: log.args.user
+          };
+        }
+
+        return null;
+      } catch (err) {
+        logger.error('Error processing log frame:', err);
+        return null;
+      }
+    }));
+
+    const activities = activitiesWithTime.filter(Boolean);
     return { activities };
   } catch (err) {
     logger.error('Error fetching global activities:', err);
@@ -123,7 +145,7 @@ const fetchRealActivities = async (publicClient, address) => {
 /**
  * Hook for fetching and managing real-time activity feed data.
  */
-export const useActivityFeed = (address, isConnected) => {
+export const useActivityFeed = (address, isConnected, markets = []) => {
   const publicClient = usePublicClient({ chainId: 84532 });
   const queryClient = useQueryClient();
   const [localOptimisticActivities, setLocalOptimisticActivities] = useState([]);
@@ -164,11 +186,29 @@ export const useActivityFeed = (address, isConnected) => {
 
   const activities = useMemo(() => {
     const fetched = data?.activities ?? [];
-    return [...localOptimisticActivities, ...fetched].sort((a,b) => {
+    const allActivities = [...localOptimisticActivities, ...fetched].sort((a,b) => {
        if (a.blockNumber && b.blockNumber) return Number(b.blockNumber) - Number(a.blockNumber);
        return 0;
     });
-  }, [data, localOptimisticActivities]);
+
+    // Resolve market questions from the markets prop
+    return allActivities.map(activity => {
+      if (!activity.marketId) return activity;
+      const market = markets.find(m => Number(m.id) === activity.marketId);
+      if (!market) return activity;
+
+      let enhancedDesc = activity.desc;
+      if (activity.type === 'bet_placed') {
+        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} bet on: ${market.question}`;
+      } else if (activity.type === 'resolution') {
+        enhancedDesc = `Resolved: ${market.question}`;
+      } else if (activity.type === 'bet_won') {
+        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} won on: ${market.question}`;
+      }
+
+      return { ...activity, desc: enhancedDesc };
+    });
+  }, [data, localOptimisticActivities, markets, address]);
 
   return {
     activities,
