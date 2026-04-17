@@ -290,6 +290,7 @@ const rawBetData = allLogs
           choiceLabel,
           choice,
           amount,
+          multiplier: rawBet.multiplier, // effectiveMultiplier from contract (basis points, e.g. 150 = 1.5x)
           market: market || {
             id: marketId, resolved: false, endTime: 0, marketType: 0, asset: 'Unknown',
           },

@@ -1,15 +1,46 @@
 import React, { useState, useMemo } from 'react';
 import { BarChart3, Clock, TrendingUp, Calendar } from 'lucide-react';
+import { formatUnits } from 'viem';
 
 /**
  * Stats Tabs Component
  *
- * FIX 1: Win rate now divides by (wins + losses) with a proper guard so it
- *         returns 0 instead of NaN/Infinity when all bets are still pending
- *         (wins + losses === 0 but filteredBets.length > 0).
- * FIX 2: calculateStats is now wrapped in useMemo so it only recomputes when
- *         userBets or activeTab changes — not on every parent render.
+ * FIX: Previously expected `b.timestamp`, `b.won`, `b.resolved`, `b.payout`,
+ * and `Number(b.amount)` — none of which exist on the actual bet objects from
+ * useUserBets. Now correctly uses:
+ *   - `bet.market.endTime` for time-period filtering
+ *   - `bet.market.resolved` for resolved status
+ *   - Win/loss derived from `bet.choice` vs `bet.market.priceWentUp`/`winningChoice`
+ *   - `formatUnits(bet.amount, 6)` for correct BigInt → USDC conversion
+ *   - Payout estimated from stake × multiplier
  */
+
+/**
+ * Determine if a resolved bet was a win
+ */
+const isWinningBet = (bet) => {
+  if (!bet.market?.resolved) return null;
+  if (bet.market.marketType === 0) {
+    const predictedUp = bet.choice === 1;
+    if (bet.market.priceWentUp === null || bet.market.priceWentUp === undefined) return null;
+    return predictedUp === bet.market.priceWentUp;
+  }
+  if (bet.market.winningChoice === null || bet.market.winningChoice === undefined) return null;
+  return Number(bet.choice) === Number(bet.market.winningChoice);
+};
+
+/**
+ * Convert BigInt USDC amount (6 decimals) to a human-readable number
+ */
+const toUSDC = (amount) => {
+  if (!amount) return 0;
+  try {
+    return Number(formatUnits(BigInt(amount), 6));
+  } catch {
+    return Number(amount) || 0;
+  }
+};
+
 const StatsTabs = ({ userBets = [] }) => {
   const [activeTab, setActiveTab] = useState('all');
 
@@ -20,30 +51,61 @@ const StatsTabs = ({ userBets = [] }) => {
     { id: 'month', label: 'This Month', icon: TrendingUp },
   ];
 
-  // FIX 2: memoized — only recalculates when userBets or activeTab changes
   const stats = useMemo(() => {
     let filteredBets = userBets;
     const now = Date.now();
 
+    // Filter by time period using market.endTime as the bet's relevant timestamp
     if (activeTab === 'today') {
       const startOfDay = new Date(now).setHours(0, 0, 0, 0);
-      filteredBets = userBets.filter(b => new Date(b.timestamp).getTime() >= startOfDay);
+      filteredBets = userBets.filter(b => {
+        const betTime = b.market?.endTime || 0;
+        return betTime >= startOfDay;
+      });
     } else if (activeTab === 'week') {
       const startOfWeek = now - 7 * 24 * 60 * 60 * 1000;
-      filteredBets = userBets.filter(b => new Date(b.timestamp).getTime() >= startOfWeek);
+      filteredBets = userBets.filter(b => {
+        const betTime = b.market?.endTime || 0;
+        return betTime >= startOfWeek;
+      });
     } else if (activeTab === 'month') {
       const startOfMonth = now - 30 * 24 * 60 * 60 * 1000;
-      filteredBets = userBets.filter(b => new Date(b.timestamp).getTime() >= startOfMonth);
+      filteredBets = userBets.filter(b => {
+        const betTime = b.market?.endTime || 0;
+        return betTime >= startOfMonth;
+      });
     }
 
-    const wins    = filteredBets.filter(b => b.won).length;
-    const losses  = filteredBets.filter(b => !b.won && b.resolved).length;
-    const pending = filteredBets.filter(b => !b.resolved).length;
+    // Derive win/loss/pending from actual market data
+    let wins = 0;
+    let losses = 0;
+    let pending = 0;
+    let totalBetAmount = 0;
+    let totalWinnings = 0;
 
-    const totalBetAmount = filteredBets.reduce((sum, b) => sum + (b.amount || 0), 0);
-    const totalWinnings  = filteredBets.reduce((sum, b) => sum + (b.won ? (b.payout || 0) : 0), 0);
+    filteredBets.forEach(bet => {
+      const stake = toUSDC(bet.amount);
+      totalBetAmount += stake;
 
-    // FIX 1: guard against wins + losses === 0 (all pending) — was NaN/Infinity before
+      if (!bet.market?.resolved) {
+        pending += 1;
+        return;
+      }
+
+      const won = isWinningBet(bet);
+      if (won === true) {
+        wins += 1;
+        // Estimate payout: stake × multiplier (basis points, e.g. 150 = 1.5x)
+        const mult = bet.multiplier ? Number(bet.multiplier) / 100 : 1.5;
+        totalWinnings += stake * mult;
+      } else if (won === false) {
+        losses += 1;
+      } else {
+        // Resolved but outcome unknown (edge case)
+        pending += 1;
+      }
+    });
+
     const resolved = wins + losses;
     const winRate = resolved > 0 ? ((wins / resolved) * 100).toFixed(1) : '0.0';
 

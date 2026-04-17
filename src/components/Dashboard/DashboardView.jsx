@@ -219,48 +219,69 @@ const DashboardView = ({
               </button>
             )}
           </div>
-          {isWidgetVisible('quickstats') && (
-            <div className="space-y-4">
-              <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
-                <p className="text-xs text-neutral-400 mb-2 font-semibold">Most Traded</p>
-                <p className="text-2xl font-black text-primary">BTC/USD</p>
-                <p className="text-xs text-neutral-500 mt-2">
-                  {userBets.filter(b => b.asset === 'BTC').length} bets
-                </p>
-              </div>
+          {isWidgetVisible('quickstats') && (() => {
+              // Compute most traded asset dynamically
+              const assetCounts = {};
+              userBets.forEach(b => {
+                const asset = b.market?.asset || 'Unknown';
+                assetCounts[asset] = (assetCounts[asset] || 0) + 1;
+              });
+              const topAsset = Object.entries(assetCounts).sort((a, b) => b[1] - a[1])[0];
+              const topAssetName = topAsset ? topAsset[0] : 'N/A';
+              const topAssetCount = topAsset ? topAsset[1] : 0;
 
-              <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
-                <p className="text-xs text-neutral-400 mb-2 font-semibold">Avg Multiplier</p>
-                <p className="text-2xl font-black text-primary">
-                  {userBets.length > 0
-                    ? (userBets.reduce((sum, b) => sum + (b.multiplier || 1), 0) / userBets.length).toFixed(2)
-                    : '0.00'}x
-                </p>
-                <p className="text-xs text-neutral-500 mt-2">Weighted average</p>
-              </div>
+              // Avg multiplier (stored in basis points, e.g. 150 = 1.5x)
+              const avgMult = userBets.length > 0
+                ? (userBets.reduce((sum, b) => sum + (b.multiplier ? Number(b.multiplier) / 100 : 1.5), 0) / userBets.length).toFixed(2)
+                : '0.00';
 
-              <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
-                <p className="text-xs text-neutral-400 mb-2 font-semibold">Risk Profile</p>
-                <div className="text-2xl font-black text-yellow-400">MODERATE</div>
-                <p className="text-xs text-neutral-500 mt-2">Based on bets</p>
-              </div>
+              // Risk profile based on avg multiplier
+              const avgMultNum = parseFloat(avgMult);
+              const riskProfile = avgMultNum >= 3 ? { label: 'AGGRESSIVE', color: 'text-red-400' }
+                : avgMultNum >= 2 ? { label: 'MODERATE', color: 'text-yellow-400' }
+                : { label: 'CONSERVATIVE', color: 'text-green-400' };
 
-              <div className="bg-white dark:bg-dark-800 border border-primary/30 rounded-xl p-5 relative overflow-hidden hover:border-primary/50 transition-all">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full -mr-8 -mt-8" />
-                <p className="text-xs text-neutral-400 mb-2 font-semibold">Next Milestone</p>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-sm text-primary font-bold">50 Total Bets</p>
-                  <p className="text-xs text-neutral-500">{userBets.length || 0}/50</p>
+              return (
+                <div className="space-y-4">
+                  <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
+                    <p className="text-xs text-neutral-400 mb-2 font-semibold">Most Traded</p>
+                    <p className="text-2xl font-black text-primary">{topAssetName}/USD</p>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      {topAssetCount} bets
+                    </p>
+                  </div>
+
+                  <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
+                    <p className="text-xs text-neutral-400 mb-2 font-semibold">Avg Multiplier</p>
+                    <p className="text-2xl font-black text-primary">
+                      {avgMult}x
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-2">Weighted average</p>
+                  </div>
+
+                  <div className="bg-white dark:bg-dark-800 border border-secondary/30 rounded-xl p-5 hover:border-secondary/50 transition-all">
+                    <p className="text-xs text-neutral-400 mb-2 font-semibold">Risk Profile</p>
+                    <div className={`text-2xl font-black ${riskProfile.color}`}>{riskProfile.label}</div>
+                    <p className="text-xs text-neutral-500 mt-2">Based on avg multiplier</p>
+                  </div>
+
+                  <div className="bg-white dark:bg-dark-800 border border-primary/30 rounded-xl p-5 relative overflow-hidden hover:border-primary/50 transition-all">
+                    <div className="absolute top-0 right-0 w-20 h-20 bg-primary/10 rounded-full -mr-8 -mt-8" />
+                    <p className="text-xs text-neutral-400 mb-2 font-semibold">Next Milestone</p>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-sm text-primary font-bold">50 Total Bets</p>
+                      <p className="text-xs text-neutral-500">{userBets.length || 0}/50</p>
+                    </div>
+                    <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all duration-500"
+                        style={{ width: `${Math.min((userBets.length / 50) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="h-2 bg-neutral-100 dark:bg-dark-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary transition-all duration-500"
-                    style={{ width: `${Math.min((userBets.length / 50) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+              );
+            })()}
         </div>
       </div>
 
