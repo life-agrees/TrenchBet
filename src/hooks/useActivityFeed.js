@@ -103,16 +103,19 @@ const fetchRealActivities = async (publicClient, address) => {
         
         if (log.eventName === 'WinningsClaimed') {
           const amt = formatUnits(log.args.amount || 0n, 6);
+          const userAddr = log.args.user || log.args[1] || log.args.account;
+          const isUser = address && userAddr?.toLowerCase() === address.toLowerCase();
+          
           return {
             id: `claim-${log.transactionHash}-${log.logIndex}`,
             type: 'bet_won',
             marketId: Number(log.args.marketId),
-            title: isUserAction ? 'You Claimed Wins! 🎉' : 'Payout Claimed',
-            desc: `${isUserAction ? 'You' : (log.args.user?.slice(0,6) + '...')} claimed winnings`,
+            title: isUser ? 'You Claimed Wins! 🎉' : 'Payout Claimed',
+            desc: `${isUser ? 'You' : (userAddr ? userAddr.slice(0,6) + '...' : 'Someone')} claimed winnings`,
             time: new Date(timestamp),
             blockNumber: log.blockNumber,
             amount: `+$${amt}`,
-            user: log.args.user
+            user: userAddr
           };
         }
         
@@ -203,11 +206,17 @@ export const useActivityFeed = (address, isConnected, markets = []) => {
       const marketTitle = generateMarketTitle(market);
       
       if (activity.type === 'bet_placed') {
-        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} bet on: ${marketTitle}`;
+        const userPrefix = (activity.user && address && activity.user.toLowerCase() === address.toLowerCase()) 
+          ? 'You' 
+          : (activity.user ? `${activity.user.slice(0,6)}...` : 'Someone');
+        enhancedDesc = `${userPrefix} bet on: ${marketTitle}`;
       } else if (activity.type === 'resolution') {
         enhancedDesc = `Resolved: ${marketTitle}`;
       } else if (activity.type === 'bet_won') {
-        enhancedDesc = `${activity.user?.toLowerCase() === address?.toLowerCase() ? 'You' : (activity.user?.slice(0,6) + '...')} won on: ${marketTitle}`;
+        const userPrefix = (activity.user && address && activity.user.toLowerCase() === address.toLowerCase()) 
+          ? 'You' 
+          : (activity.user ? `${activity.user.slice(0,6)}...` : 'Someone');
+        enhancedDesc = `${userPrefix} won on: ${marketTitle}`;
       }
 
       return { ...activity, desc: enhancedDesc };

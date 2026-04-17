@@ -79,7 +79,7 @@ const DashboardTab = ({
             marketId,
             marketQuestion: marketData ? generateMarketTitle(marketData) : `Market #${marketId}`,
             asset: marketData?.asset || 'Unknown',
-            user: log.args.user,
+            user: log.args.user || log.args[1] || 'Unknown',
             amount: Number(log.args.amount) / 1e6,
             choice: Number(log.args.choice),
             timestamp,
