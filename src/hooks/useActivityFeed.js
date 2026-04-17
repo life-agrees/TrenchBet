@@ -111,7 +111,8 @@ const fetchRealActivities = async (publicClient, address) => {
             desc: `${isUserAction ? 'You' : (log.args.user?.slice(0,6) + '...')} claimed winnings`,
             time: new Date(timestamp),
             blockNumber: log.blockNumber,
-            amount: `+$${amt}`
+            amount: `+$${amt}`,
+            user: log.args.user
           };
         }
         

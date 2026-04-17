@@ -151,6 +151,8 @@ export const MARKET = {
   MIN_DURATION_MINUTES: 15,         // Minimum market duration
   MAX_DURATION_MINUTES: 1440,     // Maximum market duration (24 hours)
   FEE_PERCENTAGE: 2,              // Platform fee percentage
+  MIN_BET_AMOUNT: 1,              // Minimum bet: 1 USDC
+  MAX_BET_AMOUNT: 1000,           // Maximum bet: 1,000 USDC (contract hard cap: 10,000)
 };
 
 // API configuration

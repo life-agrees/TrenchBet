@@ -6,6 +6,7 @@ import { useTimeDecay } from '../hooks/useTimeDecay';
 import { VoucherBalance } from './VoucherBalance';
 import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout, getEffectiveMultiplierDisplay } from '../marketUtils';
 import { createLogger } from '../utils/logger';
+import { MARKET } from '../utils/constants';
 
 
 const logger = createLogger('BetModal');
@@ -59,9 +60,14 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 
   // Clear input error when amount changes
   useEffect(() => {
-    if (amount && parseFloat(amount) > usdcBalanceNum) {
+    const betAmount = parseFloat(amount);
+    if (amount && betAmount > usdcBalanceNum) {
       setInputError(`Insufficient balance. You have ${formattedUsdcBalance} USDC`);
-    } else if (amount && parseFloat(amount) <= 0) {
+    } else if (amount && betAmount < MARKET.MIN_BET_AMOUNT) {
+      setInputError(`Minimum bet is ${MARKET.MIN_BET_AMOUNT} USDC`);
+    } else if (amount && betAmount > MARKET.MAX_BET_AMOUNT) {
+      setInputError(`Maximum bet is ${MARKET.MAX_BET_AMOUNT.toLocaleString()} USDC`);
+    } else if (amount && betAmount <= 0) {
       setInputError('Amount must be greater than 0');
     } else {
       setInputError('');
@@ -200,14 +206,23 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   }, [potentialPayout, amount]);
 
   const handleMaxClick = () => {
-    const maxBet = Math.max(0, usdcBalanceNum - 0.01);
-    setAmount(maxBet > 0 ? maxBet.toFixed(2) : '0');
+    const balanceMax = Math.max(0, usdcBalanceNum - 0.01);
+    const cappedMax = Math.min(balanceMax, MARKET.MAX_BET_AMOUNT);
+    setAmount(cappedMax > 0 ? cappedMax.toFixed(2) : '0');
   };
 
   const handlePlaceBet = async () => {
     const betAmount = parseFloat(amount);
     if (!betAmount || betAmount <= 0) {
       setInputError('Please enter a valid amount');
+      return;
+    }
+    if (betAmount < MARKET.MIN_BET_AMOUNT) {
+      setInputError(`Minimum bet is ${MARKET.MIN_BET_AMOUNT} USDC`);
+      return;
+    }
+    if (betAmount > MARKET.MAX_BET_AMOUNT) {
+      setInputError(`Maximum bet is ${MARKET.MAX_BET_AMOUNT.toLocaleString()} USDC`);
       return;
     }
     if (betAmount > usdcBalanceNum) {
@@ -576,9 +591,10 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="0.00"
+                placeholder={`${MARKET.MIN_BET_AMOUNT}.00`}
                 step="0.01"
-                min="0.01"
+                min={MARKET.MIN_BET_AMOUNT}
+                max={MARKET.MAX_BET_AMOUNT}
                 disabled={isPlacingBet}
                 className={`w-full bg-gray-800 border rounded-lg px-6 py-3 text-neutral-900 dark:text-white placeholder-gray-500 focus:outline-none transition-colors ${
                   inputError ? 'border-red-500 focus:border-red-500' : 'border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/30'
