@@ -19,6 +19,7 @@ export const useAdminStats = (contractAddress) => {
     totalBets: 0,
     pendingFees: 0n,
     contractBalance: 0n,
+    rawLogs: [],
     isLoading: false,
     error: null
   });
@@ -84,6 +85,7 @@ export const useAdminStats = (contractAddress) => {
         totalBets: logs.length,
         pendingFees: accumulatedFees,
         contractBalance: balance,
+        rawLogs: logs,
         isLoading: false,
         error: null
       });
@@ -91,7 +93,8 @@ export const useAdminStats = (contractAddress) => {
       logger.info('Stats fetched successfully', {
         totalUsers: uniqueUsers.size,
         totalVolume: Number(formatUnits(volume, 6)),
-        totalBets: logs.length
+        totalBets: logs.length,
+        logsCount: logs.length
       });
 
     } catch (err) {

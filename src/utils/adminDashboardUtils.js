@@ -1,56 +1,95 @@
 /**
  * Admin Dashboard Utility Functions
- *
- * FIX 1: Math.random() in generateVolumeTrendData and generateUserGrowthData.
- *         These are called inside useMemo in DashboardTabV2. Since `stats` and
- *         `markets` are new object refs every 30-second poll, useMemo
- *         recalculates and produces completely different random numbers each
- *         time — charts visibly jump on every auto-refresh.
- *         Fixed by using a simple deterministic seeded approach based on the
- *         actual stats values so chart shape is stable between refreshes.
- *
- * FIX 2: getSystemStatus compared `stats?.contractBalance > BigInt(0)`.
- *         If contractBalance is undefined (before first read), this throws:
- *         "Cannot mix BigInt and other types". Added a safe guard.
+ * 
+ * Aggregates real historical data from blockchain logs for the admin dashboard.
  */
 
 import { formatUnits } from 'viem';
 
-// FIX 1: deterministic pseudo-random seeded by a number (no Math.random)
-const seededVariation = (seed, index, min, max, intensity = 10000) => {
-  const x = Math.sin(seed + index) * intensity;
-  const t = x - Math.floor(x); // 0..1
-  // Add some secondary harmonics for more 'organic' feel
-  const y = Math.cos(seed * 0.5 + index * 1.5) * 5000;
-  const t2 = y - Math.floor(y);
-  const combined = (t + t2) / 2;
-  return min + combined * (max - min);
-};
-
+/**
+ * Aggregates volume trend data from logs.
+ * Groups volume by day for the last 7 days.
+ */
 export const generateVolumeTrendData = (stats) => {
+  const logs = stats?.rawLogs || [];
+  if (logs.length === 0) {
+    // Fallback to empty series if no logs
+    return Array.from({ length: 7 }).map((_, i) => ({
+      name: `Day ${i + 1}`,
+      volume: 0
+    }));
+  }
+
+  // Group by block number as a proxy for time if we don't have timestamps
+  // But wait, the admin dashboard logs in useAdminStats don't have timestamps.
+  // We'll use a linear distribution over the block range as an estimate for the trend
+  // until we have a better way to get historical timestamps.
+  
   const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-  const baseVolume = stats?.totalVolume ? stats.totalVolume / 7 : 5000;
-  // FIX 1: seed from totalVolume so shape is stable across re-renders
-  const seed = stats?.totalVolume ?? 12345;
+  const dailyVolume = new Array(7).fill(0);
+  
+  if (logs.length > 0) {
+    const startBlock = Number(logs[0].blockNumber);
+    const endBlock = Number(logs[logs.length - 1].blockNumber);
+    const range = Math.max(1, endBlock - startBlock);
+
+    logs.forEach(log => {
+      const block = Number(log.blockNumber);
+      const amount = Number(formatUnits(log.args?.amount || 0n, 6));
+      
+      // Map block to one of the 7 days (rough estimate)
+      let dayIdx = Math.floor(((block - startBlock) / range) * 6);
+      dayIdx = Math.min(6, Math.max(0, dayIdx));
+      dailyVolume[dayIdx] += amount;
+    });
+  }
 
   return days.map((day, idx) => ({
-    name:      day,
-    volume:    Math.round(baseVolume * seededVariation(seed, idx, 0.4, 1.8, 15000)),
-    timestamp: Date.now() - (7 - idx) * 86400000,
+    name: day,
+    volume: Math.round(dailyVolume[idx] * 100) / 100
   }));
 };
 
+/**
+ * Aggregates user growth data from logs.
+ */
 export const generateUserGrowthData = (stats) => {
+  const logs = stats?.rawLogs || [];
   const days = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
-  const baseUsers = stats?.totalUsers ? Math.floor(stats.totalUsers / 7) : 50;
-  // FIX 1: seed from totalUsers
-  const seed = stats?.totalUsers ?? 99;
-  let cumulativeUsers = 0;
+  
+  if (logs.length === 0) {
+    return days.map(day => ({ name: day, users: 0, newUsers: 0 }));
+  }
 
+  const dailyNewUsers = new Array(7).fill(0);
+  const seenUsers = new Set();
+  
+  const sortedLogs = [...logs].sort((a, b) => Number(a.blockNumber) - Number(b.blockNumber));
+  const startBlock = Number(sortedLogs[0].blockNumber);
+  const endBlock = Number(sortedLogs[sortedLogs.length - 1].blockNumber);
+  const range = Math.max(1, endBlock - startBlock);
+
+  sortedLogs.forEach(log => {
+    const user = log.args?.user?.toLowerCase();
+    if (!user) return;
+    
+    if (!seenUsers.has(user)) {
+      seenUsers.add(user);
+      const block = Number(log.blockNumber);
+      let dayIdx = Math.floor(((block - startBlock) / range) * 6);
+      dayIdx = Math.min(6, Math.max(0, dayIdx));
+      dailyNewUsers[dayIdx] += 1;
+    }
+  });
+
+  let cumulativeUsers = 0;
   return days.map((day, idx) => {
-    const newUsers = Math.max(1, Math.floor(baseUsers + seededVariation(seed, idx, -5, 15)));
-    cumulativeUsers += newUsers;
-    return { name: day, users: cumulativeUsers, newUsers };
+    cumulativeUsers += dailyNewUsers[idx];
+    return { 
+      name: day, 
+      users: cumulativeUsers, 
+      newUsers: dailyNewUsers[idx] 
+    };
   });
 };
 
@@ -118,21 +157,10 @@ export const generateAlerts = (stats, markets, marketStatus) => {
     });
   }
 
-  if (stats?.totalBets > 100) {
-    alerts.push({
-      id:        'high-activity',
-      severity:  'info',
-      title:     'High Platform Activity',
-      message:   `${stats.totalBets} total bets placed on platform`,
-      timestamp: Date.now(),
-    });
-  }
-
   return alerts;
 };
 
 export const getSystemStatus = (stats, markets) => {
-  // FIX 2: safe BigInt comparison — contractBalance may be undefined on first render
   const balance = stats?.contractBalance;
   const isHealthy = (balance !== undefined && BigInt(balance) > BigInt(0)) &&
                     (stats?.totalBets ?? 0) >= 0;
@@ -157,19 +185,48 @@ export const getPlatformMetrics = (stats, markets) => {
     avgBetSize:   totalBets > 0
       ? (totalVolume / totalBets).toFixed(2)
       : '0.00',
-    winRate:      calculateWinRate(stats),
+    winRate:      calculateWinRate(stats, markets),
     periodChange: calculatePeriodChange(
       totalBets,
       totalBets > 0 ? Math.max(1, totalBets * 0.75) : 0
     ),
-    successRate:  calculateWinRate(stats),
+    successRate:  calculateWinRate(stats, markets),
     totalMarkets: marketStatus.totalMarkets,
   };
 };
 
-export const calculateWinRate = (stats) => {
-  if (!stats?.totalBets || stats.totalBets === 0) return '0.0%';
-  const winRate = (((stats.wonBets || 0) / stats.totalBets) * 100).toFixed(1);
+/**
+ * Calculates a global success rate (percentage of won bets).
+ */
+export const calculateWinRate = (stats, markets) => {
+  const logs = stats?.rawLogs || [];
+  if (logs.length === 0) return '0.0%';
+  
+  let resolvedBets = 0;
+  let wonBets = 0;
+
+  logs.forEach(log => {
+    const marketId = Number(log.args?.marketId);
+    const market = markets?.find(m => Number(m.id) === marketId);
+    
+    if (market && market.resolved) {
+      resolvedBets++;
+      const choice = Number(log.args?.choice);
+      
+      // Binary Market
+      if (market.marketType === 0) {
+        if (choice === 1 && market.priceWentUp) wonBets++;
+        else if (choice === 0 && !market.priceWentUp) wonBets++;
+      } 
+      // Multi-choice / Range / Time
+      else {
+        if (choice === Number(market.winningChoice)) wonBets++;
+      }
+    }
+  });
+
+  if (resolvedBets === 0) return '0.0%';
+  const winRate = ((wonBets / resolvedBets) * 100).toFixed(1);
   return `${winRate}%`;
 };
 
@@ -201,11 +258,3 @@ export const formatTimeString = (timestamp) => {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 };
-
-export const generateMockAlertReasons = () => [
-  'Markets ending in next hour',
-  'Unusual bet volume detected',
-  'New user registration spike',
-  'Contract gas optimization alert',
-  'Protocol update available',
-];
