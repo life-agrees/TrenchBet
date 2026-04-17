@@ -93,7 +93,7 @@ export const DURATIONS = {
 // Cache configuration
 export const CACHE = {
   MARKETS_TTL: 10000,               // 10 seconds
-  POINTS_TTL: 5 * 60 * 1000,        // 5 minutes
+  POINTS_TTL: 30 * 1000,             // 30 seconds (was 5 min — too stale for points updates)
   PREFETCH_TTL: 15 * 1000,          // 15 seconds for prefetch cache
 };
 

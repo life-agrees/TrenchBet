@@ -70,29 +70,20 @@ export const usePointsData = (walletAddress) => {
       setIsLoading(true);
       if (!isRetry) setError(null);
 
+      const fetchUrl = `/api/points/balance?wallet=${walletAddress}`;
+      logger.info('Fetching points from:', fetchUrl);
+
       let response;
       try {
-        response = await fetch(`/api/points/balance?wallet=${walletAddress}`, {
+        response = await fetch(fetchUrl, {
           signal: abortControllerRef.current.signal,
           headers: { 'Cache-Control': 'no-cache' },
         });
-      } catch {
-        logger.warn('API not available, using mock data');
-        // FIX: stable mock — no Math.random() in a hook (changes every render)
-        const mockData = {
-          wallet_address:       walletAddress,
-          total_points:         1250,
-          points_claimed:       200,
-          points_available:     150,
-          current_streak:       3,
-          best_streak:          7,
-          last_bet_timestamp:   new Date().toISOString(),
-        };
-        setPointsData(mockData);
-        saveToCache(mockData);
-        retryCountRef.current = 0;
-        lastFetchTimeRef.current = Date.now();
-        return;
+      } catch (networkErr) {
+        // Network error — API is unreachable. Do NOT fall back to mock data.
+        // This surfaces the real problem instead of silently hiding it.
+        logger.error('Network error fetching points — API unreachable:', networkErr.message);
+        throw new Error(`Points API unreachable: ${networkErr.message}`);
       }
 
       if (!response.ok) {
@@ -101,8 +92,13 @@ export const usePointsData = (walletAddress) => {
       }
 
       const data = await response.json();
+      logger.info('Points API response:', JSON.stringify(data));
       setPointsData(data);
-      saveToCache(data);
+      // Only cache non-zero responses — if user has 0 points, we want to
+      // re-check on next load in case points were just awarded
+      if (data.total_points > 0) {
+        saveToCache(data);
+      }
       retryCountRef.current = 0;
       lastFetchTimeRef.current = Date.now();
     } catch (err) {

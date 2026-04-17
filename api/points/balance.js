@@ -61,6 +61,7 @@ export default async function handler(req, res) {
     }
     
     const address = wallet.toLowerCase();
+    console.log(`[balance] Querying points for wallet: ${address}`);
     
     // Get user data
     const { data: user, error } = await supabase
@@ -68,6 +69,8 @@ export default async function handler(req, res) {
       .select('*')
       .eq('wallet_address', address)
       .single();
+    
+    console.log(`[balance] Query result — data: ${JSON.stringify(user)}, error: ${JSON.stringify(error)}`);
     
     if (error && error.code === 'PGRST116') {
       // User doesn't exist yet - return zeros
