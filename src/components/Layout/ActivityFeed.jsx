@@ -105,9 +105,19 @@ const ActivityCard = memo(({ activity, index, onMarkRead }) => {
             {getPriorityBadge(activity.type)}
           </div>
           <p className="text-xs text-neutral-500 truncate dark:text-neutral-400">{activity.desc}</p>
-          <p className="text-[10px] text-neutral-400 dark:text-neutral-600 mt-2 flex items-center gap-1">
-             {formatTime(activity.time)}
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <p className="text-[10px] text-neutral-400 dark:text-neutral-600 flex items-center gap-1">
+               {formatTime(activity.time)}
+            </p>
+            {activity.amount && (
+              <span className="text-[10px] font-bold text-success">{activity.amount}</span>
+            )}
+            {activity.points && (
+              <span className="px-1.5 py-0.5 bg-yellow-500/15 text-yellow-500 text-[9px] font-bold rounded border border-yellow-500/20">
+                ⭐ {activity.points}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

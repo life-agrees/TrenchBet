@@ -128,7 +128,7 @@ const {
   const userStats = useUserStats(userBets, wonBets, lostBets, pendingBets);
 
   const { stats: referralStats, shareReferral, refresh: refreshReferrals } = useReferrals();
-  const { achievements, shareAchievement, refresh: refreshAchievements } = useAchievements();
+  const { achievements, totalPoints: achievementPoints, shareAchievement, refresh: refreshAchievements } = useAchievements();
 
   const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
   const { leaderboard, isLoading: isLoadingLeaderboard } = useLeaderboard(10);
@@ -137,12 +137,13 @@ const {
   const { formattedUsdcBalance, usdcBalanceNum, refetchBalance } = useBalance();
   const { pointsData, refreshPoints } = usePointsData(address);
 
-  // Unified Points Balance: API Points + Referral Points (Earnings * 100)
+  // Unified Points Balance: API Points + Referral Points + Achievement Points
   const unifiedPoints = useMemo(() => {
     const apiPoints = pointsData?.total_points || 0;
     const referralPoints = (referralStats?.referralEarnings || 0) * 100;
-    return apiPoints + referralPoints;
-  }, [pointsData, referralStats]);
+    const achPoints = achievementPoints || 0;
+    return apiPoints + referralPoints + achPoints;
+  }, [pointsData, referralStats, achievementPoints]);
 
   const { toggleFavorite, isFavorite } = useFavorites();
 

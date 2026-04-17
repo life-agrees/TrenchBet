@@ -76,6 +76,7 @@ const fetchRealActivities = async (publicClient, address) => {
       
         if (log.eventName === 'BetPlaced') {
           const amt = formatUnits(log.args.amount || 0n, 6);
+          const pointsEarned = Math.floor(Number(amt) * 10); // 10 pts per $1
           return {
             id: `bet-${log.transactionHash}-${log.logIndex}`,
             type: 'bet_placed',
@@ -85,6 +86,7 @@ const fetchRealActivities = async (publicClient, address) => {
             time: new Date(timestamp),
             blockNumber: log.blockNumber,
             amount: `$${amt}`,
+            points: pointsEarned > 0 ? `+${pointsEarned} pts` : null,
             user: log.args.user
           };
         }
@@ -105,6 +107,7 @@ const fetchRealActivities = async (publicClient, address) => {
           const amt = formatUnits(log.args.amount || 0n, 6);
           const userAddr = log.args.user || log.args[1] || log.args.account;
           const isUser = address && userAddr?.toLowerCase() === address.toLowerCase();
+          const winPoints = Math.floor(Number(amt) * 10 * 2); // bet_volume × WIN_MULTIPLIER(2)
           
           return {
             id: `claim-${log.transactionHash}-${log.logIndex}`,
@@ -115,6 +118,7 @@ const fetchRealActivities = async (publicClient, address) => {
             time: new Date(timestamp),
             blockNumber: log.blockNumber,
             amount: `+$${amt}`,
+            points: winPoints > 0 ? `+${winPoints} pts` : null,
             user: userAddr
           };
         }
