@@ -66,6 +66,28 @@ export default {
             900: '#16181d',
           }
         },
+        textColor: {
+          'primary': {
+            DEFAULT: 'rgb(var(--color-primary-text) / <alpha-value>)',
+          },
+          'success': {
+            DEFAULT: 'rgb(var(--color-success-text) / <alpha-value>)',
+          },
+          'danger': {
+            DEFAULT: 'rgb(var(--color-danger-text) / <alpha-value>)',
+          }
+        },
+        borderColor: {
+          'primary': {
+            DEFAULT: 'rgb(var(--color-primary-text) / <alpha-value>)',
+          },
+          'success': {
+            DEFAULT: 'rgb(var(--color-success-text) / <alpha-value>)',
+          },
+          'danger': {
+            DEFAULT: 'rgb(var(--color-danger-text) / <alpha-value>)',
+          }
+        },
         animation: {
           'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
           'fade-in': 'fade-in 0.3s ease-in',

@@ -209,42 +209,42 @@ body {
   .glow-success {
     box-shadow: 0 4px 14px rgba(0,0,0,0.05);
   }
-  .dark ..dark .glow-success {
+  .dark .glow-success {
     box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
   }
   
   .glow-success:hover {
     box-shadow: 0 4px 14px rgba(0,0,0,0.05);
   }
-  .dark ..dark .glow-success:hover {
+  .dark .glow-success:hover {
     box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
   }
   
   .glow-danger {
     box-shadow: 0 4px 14px rgba(0,0,0,0.05);
   }
-  .dark ..dark .glow-danger {
+  .dark .glow-danger {
     box-shadow: 0 0 20px rgba(255, 71, 87, 0.3);
   }
   
   .glow-danger:hover {
     box-shadow: 0 4px 14px rgba(0,0,0,0.05);
   }
-  .dark ..dark .glow-danger:hover {
+  .dark .glow-danger:hover {
     box-shadow: 0 0 30px rgba(255, 71, 87, 0.5);
   }
 
   .glow-secondary {
     box-shadow: 0 4px 14px rgba(0,0,0,0.05);
   }
-  .dark ..dark .glow-secondary {
+  .dark .glow-secondary {
     box-shadow: 0 0 20px rgba(255, 184, 0, 0.3);
   }
   
   .glow-secondary:hover {
     box-shadow: 0 4px 14px rgba(0,0,0,0.05);
   }
-  .dark ..dark .glow-secondary:hover {
+  .dark .glow-secondary:hover {
     box-shadow: 0 0 30px rgba(255, 184, 0, 0.5);
   }
 
@@ -575,17 +575,15 @@ body {
 
 .glow-primary:hover {
   border-color: rgb(var(--color-primary-text));
-    box-shadow: 0 4px 14px rgba(0,0,0,0.05);
-  }
-  .dark .glow-primary:hover {
-    box-shadow: 0 0 20px rgba(205, 255, 0, 0.4);
-    border-color: #CDFF00;
-  box-shadow: 0 0 15px rgba(205, 255, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.05);
 }
 
 .dark .glow-primary:hover {
+  border-color: #CDFF00;
   box-shadow: 0 0 20px rgba(205, 255, 0, 0.4);
 }
+
+
 
 /* High Contrast Adjustments for Light Mode Icons/Labels */
 .light-mode-label {
