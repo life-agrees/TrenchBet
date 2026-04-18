@@ -34,8 +34,8 @@ const LandingPage = ({
   isLoadingStats = false, // FIX 1: explicit default, documents the prop
 }) => {
   return (
-    // FIX 2: dark-950/dark-900 instead of gray-900/gray-800
-    <div className="min-h-screen bg-dark-950">
+    // FIX 2: Added `dark` class to force dark mode context for the entire landing page
+    <div className="dark min-h-screen bg-dark-950">
       <div className="fixed inset-0 bg-gradient-to-b from-dark-950 via-dark-900 to-dark-950 pointer-events-none" />
       <div className="relative z-10">
         <LandingHeader onLaunchApp={onLaunchApp} />

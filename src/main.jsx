@@ -4,7 +4,9 @@ import { WagmiProvider } from 'wagmi';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RainbowKitProvider, darkTheme } from '@rainbow-me/rainbowkit';
 import { sdk } from '@farcaster/miniapp-sdk';
+import WebApp from '@twa-dev/sdk';
 import App from './app';
+import { FEATURES } from './config/features';
 import ErrorBoundary from './components/ErrorBoundary';
 import PreLoader from './components/PreLoader';
 import { config } from './config/wagmi';
@@ -44,6 +46,15 @@ const initFarcaster = async () => {
 };
 
 initFarcaster();
+
+if (FEATURES.ENABLE_TELEGRAM_MINIAPP) {
+  try {
+    WebApp.ready();
+    logger.info('Telegram WebApp initialized');
+  } catch (error) {
+    logger.warn('Failed to initialize Telegram WebApp', error);
+  }
+}
 
 const Root = () => {
   const [isLoading, setIsLoading] = useState(true);
