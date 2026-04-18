@@ -28,6 +28,10 @@ export default defineConfig({
             purpose: 'any maskable'
           }
         ]
+      },
+      workbox: {
+        // Increase maximum file size constraint to 5MB to accommodate Web3 Libraries
+        maximumFileSizeToCacheInBytes: 5242880
       }
     })
   ],
