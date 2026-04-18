@@ -4,9 +4,10 @@ import { useAccount } from 'wagmi';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { motion } from 'framer-motion';
 import {
-  Home, BarChart3, Target, Users, Trophy, Zap, Settings
+  Home, BarChart3, Target, Users, Trophy, Zap, Settings, Download
 } from 'lucide-react';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { TrenchyBetLogo } from '../TrenchyBetLogo.jsx';
 
 /**
@@ -113,6 +114,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
   const { address } = useAccount();
   const preferences = useUserPreferences(address);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { isInstallable, handleInstallClick } = usePWAInstall();
 
   // FIX 3: Guard against missing setter — fall back to local state if hook
   // doesn't expose setSidebarCollapsed
@@ -127,9 +129,13 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
   }, [isCollapsed, preferences]);
 
   const handleNavigate = useCallback((id) => {
+    if (id === 'install') {
+      handleInstallClick();
+      return;
+    }
     onNavigate(id);
     setIsMobileOpen(false);
-  }, [onNavigate]);
+  }, [onNavigate, handleInstallClick]);
 
   // ── Nav item definitions ────────────────────────────────────────────────
   const mainItems = [
@@ -148,6 +154,11 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
   const settingsItems = [
     { id: 'settings', label: 'Settings', icon: Settings, requiresConnect: false },
   ];
+  if (isInstallable) {
+    settingsItems.unshift({
+      id: 'install', label: 'Install App', icon: Download, requiresConnect: false, badge: 'PWA'
+    });
+  }
   if (isOwner) {
     settingsItems.unshift({
       id: 'admin', label: 'Admin Panel', icon: Settings, requiresConnect: false, badge: 'ADMIN'

@@ -24,7 +24,7 @@ const GlobalActivityTicker = ({ markets = [] }) => {
   if (isLoading && tickerItems.length === 0) return null;
 
   return (
-    <div className="w-full bg-neutral-900/50 dark:bg-dark-950/50 backdrop-blur-md border-b border-primary/10 h-10 overflow-hidden flex items-center relative z-20">
+    <div className="w-full pl-[52px] md:pl-0 bg-neutral-900/50 dark:bg-dark-950/50 backdrop-blur-md border-b border-primary/10 h-10 overflow-hidden flex items-center relative z-20">
       {/* Label */}
       <div className="flex-shrink-0 bg-primary/20 px-4 h-full flex items-center gap-2 border-r border-primary/20 relative z-10">
         <Zap size={14} className="text-primary animate-pulse" />
