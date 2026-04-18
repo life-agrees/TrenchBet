@@ -130,7 +130,7 @@ const StatsTabs = ({ userBets = [] }) => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 px-4 py-4 text-sm font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap ${
+              className={`flex-1 px-2 sm:px-4 py-3 sm:py-4 text-xs sm:text-sm font-semibold transition-all flex items-center justify-center gap-1 sm:gap-2 whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'text-primary border-b-2 border-primary bg-primary/5'
                   : 'text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-neutral-100 dark:bg-dark-700/50'
@@ -145,7 +145,7 @@ const StatsTabs = ({ userBets = [] }) => {
 
       {/* Stats Grid */}
       <div className="p-6">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
           <div>
             <p className="text-xs text-neutral-400 mb-1">Total Bets</p>
             <p className="text-2xl font-black text-neutral-900 dark:text-white">{stats.total}</p>
@@ -189,7 +189,7 @@ const StatsTabs = ({ userBets = [] }) => {
           </div>
 
           {/* Bet Distribution */}
-          <div className="grid grid-cols-3 gap-3 mt-6 pt-6 border-t border-neutral-200 dark:border-dark-700">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-neutral-200 dark:border-dark-700">
             <div className="text-center">
               <p className="text-xs text-neutral-400 mb-1">Avg Bet</p>
               <p className="text-lg font-bold text-neutral-900 dark:text-white">

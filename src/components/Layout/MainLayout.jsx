@@ -135,10 +135,10 @@ const MainLayout = ({
             role="banner"
             className="app-header sticky top-0 bg-white/80 dark:bg-dark-900/60 border-b border-neutral-200 dark:border-white/5 backdrop-blur-xl"
           >
-            <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div className="px-3 sm:px-6 py-3 flex items-center justify-between gap-1 sm:gap-3">
 
               {/* LEFT: Page Title + BETA badge */}
-              <div className="flex items-center gap-3 pl-10 md:pl-0">
+              <div className="flex items-center gap-2 sm:gap-3 pl-10 md:pl-0">
                 <h1
                   className="text-xl font-bold text-neutral-900 dark:text-white"
                   aria-label={`Current page: ${viewMeta.label}`}
@@ -156,7 +156,7 @@ const MainLayout = ({
                 {/* Theme Toggle */}
                 <button
                   onClick={toggleTheme}
-                  className="p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all shadow-sm dark:shadow-none"
+                  className="hidden sm:block p-2 rounded-lg bg-white dark:bg-dark-800 hover:bg-neutral-100 dark:bg-dark-700 border border-neutral-200 dark:border-dark-700 text-neutral-400 hover:text-primary transition-all shadow-sm dark:shadow-none"
                   aria-label="Toggle theme"
                 >
                   {isDarkMode ? <Sun size={17} /> : <Moon size={17} />}
@@ -196,7 +196,7 @@ const MainLayout = ({
                     </div>
                     <button
                       onClick={onAddFunds}
-                      className="flex sm:hidden items-center justify-center p-2.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group shadow-sm dark:shadow-none"
+                      className="flex sm:hidden items-center justify-center p-2 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group shadow-sm dark:shadow-none"
                       aria-label="Add funds"
                     >
                       <Plus size={16} className="text-primary group-hover:scale-110 transition-transform" />
@@ -220,7 +220,7 @@ const MainLayout = ({
                   <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
                 </div>
                 <div className="flex sm:hidden">
-                  <ConnectButton chainStatus="icon" accountStatus="avatar" />
+                  <ConnectButton chainStatus="none" accountStatus="avatar" />
                 </div>
               </div>
             </div>

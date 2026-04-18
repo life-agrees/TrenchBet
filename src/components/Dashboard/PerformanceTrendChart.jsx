@@ -179,7 +179,7 @@ const PerformanceTrendChart = ({ userBets = [], isLoading = false }) => {
       </ResponsiveContainer>
 
       {/* Summary footer */}
-      <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-neutral-200 dark:border-dark-700">
+      <div className="flex justify-between sm:grid sm:grid-cols-3 gap-2 sm:gap-4 mt-4 pt-4 border-t border-neutral-200 dark:border-dark-700">
         <div className="text-center">
           <p className="text-[10px] text-neutral-500 uppercase font-bold tracking-wider">Resolved</p>
           <p className="text-lg font-black text-neutral-900 dark:text-white">{data.reduce((s,d) => s + d.bets, 0)}</p>
