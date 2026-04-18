@@ -190,9 +190,7 @@ body {
   .bg-primary\/10 { background-color: rgb(var(--color-primary-text) / 0.1) !important; }
   .bg-primary\/20 { background-color: rgb(var(--color-primary-text) / 0.2) !important; }
   .bg-primary\/30 { background-color: rgb(var(--color-primary-text) / 0.3) !important; }
-  .glow-primary {
-    /* Legacy glow removed for Polymarket theme */
-  }
+
   
   .glow-primary {
     transition: all 0.3s ease;
