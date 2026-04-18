@@ -97,7 +97,7 @@ const getMarketLabel = (marketType, asset) => {
 // ── Main component ─────────────────────────────────────────────────────────
 
 const App = () => {
-  const { address, isConnected, chain } = useAccount();
+  const { address, isConnected, chain, isReconnecting } = useAccount();
   const { writeContractAsync } = useWriteContract();
 
   // ── All hooks — must be called before any conditional returns ──
@@ -130,7 +130,7 @@ const {
   const { stats: referralStats, shareReferral, refresh: refreshReferrals } = useReferrals();
   const { achievements, totalPoints: achievementPoints, shareAchievement, refresh: refreshAchievements } = useAchievements();
 
-  const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement } = useBetPlacement();
+  const { placeBet, isSuccess, hash, lastBetRef, reset: resetBetPlacement, isReconnecting: isBettingReconnecting } = useBetPlacement();
   const { leaderboard, isLoading: isLoadingLeaderboard } = useLeaderboard(10);
   const { isOwner } = useAdminOwner();
 
@@ -932,7 +932,8 @@ if (market?.resolved) {
       <MainLayout
         currentView={currentView}
         onNavigate={handleSidebarNavigation}
-        isConnected={isConnected}
+        isConnected={isConnected || isReconnecting}
+        isWalletReconnecting={isReconnecting}
         isOwner={isOwner}
         formattedUsdcBalance={formattedUsdcBalance}
         userPoints={unifiedPoints}

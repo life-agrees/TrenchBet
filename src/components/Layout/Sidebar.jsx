@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { motion } from 'framer-motion';
 import {
-  Home, BarChart3, Target, Users, Trophy, Zap, Settings, Download
+  Home, BarChart3, Target, Users, Trophy, Zap, Settings, Download, Plus
 } from 'lucide-react';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -110,7 +110,7 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
+const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, isOwner, onAddFunds }) => {
   const { address } = useAccount();
   const preferences = useUserPreferences(address);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -133,12 +133,18 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
       handleInstallClick();
       return;
     }
+    if (id === 'addFunds') {
+      onAddFunds();
+      setIsMobileOpen(false);
+      return;
+    }
     onNavigate(id);
     setIsMobileOpen(false);
-  }, [onNavigate, handleInstallClick]);
+  }, [onNavigate, handleInstallClick, onAddFunds]);
 
   // ── Nav item definitions ────────────────────────────────────────────────
   const mainItems = [
+    { id: 'addFunds',    label: 'Add Funds',    icon: Plus,     requiresConnect: true, badge: 'USDC' },
     { id: 'dashboard',   label: 'Dashboard',    icon: Home,    requiresConnect: true  },
     { id: 'myBets',      label: 'My Portfolio', icon: BarChart3, requiresConnect: true },
     { id: 'markets',     label: 'Markets',      icon: Target,  requiresConnect: false, badge: 'LIVE' },
@@ -254,10 +260,10 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isOwner }) => {
         {/* Connected status footer */}
         {!isCollapsed && (
           <div className="px-3 pb-3 flex-shrink-0">
-            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected ? 'bg-success/10 border border-success/20' : 'bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none'}`}>
-              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-success animate-pulse' : 'bg-neutral-600'}`} title={isConnected ? 'Connected' : 'Disconnected'} />
-              <span className={`text-xs font-bold ${isConnected ? 'text-success' : 'text-neutral-500'}`}>
-                {isConnected ? 'Connected' : 'Not Connected'}
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isConnected ? 'bg-success/10 border border-success/20' : isWalletReconnecting ? 'bg-primary/10 border border-primary/20' : 'bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${isConnected ? 'bg-success animate-pulse' : isWalletReconnecting ? 'bg-primary animate-spin' : 'bg-neutral-600'}`} title={isConnected ? 'Connected' : isWalletReconnecting ? 'Syncing...' : 'Disconnected'} />
+              <span className={`text-xs font-bold ${isConnected ? 'text-success' : isWalletReconnecting ? 'text-primary' : 'text-neutral-500'}`}>
+                {isConnected ? 'Connected' : isWalletReconnecting ? 'Syncing...' : 'Not Connected'}
               </span>
             </div>
           </div>

@@ -44,7 +44,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   const [inputError, setInputError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
   const [isApproved, setIsApproved] = useState(false); // Track if user has approved USDC
-  const { placeBet, placeBetAfterApproval, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess, checkAllowance } = useBetPlacement();
+  const { placeBet, placeBetAfterApproval, isPlacingBet, isPending, isConfirming, needsApproval, error, reset, isSuccess, checkAllowance, isReconnecting, isConnecting, address } = useBetPlacement();
   
   // Time decay tracking
   const { 
@@ -286,6 +286,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 
   // Determine balance status color
   const getBalanceStatusColor = () => {
+    if (isReconnecting) return 'text-neutral-400 animate-pulse';
     if (!usdcBalanceNum || usdcBalanceNum === 0) return 'text-red-400';
     if (usdcBalanceNum < 10) return 'text-secondary';
     return 'text-green-400';
@@ -293,6 +294,13 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 
   // Get detailed status message
   const getStatusMessage = () => {
+    if (isReconnecting || (isConnecting && !address)) {
+      return {
+        title: 'Resyncing Wallet...',
+        description: 'Restoring your session connection. Please wait...',
+        icon: <RefreshCw className="w-5 h-5 text-primary animate-spin" />
+      };
+    }
     if (needsApproval) {
       return {
         title: 'Approving USDC...',
@@ -379,9 +387,9 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-bold text-lg ${getBalanceStatusColor()}`}>
-                  {formattedUsdcBalance || '0.00'}
+                  {isReconnecting ? 'Syncing...' : (formattedUsdcBalance || '0.00')}
                 </span>
-                <span className="text-sm text-gray-400">USDC</span>
+                {!isReconnecting && <span className="text-sm text-gray-400">USDC</span>}
               </div>
             </div>
             {(!usdcBalanceNum || usdcBalanceNum === 0) && (
@@ -746,10 +754,15 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
           {!isApproved && !isSuccess && (
             <button
               onClick={handlePlaceBet}
-              disabled={!amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+              disabled={!amount || isPlacingBet || !!inputError || isReconnecting || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
               className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              {isPlacingBet && needsApproval ? (
+              {isReconnecting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Resyncing Wallet...
+                </span>
+              ) : isPlacingBet && needsApproval ? (
                 <span className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                   Approving USDC...

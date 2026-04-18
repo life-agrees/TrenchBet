@@ -69,6 +69,7 @@ const MainLayout = ({
   onAddFunds = () => {},
   chainName = 'Network',
   isSidebarCollapsed = false,
+  isWalletReconnecting = false,
   markets = [],
 }) => {
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
@@ -121,7 +122,9 @@ const MainLayout = ({
           currentView={currentView}
           onNavigate={onNavigate}
           isConnected={isConnected}
+          isWalletReconnecting={isWalletReconnecting}
           isOwner={isOwner}
+          onAddFunds={onAddFunds}
         />
 
         {/* ── Main Content ─────────────────────────────────────────────── */}
@@ -151,7 +154,7 @@ const MainLayout = ({
               </div>
 
               {/* RIGHT: User controls */}
-              <div className="flex items-center gap-2" role="toolbar" aria-label="User controls">
+              <div className="flex items-center gap-1 sm:gap-2" role="toolbar" aria-label="User controls">
 
                 {/* Theme Toggle */}
                 <button
@@ -180,28 +183,19 @@ const MainLayout = ({
                   />
                 )}
 
-                {/* Add Funds */}
+                {/* Add Funds - DESKTOP ONLY in header */}
                 {isConnected && (
-                  <>
-                    <div 
-                      onClick={onAddFunds}
-                      className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group cursor-pointer select-none shadow-sm dark:shadow-none" 
-                      role="button" 
-                      tabIndex={0}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onAddFunds(); }}
-                      aria-label="Add funds to wallet"
-                    >
-                      <Plus size={14} className="text-primary group-hover:scale-110 transition-transform flex-shrink-0" />
-                      <span className="text-sm font-bold text-neutral-900 dark:text-white group-hover:text-primary transition-colors">Add Funds</span>
-                    </div>
-                    <button
-                      onClick={onAddFunds}
-                      className="flex sm:hidden items-center justify-center p-2 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group shadow-sm dark:shadow-none"
-                      aria-label="Add funds"
-                    >
-                      <Plus size={16} className="text-primary group-hover:scale-110 transition-transform" />
-                    </button>
-                  </>
+                  <div 
+                    onClick={onAddFunds}
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 hover:bg-neutral-100 dark:bg-dark-700 transition-all group cursor-pointer select-none shadow-sm dark:shadow-none" 
+                    role="button" 
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onAddFunds(); }}
+                    aria-label="Add funds to wallet"
+                  >
+                    <Plus size={14} className="text-primary group-hover:scale-110 transition-transform flex-shrink-0" />
+                    <span className="text-sm font-bold text-neutral-900 dark:text-white group-hover:text-primary transition-colors">Add Funds</span>
+                  </div>
                 )}
 
                 {/* Chain status */}

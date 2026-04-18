@@ -25,7 +25,8 @@ function getContractForMarketType(marketType) {
 }
 
 export const useBetPlacement = () => {
-  const { address } = useAccount();
+  const { address, isConnecting, isReconnecting } = useAccount();
+  const isConnected = !!address && !isReconnecting;
   const publicClient = usePublicClient({ chainId: 84532 });
   const { data: walletClient } = useWalletClient();
   const [isPlacingBet, setIsPlacingBet] = useState(false);
@@ -100,6 +101,9 @@ export const useBetPlacement = () => {
    */
   const checkAllowance = useCallback(async (amount) => {
     if (!address) {
+      if (isReconnecting) {
+        throw new Error('Wallet is resyncing... please try again in a moment.');
+      }
       throw new Error('Wallet not connected');
     }
     
@@ -207,6 +211,9 @@ export const useBetPlacement = () => {
    */
   const executePlaceBet = useCallback(async (marketId, choice, amount, marketType) => {
     if (!walletClient || !address) {
+      if (isReconnecting) {
+        throw new Error('Wallet is resyncing... please try again in a moment.');
+      }
       throw new Error('Wallet not connected');
     }
 
@@ -306,9 +313,14 @@ export const useBetPlacement = () => {
  * Betting happens in separate placeBetAfterApproval function
  */
 const placeBet = useCallback(async (market, choice, amount) => {
-  if (!address) {
+  if (!address && !isReconnecting) {
     setError('Wallet not connected');
     return { success: false, error: 'Wallet not connected' };
+  }
+
+  if (isReconnecting) {
+    setError('Wallet is resyncing...');
+    return { success: false, error: 'Wallet is resyncing... please wait.' };
   }
 
   if (!market || market.id === undefined || market.id === null) {
@@ -416,6 +428,8 @@ const placeBetAfterApproval = useCallback(async (market, choice, amount) => {
     isConfirming,
     isPlacingBet,
     isSuccess,
+    isReconnecting,
+    isConnecting,
     hash,
     needsApproval,
     lastBetRef,
