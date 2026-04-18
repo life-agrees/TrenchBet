@@ -757,53 +757,57 @@ if (market?.resolved) {
 
             {!isLoadingMarkets && (markets || []).length > 0 && (
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-neutral-900 dark:text-white flex items-center gap-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                  <h2 className="text-2xl sm:text-3xl font-black text-neutral-900 dark:text-white flex items-center gap-3">
                     Active Markets
                     {searchQuery !== debouncedSearchQuery && (
-                      <span className="text-sm text-neutral-400 flex items-center gap-2">
-                        <Clock size={16} /> Searching...
+                      <span className="text-sm text-neutral-400 flex items-center gap-2 font-medium">
+                        <Clock size={16} className="animate-spin" /> Searching...
                       </span>
                     )}
                   </h2>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-neutral-400">Sort by:</span>
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-2 bg-white dark:bg-dark-800 p-1 rounded-2xl border border-neutral-200 dark:border-dark-700 shadow-sm">
+                      <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest pl-3">Sort:</span>
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 bg-white dark:bg-dark-800 border-2 border-neutral-200 dark:border-dark-600 rounded-xl text-sm text-neutral-900 dark:text-white focus:border-primary focus:outline-none cursor-pointer"
+                        className="px-3 py-1.5 bg-transparent text-sm font-bold text-neutral-900 dark:text-white focus:outline-none cursor-pointer"
                       >
                         <option value="endingSoon">Ending Soon</option>
                         <option value="mostActive">Most Active</option>
                         <option value="highestPool">Highest Pool</option>
                       </select>
                     </div>
-                    <div className="flex items-center gap-2" role="group">
-                      <span className="text-sm text-neutral-400 mr-2">Filter by:</span>
-                      {['ALL', 'BTC', 'ETH', 'LINK'].map((asset) => {
-                        // FIXED: Use liveMarkets from hook (already filtered for active)
-                        const activeMarkets = liveMarkets || [];
-                        const count = asset === 'ALL' ? activeMarkets.length : activeMarkets.filter(m => m.asset === asset).length;
-                        return (
-                          <button
-                            key={asset}
-                            onClick={() => setSelectedAssetFilter(asset)}
-                            className={`px-4 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${
-                              selectedAssetFilter === asset
-                                ? 'bg-primary text-dark-950 scale-105'
-                                : 'bg-white dark:bg-dark-800 border-2 border-neutral-200 dark:border-dark-600 text-neutral-400 hover:border-primary hover:text-neutral-900 dark:text-white'
-                            }`}
-                          >
-                            {asset === 'BTC' && '₿'}{asset === 'ETH' && 'Ξ'}
-                            {asset === 'SOL' && '◎'}{asset === 'ALL' && '🌐'}
-                            <span>{asset}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-white dark:bg-dark-950/30' : 'bg-neutral-100 dark:bg-dark-700'}`}>
-                              {count}
-                            </span>
-                          </button>
-                        );
-                      })}
+                    
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0 no-scrollbar max-w-full" role="group">
+                      <span className="hidden sm:inline text-xs font-bold text-neutral-500 uppercase tracking-widest mr-1">Filter:</span>
+                      <div className="flex items-center gap-1.5">
+                        {['ALL', 'BTC', 'ETH', 'LINK'].map((asset) => {
+                          const activeMarkets = liveMarkets || [];
+                          const count = asset === 'ALL' ? activeMarkets.length : activeMarkets.filter(m => m.asset === asset).length;
+                          return (
+                            <button
+                              key={asset}
+                              onClick={() => setSelectedAssetFilter(asset)}
+                              className={`whitespace-nowrap px-3 py-1.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border-2 ${
+                                selectedAssetFilter === asset
+                                  ? 'bg-primary border-primary text-dark-950 shadow-[0_0_15px_rgba(205,255,0,0.3)]'
+                                  : 'bg-white dark:bg-dark-800 border-neutral-200 dark:border-dark-700 text-neutral-400 hover:border-primary/50 hover:text-neutral-900 dark:text-white'
+                              }`}
+                            >
+                              <span className="opacity-70">
+                                {asset === 'BTC' && '₿'}{asset === 'ETH' && 'Ξ'}
+                                {asset === 'SOL' && '◎'}{asset === 'ALL' && '🌐'}
+                              </span>
+                              <span>{asset}</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>
+                                {count}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
