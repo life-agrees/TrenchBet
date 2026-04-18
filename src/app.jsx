@@ -407,10 +407,28 @@ const handleClaimAdvanced = async (marketId) => {
     }
   }, [isSuccess, hash, refreshMarkets, refreshUserBets, notificationsEnabled, notificationsSupported, sendNotification, betAmount, resetBetPlacement]);
 
+  // Farcaster Frame Initialization
   useEffect(() => {
-    if (sdk.isFarcaster) {
-      sdk.getUserContext().then(setFarcasterUser).catch(e => logger.error('Farcaster context error', e));
-    }
+    let isMounted = true;
+    const initFarcaster = async () => {
+      try {
+        if (sdk?.actions?.ready) {
+          sdk.actions.ready();
+        }
+        
+        // Ensure graceful failure if not inside Farcaster client
+        const ctx = await sdk.context;
+        if (isMounted && ctx?.user) {
+          setFarcasterUser(ctx.user);
+          logger.info('Farcaster Context Loaded', ctx.user);
+        }
+      } catch (error) {
+        logger.warn('Not running inside Farcaster Frame or context error', error);
+      }
+    };
+
+    initFarcaster();
+    return () => { isMounted = false; };
   }, []);
 
   // FIX 5: use notifiedBetIds ref instead of mutating bet objects
