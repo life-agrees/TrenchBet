@@ -180,6 +180,32 @@ export const formatTimeDuration = (seconds) => {
 };
 
 /**
+ * Format seconds for a compact timeframe label (e.g., 30m, 1h, 1.5h, 2h)
+ * Used primarily for Time-Based markets
+ * @param {number} seconds - Time period in seconds
+ * @returns {string} Compact label
+ */
+export const formatTimeframeLabel = (seconds) => {
+  if (!seconds) return '---';
+  
+  const days = seconds / 86400;
+  const hours = seconds / 3600;
+  const minutes = seconds / 60;
+
+  if (days >= 1) {
+    if (days % 1 === 0) return `${Math.round(days)}d`;
+    return `${days.toFixed(1)}d`;
+  }
+  
+  if (hours >= 1) {
+    if (hours % 1 === 0) return `${Math.round(hours)}h`;
+    return `${hours.toFixed(1)}h`;
+  }
+  
+  return `${Math.round(minutes)}m`;
+};
+
+/**
  * Calculate where current price sits relative to ranges
  * @param {number} currentPrice - Current market price
  * @param {Array} ranges - Array of range objects with min and max

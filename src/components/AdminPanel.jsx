@@ -23,6 +23,7 @@ import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { sanitizeInput } from '../utils/inputSanitization';
 import { createLogger } from '../utils/logger';
 import { useAppStore } from '../store/useAppStore';
+import { formatTimeframeLabel } from '../marketUtils';
 
 const logger = createLogger('AdminPanel');
 
@@ -498,21 +499,7 @@ function getContractForMarketType(marketType) {
   /**
    * Helper function to format timeframe labels
    */
-  const formatTimeframeLabel = (seconds) => {
-    const hours = seconds / 3600;
-    const days = seconds / 86400;
-    const weeks = seconds / 604800;
-    const months = seconds / 2592000;
 
-    if (months >= 1) return `${Math.round(months)} month${Math.round(months) > 1 ? 's' : ''}`;
-    if (weeks >= 1) return `${Math.round(weeks)} week${Math.round(weeks) > 1 ? 's' : ''}`;
-    if (days >= 1) return `${Math.round(days)} day${Math.round(days) > 1 ? 's' : ''}`;
-    
-    // Handle decimal hours (e.g., 1.5h, 0.5h)
-    if (hours < 1) return `${Math.round(hours * 60)}min`;
-    if (hours % 1 !== 0) return `${hours.toFixed(1)}h`;  // Show decimals for .5 hours
-    return `${Math.round(hours)}h`;
-  };
 
   /**
    * Parse market array from contract into structured object

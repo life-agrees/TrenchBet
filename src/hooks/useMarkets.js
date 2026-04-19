@@ -5,7 +5,7 @@ import { formatUnits, parseAbiItem } from 'viem';
 import { PROXY_ADDRESS, DURATIONS, BATCH } from '../utils/constants';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { createLogger } from '../utils/logger';
-import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../marketUtils';
+import { calculateMarketPercentages, calculateFixedOddsPercentage, formatTimeframeLabel } from '../marketUtils';
 
 const logger = createLogger('useMarkets');
 
@@ -470,14 +470,7 @@ async function fetchMultipliers(publicClient, marketId, contract) {
   }
 }
 
-function formatTimeframeLabel(seconds) {
-  const days = Math.floor(seconds / 86400);
-  const hours = Math.floor((seconds % 86400) / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (days > 0) return `${days}d`;
-  if (hours > 0) return `${hours}h`;
-  return `${minutes}m`;
-}
+
 
 function getCoinName(asset) {
   return { BTC: 'Bitcoin', ETH: 'Ethereum', LINK: 'Chainlink' }[asset] || asset;
