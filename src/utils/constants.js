@@ -299,50 +299,48 @@ export const BET_CREDITS = {
 // Add this to your constants.js file
 
 // ==========================================
-// SUPPORTED ASSETS (Base Sepolia)
+// SUPPORTED ASSETS (Dynamic Config)
 // ==========================================
+import { ASSET_CONFIG, APP_ENV, ASSET_STATUS, getFeedAddress, getActiveAssets } from '../config/assets';
 
 /**
- * Assets that have Chainlink price feeds on Base Sepolia testnet
- * IMPORTANT: Only these 3 assets have verified price feeds!
- * Other assets (SOL, UNI, AAVE, etc.) do NOT have feeds on Base Sepolia
+ * Assets that have Chainlink price feeds
+ * IMPORTANT: This is now dynamic based on APP_ENV in src/config/assets.js
  */
 export const SUPPORTED_ASSETS = {
-  // Assets with Chainlink price feeds on Base Sepolia
-  WITH_PRICE_FEEDS: ['BTC', 'ETH', 'LINK'],
+  // Assets with Chainlink price feeds active in current ENV
+  WITH_PRICE_FEEDS: getActiveAssets(),
   
-  // Assets without price feeds (cannot be used for markets that require price data)
-  WITHOUT_PRICE_FEEDS: ['UNI', 'AAVE', 'CRV', 'MKR', 'COMP', 'YFI'],
+  // Assets without price feeds (placeholder if needed)
+  WITHOUT_PRICE_FEEDS: ['UNI', 'AAVE', 'CRV'],
   
-  // All assets (for display purposes) - Only include assets with price feeds on Base Sepolia
-  ALL: ['BTC', 'ETH', 'LINK'],
-
+  // All assets defined in config
+  ALL: Object.keys(ASSET_CONFIG),
 };
 
 /**
- * Chainlink Price Feed addresses on Base Sepolia
- * Source: https://docs.chain.link/data-feeds/price-feeds/addresses?network=base&page=1#base-sepolia-testnet
- * Official addresses verified from chain.link documentation
+ * Chainlink Price Feed addresses
+ * Dynamic lookup based on APP_ENV
  */
-export const CHAINLINK_PRICE_FEEDS = {
-  BTC: '0x0FB99723Aee6f420beAD13e6bBB79b7E6F034298',   // BTC/USD (Base Sepolia Official)
-  ETH: '0x4aDC67696bA383F43DD60A9e78F2C97Fbbfc7cb1',   // ETH/USD (Base Sepolia Official)
-  LINK: '0xb113F5A928BCfF189C998ab20d753a47F9dE5A61',  // LINK/USD (Base Sepolia Official)
-};
-
-
+export const CHAINLINK_PRICE_FEEDS = Object.keys(ASSET_CONFIG).reduce((acc, symbol) => {
+  const feed = getFeedAddress(symbol);
+  if (feed) acc[symbol] = feed;
+  return acc;
+}, {});
 
 /**
- * Check if an asset has a price feed on Base Sepolia
+ * Check if an asset has a price feed
  */
 export function hasChainlinkFeed(asset) {
-  return SUPPORTED_ASSETS.WITH_PRICE_FEEDS.includes(asset.toUpperCase());
+  if (!asset) return false;
+  const upper = asset.toUpperCase();
+  return !!getFeedAddress(upper);
 }
 
 /**
  * Get Chainlink feed address for an asset
  */
 export function getChainlinkFeed(asset) {
-  const upperAsset = asset.toUpperCase();
-  return CHAINLINK_PRICE_FEEDS[upperAsset] || null;
+  if (!asset) return null;
+  return getFeedAddress(asset.toUpperCase());
 }

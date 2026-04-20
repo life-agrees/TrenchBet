@@ -59,9 +59,10 @@ import { trackBetPlaced } from './services/analyticsService';
 // Skeleton components
 import { MarketCardSkeleton } from './components/SkeletonLoader';
 
-// Constants and logger
+// Constants, config and logger
 import { DURATIONS, VIRTUAL_SCROLL } from './utils/constants';
 import { createLogger } from './utils/logger';
+import { ASSET_CONFIG, ASSET_STATUS } from './config/assets';
 
 const logger = createLogger('App');
 
@@ -783,27 +784,48 @@ if (market?.resolved) {
                     <div className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0 no-scrollbar max-w-full" role="group">
                       <span className="hidden sm:inline text-xs font-bold text-neutral-500 uppercase tracking-widest mr-1">Filter:</span>
                       <div className="flex items-center gap-1.5">
-                        {['ALL', 'BTC', 'ETH', 'LINK'].map((asset) => {
+                        {/* ALL Option */}
+                        <button
+                          onClick={() => setSelectedAssetFilter('ALL')}
+                          className={`whitespace-nowrap px-3 py-1.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border-2 ${
+                            selectedAssetFilter === 'ALL'
+                              ? 'bg-primary border-primary text-dark-950 shadow-[0_0_15px_rgba(205,255,0,0.3)]'
+                              : 'bg-white dark:bg-dark-800 border-neutral-200 dark:border-dark-700 text-neutral-400 hover:border-primary/50 hover:text-neutral-900 dark:text-white'
+                          }`}
+                        >
+                          🌐 ALL <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === 'ALL' ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>{(liveMarkets || []).length}</span>
+                        </button>
+
+                        {/* Dynamic Assets from Config */}
+                        {Object.values(ASSET_CONFIG).map((asset) => {
                           const activeMarkets = liveMarkets || [];
-                          const count = asset === 'ALL' ? activeMarkets.length : activeMarkets.filter(m => m.asset === asset).length;
+                          const count = activeMarkets.filter(m => m.asset === asset.symbol).length;
+                          const isSoon = asset.status === ASSET_STATUS.UPCOMING;
+                          
                           return (
                             <button
-                              key={asset}
-                              onClick={() => setSelectedAssetFilter(asset)}
+                              key={asset.symbol}
+                              onClick={() => !isSoon && setSelectedAssetFilter(asset.symbol)}
+                              disabled={isSoon}
                               className={`whitespace-nowrap px-3 py-1.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 border-2 ${
-                                selectedAssetFilter === asset
+                                selectedAssetFilter === asset.symbol
                                   ? 'bg-primary border-primary text-dark-950 shadow-[0_0_15px_rgba(205,255,0,0.3)]'
-                                  : 'bg-white dark:bg-dark-800 border-neutral-200 dark:border-dark-700 text-neutral-400 hover:border-primary/50 hover:text-neutral-900 dark:text-white'
+                                  : isSoon 
+                                    ? 'bg-neutral-50 dark:bg-dark-900/50 border-neutral-100 dark:border-dark-800 text-neutral-400 cursor-not-allowed'
+                                    : 'bg-white dark:bg-dark-800 border-neutral-200 dark:border-dark-700 text-neutral-400 hover:border-primary/50 hover:text-neutral-900 dark:text-white'
                               }`}
                             >
                               <span className="opacity-70">
-                                {asset === 'BTC' && '₿'}{asset === 'ETH' && 'Ξ'}
-                                {asset === 'SOL' && '◎'}{asset === 'ALL' && '🌐'}
-                              </span>
-                              <span>{asset}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === asset ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>
-                                {count}
-                              </span>
+                                {asset.icon ? <asset.icon className="w-3.5 h-3.5" /> : asset.symbol}
+                              </span> 
+                              {asset.symbol}
+                              {isSoon ? (
+                                <span className="text-[9px] bg-secondary/30 text-secondary-500 px-1 py-0.5 rounded-md uppercase tracking-tighter">Soon</span>
+                              ) : (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === asset.symbol ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>
+                                  {count}
+                                </span>
+                              )}
                             </button>
                           );
                         })}

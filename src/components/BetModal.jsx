@@ -7,21 +7,23 @@ import { VoucherBalance } from './VoucherBalance';
 import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout, getEffectiveMultiplierDisplay } from '../marketUtils';
 import { createLogger } from '../utils/logger';
 import { MARKET } from '../utils/constants';
+import { ASSET_CONFIG, ASSET_STATUS } from '../config/assets';
 
 
 const logger = createLogger('BetModal');
 
-// Helper to get asset display info
-const getAssetInfo = (asset) => {
-  const assetColors = {
-    'BTC': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    'ETH': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    'SOL': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    'CRYPTO': 'bg-[#c0ff00]/20 text-[#c0ff00] border-[#c0ff00]/30',
-  };
+// Helper to get asset display info from centralized config
+const getAssetInfo = (symbol) => {
+  const config = ASSET_CONFIG[symbol];
+  if (!config) {
+    return {
+      color: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
+      icon: Layers
+    };
+  }
   return {
-    color: assetColors[asset] || 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    icon: asset === 'BTC' ? Bitcoin : asset === 'ETH' ? CircleDollarSign : Layers
+    color: config.style.badge,
+    icon: config.icon
   };
 };
 
@@ -74,14 +76,45 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
     }
   }, [amount, usdcBalanceNum, formattedUsdcBalance]);
 
-  // Reset retry count when modal opens
+  // Reset and check allowance when modal opens
   useEffect(() => {
     if (isOpen) {
       setRetryCount(0);
       setIsApproved(false);
       reset();
+      
+      // Auto-check allowance if amount and address are present
+      const checkInitialAllowance = async () => {
+        if (address && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
+          try {
+            const hasAllowance = await checkAllowance(parseFloat(amount));
+            if (hasAllowance) {
+              setIsApproved(true);
+            }
+          } catch (err) {
+            logger.error('Error auto-checking allowance:', err);
+          }
+        }
+      };
+      
+      checkInitialAllowance();
     }
-  }, [isOpen, reset]);
+  }, [isOpen, reset, address, checkAllowance]); // Note: amount is not here to avoid constant checking while typing
+  
+  // Also check allowance when amount typing stops or settles
+  useEffect(() => {
+    if (isOpen && address && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
+      const timer = setTimeout(async () => {
+        try {
+          const hasAllowance = await checkAllowance(parseFloat(amount));
+          setIsApproved(hasAllowance);
+        } catch (err) {
+          // Silent fail for auto-check
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [amount, isOpen, address, checkAllowance]);
 
   // Restore initial choice when modal opens
   useEffect(() => {
@@ -750,58 +783,69 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
 
           {/* TWO-BUTTON APPROACH: Industry Standard - Separate Approval and Bet Placement */}
           
-          {/* Button 1: Approve USDC - Shows when approval is needed */}
-          {!isApproved && !isSuccess && (
-            <button
-              onClick={handlePlaceBet}
-              disabled={!amount || isPlacingBet || !!inputError || isReconnecting || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
-              className="w-full py-3 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              {isReconnecting ? (
-                <span className="flex items-center justify-center gap-2">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  Resyncing Wallet...
-                </span>
-              ) : isPlacingBet && needsApproval ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  Approving USDC...
-                </span>
-              ) : !amount || parseFloat(amount) <= 0 ? (
-                'Enter Amount to Approve'
-              ) : parseFloat(amount) > usdcBalanceNum ? (
-                'Insufficient Balance'
-              ) : (
-                `Approve ${safeToFixed(parseFloat(amount), 2)} USDC`
+          <div className="flex flex-col gap-3 pt-2">
+            {/* Step 1: Approve USDC - Shows when approval is needed */}
+            <div className="relative group">
+              {!isApproved && !isSuccess && (
+                <div className="absolute -top-3 left-4 px-2 bg-dark-900 border border-primary/20 rounded text-[10px] font-bold text-primary uppercase tracking-tighter z-10">
+                  Step 1: Authorization
+                </div>
               )}
-            </button>
-          )}
-
-          {/* Button 2: Place Bet - Only shows after approval is successful */}
-          {isApproved && !isSuccess && (
-            <button
-              onClick={handleConfirmBet}
-              disabled={!amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
-              className="w-full py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-neutral-900 dark:text-white font-semibold rounded-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              {isPlacingBet ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {isPending ? 'Submitting...' : isConfirming ? 'Confirming...' : 'Processing...'}
-                </span>
-              ) : (
-                `Place Bet for ${safeToFixed(parseFloat(amount), 2)} USDC`
-              )}
-            </button>
-          )}
-
-          {/* Approval Success Indicator */}
-          {isApproved && !isSuccess && (
-            <div className="flex items-center justify-center gap-2 py-2 bg-green-500/20 border border-green-500/30 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              <span className="text-green-400 text-sm font-medium">USDC Approved - Ready to Place Bet</span>
+              <button
+                onClick={handlePlaceBet}
+                disabled={isApproved || !amount || isPlacingBet || !!inputError || isReconnecting || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+                className={`w-full py-3 font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
+                  isApproved 
+                    ? 'bg-green-500/20 border border-green-500/30 text-green-400 cursor-default' 
+                    : 'bg-yellow-500 hover:bg-yellow-600 text-black shadow-lg shadow-yellow-500/10'
+                }`}
+              >
+                {isApproved ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    USDC Approved
+                  </>
+                ) : isPlacingBet && needsApproval ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Approving USDC...
+                  </>
+                ) : (
+                  `Approve ${amount ? safeToFixed(parseFloat(amount), 2) : '---'} USDC`
+                )}
+              </button>
             </div>
-          )}
+
+            {/* Step 2: Place Bet - Only enabled AFTER approval is successful */}
+            <div className="relative group">
+              {isApproved && !isSuccess && (
+                <div className="absolute -top-3 left-4 px-2 bg-dark-900 border border-primary/20 rounded text-[10px] font-bold text-primary uppercase tracking-tighter z-10 group-hover:block hidden">
+                  Step 2: Confirm Transaction
+                </div>
+              )}
+              <button
+                onClick={handleConfirmBet}
+                disabled={!isApproved || !amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+                className={`w-full py-3 font-semibold rounded-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
+                  !isApproved 
+                    ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed' 
+                    : 'bg-primary hover:bg-primary-dark text-black shadow-primary/20'
+                }`}
+              >
+                {isPlacingBet && !needsApproval ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Placing Bet...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    Place Bet
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
 
           {/* Help Text */}
           <div className="text-xs text-gray-500 text-center">

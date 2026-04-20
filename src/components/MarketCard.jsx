@@ -8,6 +8,7 @@ import {
 import { useCountdown, getUrgency } from '../hooks/useCountdown';
 import { useCurrentPrice } from '../hooks/useCurrentPrice';
 import { useTimeDecay } from '../hooks/useTimeDecay';
+import { ASSET_CONFIG, ASSET_STATUS } from '../config/assets';
 import {
   generateMarketTitle,
   calculateTotalPool,
@@ -25,13 +26,21 @@ import { MarketCardSkeleton } from './SkeletonLoader';
 
 // ── Static helpers ────────────────────────────────────────────────────────────
 
-const ASSET_STYLES = {
-  BTC:  { color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-500/10',  border: 'border-orange-200 dark:border-orange-500/20',  icon: Bitcoin },
-  ETH:  { color: 'text-blue-600 dark:text-blue-400',   bg: 'bg-blue-50 dark:bg-blue-500/10',    border: 'border-blue-200 dark:border-blue-500/20',    icon: CircleDollarSign },
-  SOL:  { color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-500/10',  border: 'border-purple-200 dark:border-purple-500/20',  icon: Layers },
-  LINK: { color: 'text-blue-500 dark:text-blue-300',   bg: 'bg-blue-50 dark:bg-blue-400/10',    border: 'border-blue-200 dark:border-blue-400/20',    icon: Layers },
+const getAsset = (symbol) => {
+  const config = ASSET_CONFIG[symbol];
+  if (!config) {
+    return { 
+      color: 'text-neutral-900 dark:text-[#CDFF00]', 
+      bg: 'bg-primary/20 dark:bg-[#CDFF00]/10', 
+      border: 'border-primary/30 dark:border-[#CDFF00]/20', 
+      icon: Layers 
+    };
+  }
+  return {
+    ...config.style,
+    icon: config.icon
+  };
 };
-const getAsset = (a) => ASSET_STYLES[a] || { color: 'text-neutral-900 dark:text-[#CDFF00]', bg: 'bg-primary/20 dark:bg-[#CDFF00]/10', border: 'border-primary/30 dark:border-[#CDFF00]/20', icon: Layers };
 
 const TYPE_META = {
   0: { label: 'Binary', Icon: TrendingUp,  accent: '#a3cc00', darkAccent: '#CDFF00' },
@@ -70,6 +79,11 @@ const CardHeader = ({ market, assetStyle, typeMeta, isFavorite, onToggleFavorite
         <div className={`flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${decayDisplay.badgeColor}`}>
           <DecayIcon className="w-3 h-3" />
           {decayDisplay.label}
+        </div>
+      )}
+      {ASSET_CONFIG[market.asset]?.status === ASSET_STATUS.UPCOMING && (
+        <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/20 border border-secondary/30 text-[10px] font-bold text-secondary">
+          Soon
         </div>
       )}
       <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">

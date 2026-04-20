@@ -17,6 +17,8 @@ import {
 import { generateQuickRanges, getTimeframePresets, formatPriceDisplay, DECAY_CONFIG } from '../marketUtils';
 
 
+import { ASSET_CONFIG, ASSET_STATUS } from '../config/assets';
+
 /**
  * CreateTab Component - Admin market creation interface
  * Supports 4 market types: Binary, Multi-Choice, Range, Time-Based
@@ -51,11 +53,12 @@ const CreateTab = ({
     { type: 'time', icon: Timer, label: 'Time-Based', description: 'Hit target' },
   ];
 
-  const ASSETS = [
-    { value: 'BTC', label: 'Bitcoin (BTC)' },
-    { value: 'ETH', label: 'Ethereum (ETH)' },
-    { value: 'LINK', label: 'Chainlink (LINK)' },
-  ];
+  // Dynamically build asset list from centralized config
+  const ASSETS = Object.values(ASSET_CONFIG).map(asset => ({
+    value: asset.symbol,
+    label: `${asset.name} (${asset.symbol})`,
+    status: asset.status
+  }));
 
 
   // ============================================================
@@ -130,7 +133,14 @@ const CreateTab = ({
         className="w-full bg-white dark:bg-dark-800 border border-neutral-200 dark:border-dark-700 rounded-lg px-4 py-3 text-neutral-900 dark:text-white focus:outline-none focus:border-primary transition-colors shadow-sm dark:shadow-none"
       >
         {ASSETS.map(asset => (
-          <option key={asset.value} value={asset.value}>{asset.label}</option>
+          <option 
+            key={asset.value} 
+            value={asset.value} 
+            disabled={asset.status === ASSET_STATUS.UPCOMING || asset.status === ASSET_STATUS.DISABLED}
+            className={asset.status === ASSET_STATUS.UPCOMING ? 'text-neutral-400 italic' : ''}
+          >
+            {asset.label} {asset.status === ASSET_STATUS.UPCOMING ? '(Coming Soon)' : ''}
+          </option>
         ))}
       </select>
     </div>
