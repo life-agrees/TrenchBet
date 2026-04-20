@@ -231,6 +231,33 @@ const {
   // of directly mutating bet objects from state (React state must not be mutated)
   const notifiedBetIds = useRef(new Set());
 
+  // \u2500\u2500 Scroll Tracking for Filter Bar \u2500\u2500
+  const filterScrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = useCallback(() => {
+    const el = filterScrollRef.current;
+    if (el) {
+      const { scrollLeft, scrollWidth, clientWidth } = el;
+      setCanScrollLeft(scrollLeft > 2);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 2);
+    }
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+    const el = filterScrollRef.current;
+    if (el) {
+      el.addEventListener('scroll', checkScroll);
+      window.addEventListener('resize', checkScroll);
+      return () => {
+        el.removeEventListener('scroll', checkScroll);
+        window.removeEventListener('resize', checkScroll);
+      };
+    }
+  }, [checkScroll, liveMarkets]);
+
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const liveStats = useMemo(() => {
@@ -781,11 +808,25 @@ if (market?.resolved) {
                       </select>
                     </div>
                     
-                    {/* Filter Container with Gradient Mask */}
+                    {/* Filter Container with Premium Dynamic Mask */}
                     <div className="relative flex-1 max-w-full overflow-hidden group">
                       <div 
-                        className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0 no-scrollbar" 
+                        ref={filterScrollRef}
+                        onScroll={checkScroll}
+                        className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0 no-scrollbar transition-all duration-300" 
                         role="group"
+                        style={{
+                          maskImage: `linear-gradient(to right, 
+                            ${canScrollLeft ? 'transparent' : 'black'} 0%, 
+                            black ${canScrollLeft ? '40px' : '0px'}, 
+                            black calc(100% - ${canScrollRight ? '40px' : '0px'}), 
+                            ${canScrollRight ? 'transparent' : 'black'} 100%)`,
+                          WebkitMaskImage: `linear-gradient(to right, 
+                            ${canScrollLeft ? 'transparent' : 'black'} 0%, 
+                            black ${canScrollLeft ? '40px' : '0px'}, 
+                            black calc(100% - ${canScrollRight ? '40px' : '0px'}), 
+                            ${canScrollRight ? 'transparent' : 'black'} 100%)`
+                        }}
                       >
                         <span className="hidden sm:inline text-xs font-bold text-neutral-500 uppercase tracking-widest mr-1 flex-shrink-0">Filter:</span>
                         <div className="flex items-center gap-1.5 pr-8">
@@ -825,7 +866,7 @@ if (market?.resolved) {
                                 </span> 
                                 {asset.symbol}
                                 {isSoon ? (
-                                  <span className="text-[9px] bg-secondary/20 text-secondary-500 px-1.5 py-0.5 rounded-md uppercase tracking-tighter font-black">Soon</span>
+                                  <span className="text-[9px] bg-secondary/10 dark:bg-secondary/5 text-secondary-500 px-1.5 py-0.5 rounded-md uppercase tracking-tighter font-black border border-secondary/20 shadow-sm backdrop-blur-md">Soon</span>
                                 ) : (
                                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === asset.symbol ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>
                                     {count}
@@ -836,8 +877,6 @@ if (market?.resolved) {
                           })}
                         </div>
                       </div>
-                      {/* Gradient Fade Overlays */}
-                      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-neutral-50 dark:from-dark-950 to-transparent pointer-events-none z-10" />
                     </div>
                   </div>
                 </div>
