@@ -62,6 +62,22 @@ export const ASSET_CONFIG = {
       mainnet: '0x71041dddad3595F8Ce33Ad99F07DA1D3b1F6f34d'
     }
   },
+  LINK: {
+    name: 'Chainlink',
+    symbol: 'LINK',
+    icon: LinkIcon,
+    status: APP_ENV === 'mainnet' ? ASSET_STATUS.DISABLED : ASSET_STATUS.ACTIVE,
+    style: {
+      color: 'text-blue-500 dark:text-blue-300',
+      bg: 'bg-blue-50 dark:bg-blue-400/10',
+      border: 'border-blue-200 dark:bg-blue-400/20',
+      badge: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    },
+    feeds: {
+      testnet: '0xb113F5A928BCfF189C998ab20d753a47F9dE5A61',
+      mainnet: '0x6d90393282222E910609681C2D66b555eF37650fdFC8'
+    }
+  },
   SOL: {
     name: 'Solana',
     symbol: 'SOL',
@@ -76,22 +92,6 @@ export const ASSET_CONFIG = {
     feeds: {
       testnet: null, 
       mainnet: '0x1062d8DE4A0344d32a90A2E2C33DEB04bBBe3219'
-    }
-  },
-  LINK: {
-    name: 'Chainlink',
-    symbol: 'LINK',
-    icon: LinkIcon,
-    status: APP_ENV === 'mainnet' ? ASSET_STATUS.DISABLED : ASSET_STATUS.ACTIVE,
-    style: {
-      color: 'text-blue-500 dark:text-blue-300',
-      bg: 'bg-blue-50 dark:bg-blue-400/10',
-      border: 'border-blue-200 dark:border-blue-400/20',
-      badge: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-    },
-    feeds: {
-      testnet: '0xb113F5A928BCfF189C998ab20d753a47F9dE5A61',
-      mainnet: '0x6d90393282222E910609681C2D66b555eF37650fdFC8'
     }
   },
   XRP: {
@@ -162,7 +162,7 @@ export const ASSET_CONFIG = {
     name: 'Pepe',
     symbol: 'PEPE',
     icon: Smile,
-    status: ASSET_STATUS.ACTIVE,
+    status: APP_ENV === 'mainnet' ? ASSET_STATUS.ACTIVE : ASSET_STATUS.UPCOMING,
     style: {
       color: 'text-green-500',
       bg: 'bg-green-500/5',
