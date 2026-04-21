@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './Sidebar';
 import ActivityFeed from './ActivityFeed';
 import GlobalActivityTicker from './GlobalActivityTicker';
-import { Bell, Wallet, Plus, Coins, Sun, Moon } from 'lucide-react';
+import { Bell, Wallet, Plus, Coins, Sun, Moon, LogOut } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useDisconnect } from 'wagmi';
 
 /**
  * HeaderStats — memoized component to prevent re-rendering the whole layout
@@ -72,6 +73,7 @@ const MainLayout = ({
   isWalletReconnecting = false,
   markets = [],
 }) => {
+  const { disconnect } = useDisconnect();
   const [activityFeedOpen, setActivityFeedOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
 
@@ -210,11 +212,29 @@ const MainLayout = ({
                 )}
 
                 {/* Wallet connect button */}
-                <div className="hidden sm:block">
+                <div className="hidden sm:flex items-center gap-2">
                   <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
+                  {isConnected && (
+                    <button
+                      onClick={() => disconnect()}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 transition-all shadow-sm"
+                      title="Disconnect Wallet"
+                    >
+                      <LogOut size={16} />
+                    </button>
+                  )}
                 </div>
-                <div className="flex sm:hidden">
+                <div className="flex sm:hidden items-center gap-2">
                   <ConnectButton chainStatus="none" accountStatus="avatar" />
+                  {isConnected && (
+                    <button
+                      onClick={() => disconnect()}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 transition-all shadow-sm"
+                      title="Disconnect Wallet"
+                    >
+                      <LogOut size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

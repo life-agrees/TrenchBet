@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
-import { useAccount } from 'wagmi';
+import { useAccount, useDisconnect } from 'wagmi';
+import { LogOut, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { motion } from 'framer-motion';
 import {
@@ -41,6 +41,7 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
       title={isDisabled ? 'Connect wallet to access' : undefined}
       className={[
         'w-full flex items-center gap-3 py-2.5 rounded-xl transition-all duration-200 relative nav-item-btn',
+        item.className || '',
         isSubmenu ? 'ml-4 text-sm px-3' : 'px-3',
         isActive
           ? 'text-neutral-900 dark:text-white bg-primary/20 dark:bg-primary/10 border-l-4 border-primary pl-2'
@@ -112,6 +113,7 @@ const NavItem = ({ item, isActive, isCollapsed, isConnected, onNavigate, isSubme
 
 const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, isOwner, onAddFunds }) => {
   const { address } = useAccount();
+  const { disconnect } = useDisconnect();
   const preferences = useUserPreferences(address);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { isInstallable, handleInstallClick } = usePWAInstall();
@@ -138,9 +140,14 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, i
       setIsMobileOpen(false);
       return;
     }
+    if (id === 'logout') {
+      disconnect();
+      setIsMobileOpen(false);
+      return;
+    }
     onNavigate(id);
     setIsMobileOpen(false);
-  }, [onNavigate, handleInstallClick, onAddFunds]);
+  }, [onNavigate, handleInstallClick, onAddFunds, disconnect]);
 
   // ── Nav item definitions ────────────────────────────────────────────────
   const mainItems = [
@@ -168,6 +175,16 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, i
   if (isOwner) {
     settingsItems.unshift({
       id: 'admin', label: 'Admin Panel', icon: Settings, requiresConnect: false, badge: 'ADMIN'
+    });
+  }
+  
+  if (isConnected) {
+    settingsItems.push({
+      id: 'logout', 
+      label: 'Disconnect Wallet', 
+      icon: LogOut, 
+      requiresConnect: false,
+      className: 'md:hidden' // Only show on mobile Sidebar
     });
   }
 
