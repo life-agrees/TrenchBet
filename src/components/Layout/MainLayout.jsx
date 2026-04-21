@@ -30,9 +30,16 @@ const HeaderStats = React.memo(({ userPoints, formattedUsdcBalance }) => (
       </div>
     </div>
 
-    <div className="flex md:hidden items-center gap-1 px-2 py-1.5 bg-white dark:bg-dark-800 rounded-lg border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
-      <Coins size={13} className="text-yellow-500" />
-      <span className="text-xs font-bold text-neutral-900 dark:text-white">{userPoints}</span>
+    <div className="flex md:hidden items-center gap-1 px-1.5 py-1 bg-white dark:bg-dark-800 rounded-xl border border-neutral-200 dark:border-dark-700 shadow-sm dark:shadow-none">
+      <div className="flex items-center gap-1 px-1.5 py-0.5">
+        <Coins size={12} className="text-yellow-500 flex-shrink-0" />
+        <span className="text-[11px] font-black text-neutral-900 dark:text-white whitespace-nowrap">{userPoints.toLocaleString()}</span>
+      </div>
+      <div className="w-px h-3 bg-neutral-200 dark:bg-dark-700 mx-0.5" />
+      <div className="flex items-center gap-1 px-1.5 py-0.5">
+        <Wallet size={12} className="text-primary flex-shrink-0" />
+        <span className="text-[11px] font-black text-neutral-900 dark:text-white whitespace-nowrap">{formattedUsdcBalance}</span>
+      </div>
     </div>
   </>
 ));

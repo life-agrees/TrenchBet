@@ -3,6 +3,7 @@ import { X, TrendingUp, TrendingDown, Zap, AlertCircle, Bitcoin, CircleDollarSig
 
 import { useBetPlacement } from '../hooks/useBetPlacement';
 import { useTimeDecay } from '../hooks/useTimeDecay';
+import { useVouchers } from '../hooks/useVouchers';
 import { VoucherBalance } from './VoucherBalance';
 import { formatOddsDisplay, calculateMarketPercentages, safeToFixed, calculatePayout, getEffectiveMultiplierDisplay } from '../marketUtils';
 import { createLogger } from '../utils/logger';
@@ -57,14 +58,22 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
     getEffectiveMultiplier,
     getOddsDropCountdown 
   } = useTimeDecay(market);
+  
+  // Voucher balance tracking for unified validation
+  const { voucherBalance, voucherBalanceFormatted, isSystemActive: vouchersActive } = useVouchers(userAddress);
+  const voucherBalanceNum = useMemo(() => voucherBalance ? Number(voucherBalance) / 1e6 : 0, [voucherBalance]);
+  
+  // Unified balance for validation
+  const totalBalanceNum = useMemo(() => usdcBalanceNum + voucherBalanceNum, [usdcBalanceNum, voucherBalanceNum]);
+  const totalBalanceFormatted = useMemo(() => (totalBalanceNum).toFixed(2), [totalBalanceNum]);
 
 
 
   // Clear input error when amount changes
   useEffect(() => {
     const betAmount = parseFloat(amount);
-    if (amount && betAmount > usdcBalanceNum) {
-      setInputError(`Insufficient balance. You have ${formattedUsdcBalance} USDC`);
+    if (amount && betAmount > totalBalanceNum) {
+      setInputError(`Insufficient balance. You have $${totalBalanceFormatted} (USDC + Vouchers)`);
     } else if (amount && betAmount < MARKET.MIN_BET_AMOUNT) {
       setInputError(`Minimum bet is ${MARKET.MIN_BET_AMOUNT} USDC`);
     } else if (amount && betAmount > MARKET.MAX_BET_AMOUNT) {
@@ -420,15 +429,15 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               </div>
               <div className="flex items-center gap-2">
                 <span className={`font-bold text-lg ${getBalanceStatusColor()}`}>
-                  {isReconnecting ? 'Syncing...' : (formattedUsdcBalance || '0.00')}
+                  {isConnecting && !formattedUsdcBalance ? 'Syncing...' : (formattedUsdcBalance || '0.00')}
                 </span>
-                {!isReconnecting && <span className="text-sm text-gray-400">USDC</span>}
+                {(!isConnecting || formattedUsdcBalance) && <span className="text-sm text-gray-400">USDC</span>}
               </div>
             </div>
-            {(!usdcBalanceNum || usdcBalanceNum === 0) && (
+            {(!totalBalanceNum || totalBalanceNum === 0) && (
               <div className="mt-2 text-xs text-red-400 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
-                Insufficient balance to place bets
+                No funds available. Deposit USDC or use a voucher.
               </div>
             )}
           </div>
