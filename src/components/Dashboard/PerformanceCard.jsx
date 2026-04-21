@@ -100,7 +100,7 @@ const PerformanceCard = ({ userStats = {}, userPoints = 0 }) => {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4"
+        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 lg:gap-8"
       >
         {stats.map((stat) => {
           const Icon = stat.icon;
@@ -118,7 +118,7 @@ const PerformanceCard = ({ userStats = {}, userPoints = 0 }) => {
                   <Icon size={18} className={stat.color} />
                 </div>
               </div>
-              <div className="text-4xl font-black text-neutral-900 dark:text-white mb-2 relative z-10 tracking-tight">
+              <div className="text-2xl sm:text-3xl lg:text-4xl font-black text-neutral-900 dark:text-white mb-2 relative z-10 tracking-tight">
                 {stat.value}
               </div>
               
@@ -149,14 +149,14 @@ const PerformanceCard = ({ userStats = {}, userPoints = 0 }) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 mt-12"
       >
         <div className="bg-white dark:bg-dark-900/40 backdrop-blur-xl border border-neutral-200 dark:border-white/5 rounded-2xl p-6 hover:border-secondary transition-all group shadow-sm dark:shadow-none">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-bold uppercase tracking-widest">Total Bets</span>
             <Target size={20} className="text-secondary group-hover:scale-110 transition-transform" />
           </div>
-          <div className="text-4xl font-black text-neutral-900 dark:text-white tracking-tight">{totalBets}</div>
+          <div className="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight">{totalBets}</div>
           {wins > 0 && (
             <div className="flex items-center gap-2 mt-3">
                <span className="px-2 py-0.5 bg-green-100 dark:bg-success/10 text-green-700 dark:text-success text-[10px] font-bold rounded uppercase border border-green-200 dark:border-success/20">{wins} Wins</span>
@@ -170,7 +170,7 @@ const PerformanceCard = ({ userStats = {}, userPoints = 0 }) => {
             <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-bold uppercase tracking-widest">Wagered Vol</span>
             <TrendingDown size={20} className="text-red-500 dark:text-red-400/60 group-hover:scale-110 transition-transform" />
           </div>
-          <div className="text-4xl font-black text-neutral-900 dark:text-white tracking-tight">${totalWagered.toFixed(2)}</div>
+          <div className="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight">${totalWagered.toFixed(2)}</div>
           <div className="text-[10px] text-neutral-600 dark:text-neutral-500 mt-3 font-bold uppercase tracking-widest">Across {totalBets} markets</div>
         </div>
 
@@ -179,7 +179,7 @@ const PerformanceCard = ({ userStats = {}, userPoints = 0 }) => {
             <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-bold uppercase tracking-widest">Avg Stake</span>
             <DollarSign size={20} className="text-primary group-hover:scale-110 transition-transform" />
           </div>
-          <div className="text-4xl font-black text-neutral-900 dark:text-white tracking-tight">${avgBetSize}</div>
+          <div className="text-3xl sm:text-4xl font-black text-neutral-900 dark:text-white tracking-tight">${avgBetSize}</div>
           <div className="text-[10px] text-primary-dark dark:text-primary mt-3 font-bold uppercase tracking-widest italic">Moderate Risk</div>
         </div>
       </motion.div>

@@ -76,12 +76,12 @@ const DashboardView = ({
     preferences?.toggleWidget?.(widgetId);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Header with Edit Mode */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-4xl font-black text-neutral-900 dark:text-white mb-2">Your Dashboard</h1>
-          <p className="text-neutral-400">Track your betting performance and achievements</p>
+    <div className="space-y-10 sm:space-y-16 animate-in fade-in duration-500 pb-10">
+      {/* Header with Edit Mode - Optimized for Mobile Breathing Room */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 sm:mb-12">
+        <div className="max-w-2xl">
+          <h1 className="text-3xl sm:text-5xl font-black text-neutral-900 dark:text-white mb-3 tracking-tight leading-tight">Your Dashboard</h1>
+          <p className="text-neutral-500 dark:text-neutral-400 font-medium">Track your betting performance and platform achievements</p>
         </div>
         <button
           onClick={() => setEditMode(!editMode)}

@@ -1592,16 +1592,16 @@ rangeForm.useFixedOdds ? rangeForm.multipliers.map((m) => BigInt(m)) : [],
               </button>
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-primary/20 px-6">
+            {/* Tabs - FIXED: Added horizontal scroll and no-scrollbar for better PWA navigation */}
+            <div className="flex border-b border-primary/20 overflow-x-auto no-scrollbar whitespace-nowrap bg-neutral-100/50 dark:bg-dark-900/50">
               {['dashboard', 'create', 'manage', 'bot', 'vouchers'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-6 py-3 font-bold capitalize transition-all border-b-2 ${
+                  className={`px-8 py-4 font-black uppercase text-[10px] tracking-widest transition-all border-b-2 flex-shrink-0 ${
                     activeTab === tab
-                      ? 'text-neutral-900 dark:text-primary border-primary'
-                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 border-transparent'
+                      ? 'text-neutral-900 dark:text-primary border-primary bg-primary/5'
+                      : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 border-transparent hover:bg-neutral-200 dark:hover:bg-dark-800'
                   }`}
                 >
                   {tab}

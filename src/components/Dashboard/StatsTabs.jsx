@@ -143,9 +143,9 @@ const StatsTabs = ({ userBets = [] }) => {
         })}
       </div>
 
-      {/* Stats Grid */}
-      <div className="p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
+      {/* Stats Grid - Optimized for Mobile Breathing Room */}
+      <div className="p-6 sm:p-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8 lg:gap-10">
           <div>
             <p className="text-xs text-neutral-400 mb-1">Total Bets</p>
             <p className="text-2xl font-black text-neutral-900 dark:text-white">{stats.total}</p>
@@ -189,7 +189,7 @@ const StatsTabs = ({ userBets = [] }) => {
           </div>
 
           {/* Bet Distribution */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6 pt-6 border-t border-neutral-200 dark:border-dark-700">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-10 mt-10 pt-10 border-t border-neutral-200 dark:border-dark-700">
             <div className="text-center">
               <p className="text-xs text-neutral-400 mb-1">Avg Bet</p>
               <p className="text-lg font-bold text-neutral-900 dark:text-white">
