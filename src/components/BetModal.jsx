@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, TrendingUp, TrendingDown, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw, BarChart3, Target, Timer, TrendingDown as DecayIcon } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Zap, AlertCircle, Bitcoin, CircleDollarSign, Layers, DollarSign, Users, PlayCircle, Clock, Wallet, Calculator, Sparkles, Shield, CheckCircle, RefreshCw, BarChart3, Target, Timer, TrendingDown as DecayIcon } from 'lucide-react';
 
 import { useBetPlacement } from '../hooks/useBetPlacement';
 import { useTimeDecay } from '../hooks/useTimeDecay';
