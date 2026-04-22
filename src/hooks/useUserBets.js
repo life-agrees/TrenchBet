@@ -73,10 +73,10 @@ const fetchRawBets = useCallback(async (force = false) => {
     try {
       const currentBlock = await publicClient.getBlockNumber();
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 500000n; // Increase lookback from 10k to 500k (~11 days)
+      const totalBlocks = 1000000n; // Increased lookback from 500k to 1M (~23 days) to catch older testnet bets
       const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
 
-      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 500k blocks)...`);
+      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 1M blocks)...`);
 
       let allLogs = [];
       for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
