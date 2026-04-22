@@ -4,6 +4,7 @@ import { parseAbiItem, formatUnits } from 'viem';
 import { createLogger } from '../utils/logger';
 import { CONTRACTS } from '../config/wagmi';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
+import { supabase } from '../lib/supabase';
 
 // FIX 2: Removed unused import PREDICTION_MARKET_ABI
 // FIX 3: Removed unused constant DEFAULT_FROM_BLOCK
@@ -44,91 +45,57 @@ const rawBetsLengthRef = useRef(0);
     }
   }, [publicClient]);
 
-const fetchRawBets = useCallback(async (force = false) => {
-    if (isFetchingRef.current) {
-      logger.debug('Skipping fetch - already in progress');
-      return;
-    }
-    if (!effectiveAddress || !publicClient) {
-      logger.debug('Skipping fetch - no address or publicClient');
-      return;
-    }
-    isFetchingRef.current = true;
+  const fetchRawBets = useCallback(async (force = false) => {
+    if (isFetchingRef.current) return;
+    if (!effectiveAddress) return;
 
+    isFetchingRef.current = true;
     const now = Date.now();
     if (!force && now - lastRefreshTime < 3000) {
-      logger.debug('Skipping fetch - rate limited');
       isFetchingRef.current = false;
       return;
     }
 
-    // FIX 1: use ref instead of rawBets.length in closure/deps
     if (rawBetsLengthRef.current === 0 || force) {
       setIsLoading(true);
     }
-
     setError(null);
     setLastRefreshTime(now);
 
     try {
-      const currentBlock = await publicClient.getBlockNumber();
-      const CHUNK_SIZE = 49999n;
-      const totalBlocks = 500000n; // Reverted back to 500k to prevent RPC rate limiting
-      const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
+      logger.info(`[useUserBets] Fetching bets from Supabase Indexer for ${effectiveAddress}`);
+      
+      const { data: bets, error: supaErr } = await supabase
+        .from('user_bets')
+        .select('*')
+        .eq('wallet_address', effectiveAddress.toLowerCase())
+        .order('block_number', { ascending: false });
 
-      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 500k blocks)...`);
+      if (supaErr) throw supaErr;
 
-      let allLogs = [];
-      for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-        const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-        try {
-          const chunk = await publicClient.getLogs({
-            address: CONTRACTS.PROXY,
-            event: parseAbiItem(
-              'event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'
-            ),
-            args: { user: effectiveAddress },
-            fromBlock: from,
-            toBlock: to,
-          });
-          if (Array.isArray(chunk)) allLogs.push(...chunk);
-          else logger.warn(`Expected array chunk, got:`, typeof chunk);
-        } catch (chunkErr) {
-          logger.warn(`[useUserBets] Chunk from ${from} failed:`, chunkErr.message);
-        }
-      }
+      const rawBetData = (bets || []).map(bet => ({
+        txHash: bet.tx_hash,
+        marketId: Number(bet.market_id),
+        choice: Number(bet.choice),
+        amount: bet.amount * 1000000n, // Convert numeric back to BigInt if needed, or handle directly
+        multiplier: Number(bet.multiplier),
+        blockNumber: BigInt(bet.block_number),
+        claimed: bet.claimed
+      }));
 
-
-      logger.info(`[useUserBets] Found ${allLogs.length} total bet events`);
-
-const rawBetData = allLogs
-  .filter(log => log.args && log.args.marketId !== undefined)
-  .map(log => ({
-        txHash:      log.transactionHash,
-        marketId:    Number(log.args.marketId),
-        choice:      Number(log.args.choice),
-        amount:      log.args.amount,              
-        multiplier:  Number(log.args.effectiveMultiplier), 
-        blockNumber: log.blockNumber,
-        logIndex:    log.logIndex,
-      }))
-  .filter(bet => !isNaN(bet.marketId) && bet.marketId > 0);
-
-      rawBetData.sort((a, b) => {
-        if (b.blockNumber !== a.blockNumber) return Number(b.blockNumber) - Number(a.blockNumber);
-        return b.logIndex - a.logIndex;
+      // We need real BigInts for amount if the rest of the app expects it (formatUnits)
+      // Actually, Supabase returns numeric. amount * 1000000 might not be BigInt.
+      rawBetData.forEach(b => {
+        b.amount = BigInt(Math.floor(b.amount * 1000000));
       });
 
-      // FIX 1: update ref before state so next render's ref is already correct
       const previousLength = rawBetsLengthRef.current;
       rawBetsLengthRef.current = rawBetData.length;
       
-      // Detect if we found new older bets (for pagination)
-      const foundNewBets = rawBetData.length > previousLength;
-      setHasMoreBets(foundNewBets);
-      
+      setHasMoreBets(false); // Supabase returns ALL bets, no pagination needed yet
       setRawBets(rawBetData);
-      logger.info(`[useUserBets] Stored ${rawBetData.length} raw bet events${foundNewBets ? ' (new older bets found)' : ''}`);
+      
+      logger.info(`[useUserBets] Loaded ${rawBetData.length} bets from Supabase`);
     } catch (err) {
       logger.error('[useUserBets] Error fetching user bets:', err);
       setError(err.message || 'Failed to fetch user bets');
@@ -136,7 +103,7 @@ const rawBetData = allLogs
       isFetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [effectiveAddress, publicClient, lastRefreshTime]);
+  }, [effectiveAddress, lastRefreshTime]);
 
   const enrichBets = useCallback(async () => {
     if (rawBets.length === 0) {
@@ -149,94 +116,24 @@ const rawBetData = allLogs
       const basicBets = rawBets.map(rawBet => ({
         txHash:      rawBet.txHash,
         marketId:    rawBet.marketId,
-        marketLabel: `Market #${rawBet.marketId}`,
-        choiceLabel: `Choice ${rawBet.choice + 1}`,
         choice:      rawBet.choice,
         amount:      rawBet.amount,
-        market: {
-          id: rawBet.marketId,
-          resolved: false,
-          endTime: 0,
-          marketType: 0,
-          asset: 'Unknown',
-        },
-        claimed: false,
-        isClaimableConfirmed: false,
+        multiplier:  rawBet.multiplier,
         blockNumber: rawBet.blockNumber,
         logIndex:    rawBet.logIndex,
+        market:      null,
+        marketLabel: `Market #${rawBet.marketId}`,
+        choiceLabel: `Choice ${rawBet.choice}`,
+        claimed:     rawBet.claimed,
+        payout:      0n,
       }));
       setUserBets(basicBets);
       return;
     }
 
     try {
-      logger.info(`Enriching ${rawBets.length} bets with market data...`);
-
-      // Fetch all WinningsClaimed events for this user once
-      let claimedMarketIds = new Set();
-      try {
-        let claimedLogs = [];
-        try {
-          claimedLogs = await publicClient.getLogs({
-            address: CONTRACTS.PROXY,
-            event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
-            args: { user: effectiveAddress },
-            fromBlock: 'earliest',
-            toBlock: 'latest',
-          });
-        } catch {
-          // Chunk fallback
-          const currentBlock = await publicClient.getBlockNumber();
-          const CHUNK_SIZE = 49999n;
-          const totalBlocks = 500000n; // Use 500k blocks
-          const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
-          for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-            const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-            try {
-              const chunk = await publicClient.getLogs({
-                address: CONTRACTS.PROXY,
-                event: parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)'),
-                args: { user: effectiveAddress },
-                fromBlock: from,
-                toBlock: to,
-              });
-              claimedLogs.push(...chunk);
-            } catch { /* skip chunk */ }
-          }
-        }
-        claimedMarketIds = new Set(claimedLogs.map(log => Number(log.args.marketId)));
-        logger.info(`Found ${claimedMarketIds.size} claimed markets`);
-      } catch (e) {
-        logger.warn('Failed to fetch WinningsClaimed events:', e.message);
-      }
-
-      // Fetch all MarketResolved events to prevent RPC rate-limit nuking in the loop
-      const resolvedMarketOutcomes = {};
-      try {
-        const currentBlock = await publicClient.getBlockNumber();
-        const CHUNK_SIZE = 49999n;
-        const totalBlocks = 500000n;
-        const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
-        for (let f = fromBlock; f < currentBlock; f += CHUNK_SIZE) {
-          const t = f + CHUNK_SIZE > currentBlock ? currentBlock : f + CHUNK_SIZE;
-          try {
-            const logs = await publicClient.getLogs({
-              address: CONTRACTS.PROXY,
-              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-              fromBlock: f, toBlock: t,
-            });
-            logs.forEach(log => {
-              resolvedMarketOutcomes[Number(log.args.marketId)] = Number(log.args.winningChoice);
-            });
-          } catch { /* skip chunk */ }
-        }
-        logger.info(`Found ${Object.keys(resolvedMarketOutcomes).length} resolved market outcomes`);
-      } catch (e) {
-        logger.warn('Failed to bulk fetch MarketResolved events:', e.message);
-      }
-
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
-        const { marketId, choice, amount } = rawBet;
+        const { marketId, choice, amount, claimed } = rawBet;
         let market = markets?.find(m => m.id === marketId);
         if (!market) {
           try {
@@ -258,12 +155,6 @@ const rawBetData = allLogs
                 yesPool: 0, noPool: 0,
                 totalBets: Number(raw.totalBets),
               };
-              // For resolved advanced markets, get winningChoice from bulk fetched outcomes
-              if (raw.resolved && Number(raw.marketType) !== 0) {
-                if (resolvedMarketOutcomes[marketId] !== undefined) {
-                  market.winningChoice = resolvedMarketOutcomes[marketId];
-                }
-              }
             }
           } catch { /* leave undefined */ }
         }
@@ -274,23 +165,16 @@ const rawBetData = allLogs
 
         const choiceLabel = getChoiceLabel(market, choice);
 
-        let claimed = false;
         let isClaimableConfirmed = false;
 
         if (market && market.resolved) {
           if (market.marketType === 0) {
             const predictedUp = choice === 1;
-            isClaimableConfirmed = predictedUp === market.priceWentUp;
-            claimed = claimedMarketIds.has(marketId);
-          } else if (
-            market.marketType === 1 ||
-            market.marketType === 2 ||
-            market.marketType === 3
-          ) {
-            if (market.winningChoice !== null && market.winningChoice !== undefined) {
-              isClaimableConfirmed = Number(choice) === Number(market.winningChoice);
-            }
-            claimed = claimedMarketIds.has(marketId);
+            const isWinner = market.priceWentUp === predictedUp;
+            isClaimableConfirmed = isWinner && !claimed;
+          } else {
+            const isWinner = choice === market.winningChoice;
+            isClaimableConfirmed = isWinner && !claimed;
           }
         }
 
@@ -312,12 +196,18 @@ const rawBetData = allLogs
         };
       }));
 
+      // Sort final enriched array
+      enrichedBets.sort((a, b) => {
+        if (b.blockNumber !== a.blockNumber) return Number(b.blockNumber) - Number(a.blockNumber);
+        return b.logIndex - a.logIndex;
+      });
+
       setUserBets(enrichedBets);
-      logger.info(`Enriched ${enrichedBets.length} user bets`);
+      logger.info(`[useUserBets] Enriched ${enrichedBets.length} bets`);
     } catch (err) {
       logger.error('Error enriching bets:', err);
     }
-  }, [rawBets, markets, effectiveAddress, publicClient]);
+  }, [rawBets, markets, publicClient]);
 
   const fetchUserBets = useCallback(async (force = false) => {
     await fetchRawBets(force);
@@ -347,73 +237,9 @@ const rawBetData = allLogs
   }, [fetchRawBets]);
 
   const loadOlderBets = useCallback(async () => {
-    if (!effectiveAddress || !publicClient || !hasMoreBets || rawBets.length === 0) {
-      return;
-    }
-
-    setIsLoadingOlder(true);
-    try {
-      const oldestBetBlock = rawBets[rawBets.length - 1]?.blockNumber || 0n;
-      const currentBlock = await publicClient.getBlockNumber();
-      
-      if (oldestBetBlock >= currentBlock) {
-        setHasMoreBets(false);
-        return;
-      }
-
-      logger.info(`[useUserBets] Loading older bets before block ${oldestBetBlock}`);
-      
-      const CHUNK_SIZE = 49999n;
-      const totalBlocks = 500000n; // Use 500k blocks
-      const fromBlock = oldestBetBlock > totalBlocks ? oldestBetBlock - totalBlocks : 0n;
-      
-      let olderLogs = [];
-      for (let from = fromBlock; from < oldestBetBlock; from += CHUNK_SIZE) {
-        const to = from + CHUNK_SIZE > oldestBetBlock ? oldestBetBlock : from + CHUNK_SIZE;
-        try {
-          const chunk = await publicClient.getLogs({
-            address: CONTRACTS.PROXY,
-            event: parseAbiItem(
-              'event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'
-            ),
-            args: { user: effectiveAddress },
-            fromBlock: from,
-            toBlock: to,
-          });
-          if (Array.isArray(chunk)) olderLogs.push(...chunk);
-        } catch (chunkErr) {
-          logger.warn(`Chunk from ${from} failed:`, chunkErr.message);
-        }
-      }
-
-      if (olderLogs.length > 0) {
-        const olderBetData = olderLogs
-  .filter(log => log.args && log.args.marketId !== undefined)
-  .map(log => ({
-          txHash: log.transactionHash,
-          marketId: Number(log.args.marketId),
-          choice: Number(log.args.choice),
-          amount: log.args.amount,
-          multiplier: Number(log.args.effectiveMultiplier),
-          blockNumber: log.blockNumber,
-          logIndex: log.logIndex,
-        }))
-  .filter(bet => !isNaN(bet.marketId) && bet.marketId > 0);
-
-        // Prepend older bets (they're already newest-first sorted)
-        const updatedBets = [...rawBets, ...olderBetData];
-        rawBetsLengthRef.current = updatedBets.length;
-        setRawBets(updatedBets);
-        logger.info(`Loaded ${olderBetData.length} older bets. Total: ${updatedBets.length}`);
-      } else {
-        setHasMoreBets(false);
-      }
-    } catch (err) {
-      logger.error('Error loading older bets:', err);
-    } finally {
-      setIsLoadingOlder(false);
-    }
-  }, [effectiveAddress, publicClient, hasMoreBets, rawBets]);
+    // Deprecated: Supabase indexer loads all bets instantly
+    setHasMoreBets(false);
+  }, []);
 
   // NOTE: logger.info calls removed from useMemo — side effects inside memo
   // are a React anti-pattern and fire twice in Strict Mode.

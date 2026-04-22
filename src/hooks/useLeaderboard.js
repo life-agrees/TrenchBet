@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
-import { usePublicClient } from 'wagmi';
-import { parseAbiItem, formatUnits } from 'viem';
-import { CONTRACTS } from '../config/wagmi';
 import { createLogger } from '../utils/logger';
+import { supabase } from '../lib/supabase';
 
 const logger = createLogger('useLeaderboard');
 
@@ -27,120 +25,44 @@ const logger = createLogger('useLeaderboard');
  *   { rank, address, displayAddress, wins, losses, winRate, totalVolume, totalBets }
  */
 export const useLeaderboard = (count = 10) => {
-  const publicClient = usePublicClient({ chainId: 84532 });
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchLeaderboard = useCallback(async () => {
-    if (!publicClient || !CONTRACTS.PROXY) return;
-
     setIsLoading(true);
     setError(null);
 
     try {
-      const currentBlock = await publicClient.getBlockNumber();
-      const CHUNK_SIZE = 49999n;
-      const totalBlocks = 490000n;
-      const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
+      logger.info(`[useLeaderboard] Fetching top ${count} from Supabase indexer...`);
 
-      // Helper to fetch all logs in chunks
-      const fetchAllLogs = async (event, args = {}) => {
-        let logs = [];
-        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-          try {
-            const chunk = await publicClient.getLogs({
-              address: CONTRACTS.PROXY,
-              event,
-              fromBlock: from,
-              toBlock: to,
-              ...(Object.keys(args).length ? { args } : {}),
-            });
-            logs.push(...chunk);
-          } catch { /* skip */ }
-        }
-        return logs;
-      };
+      const { data, error: supaErr } = await supabase
+        .from('leaderboard_stats')
+        .select('*')
+        .order('wins', { ascending: false })
+        .order('total_volume', { ascending: false })
+        .limit(count);
 
-      // Fetch all three event types in parallel
-      const [betLogs, resolvedLogs, claimedLogs] = await Promise.all([
-        fetchAllLogs(parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)')),
-        fetchAllLogs(parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)')),
-        fetchAllLogs(parseAbiItem('event WinningsClaimed(uint256 indexed marketId, address indexed user, uint256 amount)')),
-      ]);
+      if (supaErr) throw supaErr;
 
-      logger.info(`Leaderboard: ${betLogs.length} bets, ${resolvedLogs.length} resolved, ${claimedLogs.length} claimed`);
-
-      // Build market outcome map: marketId → winningChoice
-      const marketOutcomes = {};
-      resolvedLogs.forEach(log => {
-        marketOutcomes[Number(log.args.marketId)] = Number(log.args.winningChoice);
-      });
-
-      // Build claimed set: "marketId-userAddress"
-      const claimedSet = new Set(
-        claimedLogs.map(log => `${Number(log.args.marketId)}-${log.args.user?.toLowerCase()}`)
-      );
-
-      // Aggregate per-user stats
-      const userMap = {};
-      betLogs.forEach(log => {
-        const addr = log.args.user?.toLowerCase();
-        if (!addr) return;
-
-        if (!userMap[addr]) {
-          userMap[addr] = {
-            address: log.args.user,
-            totalBets: 0,
-            resolvedBets: 0,
-            totalVolume: 0,
-            wins: 0,
-            losses: 0,
-            totalWinnings: 0,
-          };
-        }
-
-        const marketId = Number(log.args.marketId);
-        const choice = Number(log.args.choice);
-        const amount = Number(formatUnits(log.args.amount || 0n, 6));
-
-        userMap[addr].totalBets += 1;
-        userMap[addr].totalVolume += amount;
-
-        // Only count win/loss if market is resolved
-        if (marketOutcomes[marketId] !== undefined) {
-          userMap[addr].resolvedBets += 1;
-          const won = choice === marketOutcomes[marketId];
-          if (won) {
-            userMap[addr].wins += 1;
-            // Check if they claimed
-            const claimed = claimedSet.has(`${marketId}-${addr}`);
-          } else {
-            userMap[addr].losses += 1;
-          }
-        }
-      });
-
-      // Sort by wins first, then volume
-      const sorted = Object.values(userMap)
-        .sort((a, b) => b.wins !== a.wins ? b.wins - a.wins : b.totalVolume - a.totalVolume)
-        .slice(0, count)
-        .map((user, idx) => ({
+      const formatted = (data || []).map((user, idx) => {
+        const resolvedBets = Number(user.wins) + Number(user.losses);
+        return {
           rank: idx + 1,
           address: user.address,
           displayAddress: `${user.address.slice(0, 6)}...${user.address.slice(-4)}`,
-          totalBets: user.totalBets,
-          totalVolume: user.totalVolume,
-          wins: user.wins,
-          losses: user.losses,
-          winRate: user.resolvedBets > 0
-            ? ((user.wins / user.resolvedBets) * 100).toFixed(1)
+          totalBets: Number(user.total_bets),
+          totalVolume: Number(user.total_volume),
+          wins: Number(user.wins),
+          losses: Number(user.losses),
+          winRate: resolvedBets > 0
+            ? ((Number(user.wins) / resolvedBets) * 100).toFixed(1)
             : '0.0',
-        }));
+        };
+      });
 
-      setLeaderboard(sorted);
-      logger.info(`Loaded ${sorted.length} leaderboard entries`);
+      setLeaderboard(formatted);
+      logger.info(`Loaded ${formatted.length} leaderboard entries`);
     } catch (err) {
       logger.error('Error fetching leaderboard:', err);
       setError(err.message || 'Failed to fetch leaderboard');
@@ -148,7 +70,7 @@ export const useLeaderboard = (count = 10) => {
     } finally {
       setIsLoading(false);
     }
-  }, [publicClient, count]);
+  }, [count]);
 
   const refresh = useCallback(() => {
     fetchLeaderboard();
