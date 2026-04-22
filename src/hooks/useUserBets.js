@@ -73,10 +73,10 @@ const fetchRawBets = useCallback(async (force = false) => {
     try {
       const currentBlock = await publicClient.getBlockNumber();
       const CHUNK_SIZE = 49999n;
-      const totalBlocks = 1000000n; // Increased lookback from 500k to 1M (~23 days) to catch older testnet bets
+      const totalBlocks = 500000n; // Reverted back to 500k to prevent RPC rate limiting
       const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
 
-      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 1M blocks)...`);
+      logger.info(`[useUserBets] Fetching user bets from block ${fromBlock} (last 500k blocks)...`);
 
       let allLogs = [];
       for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
@@ -210,6 +210,31 @@ const rawBetData = allLogs
         logger.warn('Failed to fetch WinningsClaimed events:', e.message);
       }
 
+      // Fetch all MarketResolved events to prevent RPC rate-limit nuking in the loop
+      const resolvedMarketOutcomes = {};
+      try {
+        const currentBlock = await publicClient.getBlockNumber();
+        const CHUNK_SIZE = 49999n;
+        const totalBlocks = 500000n;
+        const fromBlock = currentBlock > totalBlocks ? currentBlock - totalBlocks : 0n;
+        for (let f = fromBlock; f < currentBlock; f += CHUNK_SIZE) {
+          const t = f + CHUNK_SIZE > currentBlock ? currentBlock : f + CHUNK_SIZE;
+          try {
+            const logs = await publicClient.getLogs({
+              address: CONTRACTS.PROXY,
+              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+              fromBlock: f, toBlock: t,
+            });
+            logs.forEach(log => {
+              resolvedMarketOutcomes[Number(log.args.marketId)] = Number(log.args.winningChoice);
+            });
+          } catch { /* skip chunk */ }
+        }
+        logger.info(`Found ${Object.keys(resolvedMarketOutcomes).length} resolved market outcomes`);
+      } catch (e) {
+        logger.warn('Failed to bulk fetch MarketResolved events:', e.message);
+      }
+
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
         const { marketId, choice, amount } = rawBet;
         let market = markets?.find(m => m.id === marketId);
@@ -233,25 +258,11 @@ const rawBetData = allLogs
                 yesPool: 0, noPool: 0,
                 totalBets: Number(raw.totalBets),
               };
-              // For resolved advanced markets, get winningChoice from MarketResolved event
+              // For resolved advanced markets, get winningChoice from bulk fetched outcomes
               if (raw.resolved && Number(raw.marketType) !== 0) {
-                try {
-                  const currentBlock = await publicClient.getBlockNumber();
-                  const from = currentBlock > 500000n ? currentBlock - 500000n : 0n; // Use 500k lookback
-                  for (let f = from; f < currentBlock; f += 49999n) {
-                    const t = f + 49999n > currentBlock ? currentBlock : f + 49999n;
-                    const logs = await publicClient.getLogs({
-                      address: CONTRACTS.PROXY,
-                      event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-                      args: { marketId: BigInt(marketId) },
-                      fromBlock: f, toBlock: t,
-                    });
-                    if (logs.length > 0) {
-                      market.winningChoice = Number(logs[0].args.winningChoice);
-                      break;
-                    }
-                  }
-                } catch { /* skip */ }
+                if (resolvedMarketOutcomes[marketId] !== undefined) {
+                  market.winningChoice = resolvedMarketOutcomes[marketId];
+                }
               }
             }
           } catch { /* leave undefined */ }
