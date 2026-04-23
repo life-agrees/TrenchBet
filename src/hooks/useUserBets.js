@@ -77,17 +77,11 @@ const rawBetsLengthRef = useRef(0);
         txHash: bet.tx_hash,
         marketId: Number(bet.market_id),
         choice: Number(bet.choice),
-        amount: bet.amount * 1000000n, // Convert numeric back to BigInt if needed, or handle directly
+        amount: BigInt(Math.floor(Number(bet.amount) * 1000000)), // Convert numeric back to 6-decimal BigInt
         multiplier: Number(bet.multiplier),
         blockNumber: BigInt(bet.block_number),
         claimed: bet.claimed
       }));
-
-      // We need real BigInts for amount if the rest of the app expects it (formatUnits)
-      // Actually, Supabase returns numeric. amount * 1000000 might not be BigInt.
-      rawBetData.forEach(b => {
-        b.amount = BigInt(Math.floor(b.amount * 1000000));
-      });
 
       const previousLength = rawBetsLengthRef.current;
       rawBetsLengthRef.current = rawBetData.length;

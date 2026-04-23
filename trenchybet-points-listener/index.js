@@ -4,6 +4,7 @@
 import { createPublicClient, http, parseAbiItem, formatUnits } from 'viem';
 import { baseSepolia } from 'viem/chains';
 import { createClient } from '@supabase/supabase-js';
+import { PREDICTION_MARKET_PROXY_ABI } from './proxyAbi.js';
 import 'dotenv/config';
 
 // === CONFIG ===
@@ -110,8 +111,7 @@ async function handleBetPlaced(log) {
       txHash: log.transactionHash
     });
     
-    // [INDEXER] Insert into user_bets
-    const { error: upsertErr } = await supabase.from('user_bets').upsert({
+    const betPayload = {
       market_id: Number(marketId),
       wallet_address: user.toLowerCase(),
       choice: Number(log.args.choice),
@@ -119,9 +119,27 @@ async function handleBetPlaced(log) {
       multiplier: Number(log.args.effectiveMultiplier || 0),
       tx_hash: log.transactionHash,
       block_number: Number(log.blockNumber)
-    }, { onConflict: 'tx_hash' });
+    };
+
+    let { error: upsertErr } = await supabase.from('user_bets').upsert(betPayload, { onConflict: 'tx_hash' });
     
-    if (upsertErr) console.error('❌ Failed to index bet:', upsertErr.message);
+    if (upsertErr) {
+      // Postgres Error 23503 is 'foreign_key_violation'
+      const isFkError = upsertErr.code === '23503' || String(upsertErr.message).toLowerCase().includes('foreign key constraint');
+      
+      if (isFkError) {
+        console.log(`⚠️ Market ${marketId} missing from database. Self-healing...`);
+        // Manually trigger market fetch & insert
+        await handleMarketCreated({ args: { marketId } });
+        
+        // Retry bet insertion
+        const retry = await supabase.from('user_bets').upsert(betPayload, { onConflict: 'tx_hash' });
+        if (retry.error) console.error(`❌ Failed to retry bet index for market ${marketId}:`, retry.error.message);
+        else console.log(`✅ Successfully recovered and indexed bet for market ${marketId}`);
+      } else {
+        console.error(`❌ Failed to index bet for market ${marketId}:`, upsertErr.message, upsertErr.code);
+      }
+    }
 
   } catch (error) {
     console.error('❌ Error in handleBetPlaced:', error.message);
@@ -170,40 +188,37 @@ async function handleMarketCreated(log) {
   try {
     const marketId = Number(log.args.marketId);
     
-    // Read full market data
+    // Read full market data using correct ABI
     const raw = await publicClient.readContract({
       address: PROXY_CONTRACT_ADDRESS,
-      abi: [{
-        name: 'markets',
-        type: 'function',
-        stateMutability: 'view',
-        inputs: [{ name: '', type: 'uint256' }],
-        outputs: [
-          { name: 'marketType', type: 'uint8' },
-          { name: 'asset', type: 'string' },
-          { name: 'startTime', type: 'uint256' },
-          { name: 'endTime', type: 'uint256' },
-          { name: 'resolved', type: 'bool' },
-          { name: 'priceWentUp', type: 'bool' },
-          { name: 'totalBets', type: 'uint256' }
-        ]
-      }],
+      abi: PREDICTION_MARKET_PROXY_ABI,
       functionName: 'markets',
       args: [BigInt(marketId)]
     });
 
-    await supabase.from('markets').upsert({
+    // Extract correct indices or object keys based on contract return tuple
+    const marketType = raw.marketType !== undefined ? Number(raw.marketType) : Number(raw[1]);
+    const asset = raw.asset !== undefined ? String(raw.asset) : String(raw[2]);
+    const startTime = raw.startTime !== undefined ? Number(raw.startTime) : Number(raw[3]);
+    const endTime = raw.endTime !== undefined ? Number(raw.endTime) : Number(raw[4]);
+
+    const { error: upsertErr } = await supabase.from('markets').upsert({
       id: marketId,
-      market_type: Number(raw[0]),
-      asset: raw[1],
-      start_time: new Date(Number(raw[2]) * 1000).toISOString(),
-      end_time: new Date(Number(raw[3]) * 1000).toISOString(),
+      market_type: marketType,
+      asset: asset.replace(/\0/g, ''),
+      start_time: startTime > 0 ? new Date(startTime * 1000).toISOString() : new Date().toISOString(),
+      end_time: endTime > 0 ? new Date(endTime * 1000).toISOString() : new Date(Date.now() + 86400000).toISOString(),
       resolved: false
     });
+    
+    if (upsertErr) {
+      throw new Error(`Market upsert failed: ${upsertErr.message}`);
+    }
+    
     console.log(`✅ Indexed MarketCreated: ${marketId}`);
   } catch (err) {
     // Only log if not a 'not found' error (it might be a deleted/legacy market)
-    console.error(`❌ Error indexing MarketCreated ${log.args.marketId}:`, err.message);
+    console.error(`❌ Error indexing MarketCreated ${log.args ? log.args.marketId : ''}:`, err.message);
   }
 }
 
@@ -211,33 +226,26 @@ async function handleMarketResolved(log) {
   try {
     const marketId = Number(log.args.marketId);
     
-    // Read full market data to get priceWentUp
+    // Read full market data using correct ABI
     const raw = await publicClient.readContract({
       address: PROXY_CONTRACT_ADDRESS,
-      abi: [{
-        name: 'markets',
-        type: 'function',
-        stateMutability: 'view',
-        inputs: [{ name: '', type: 'uint256' }],
-        outputs: [
-          { name: 'marketType', type: 'uint8' },
-          { name: 'asset', type: 'string' },
-          { name: 'startTime', type: 'uint256' },
-          { name: 'endTime', type: 'uint256' },
-          { name: 'resolved', type: 'bool' },
-          { name: 'priceWentUp', type: 'bool' },
-          { name: 'totalBets', type: 'uint256' }
-        ]
-      }],
+      abi: PREDICTION_MARKET_PROXY_ABI,
       functionName: 'markets',
       args: [BigInt(marketId)]
     });
 
-    await supabase.from('markets').update({
+    // Extract correct indices or object keys from full tuple
+    const isResolved = raw.resolved !== undefined ? Boolean(raw.resolved) : Boolean(raw[9]);
+    const priceWentUp = raw.priceWentUp !== undefined ? Boolean(raw.priceWentUp) : Boolean(raw[10]);
+
+    const { error: updateErr } = await supabase.from('markets').update({
       resolved: true,
       winning_choice: log.args.winningChoice !== undefined ? Number(log.args.winningChoice) : null,
-      price_went_up: raw[5]
+      price_went_up: priceWentUp
     }).eq('id', marketId);
+    
+    if (updateErr) throw new Error(`Market update failed: ${updateErr.message}`);
+    
     console.log(`✅ Indexed MarketResolved: ${marketId}`);
   } catch (err) {
     console.error(`❌ Error indexing MarketResolved ${log.args.marketId}:`, err.message);
@@ -254,10 +262,18 @@ async function startListener() {
   console.log(`📦 Starting from block: ${lastProcessedBlock} (scanning back 3M blocks ~17 days)`);
   console.log('✅ Listening for events...\n');
 
+  let isProcessing = false;
+
   setInterval(async () => {
+    if (isProcessing) return;
+    
     try {
+      isProcessing = true;
       const currentBlock = await publicClient.getBlockNumber();
-      if (currentBlock <= lastProcessedBlock) return;
+      if (currentBlock <= lastProcessedBlock) {
+        isProcessing = false;
+        return;
+      }
 
       const CHUNK_SIZE = 9999n;
       let from = lastProcessedBlock + 1n;
@@ -294,16 +310,20 @@ async function startListener() {
         for (const log of resolvedLogs) await handleMarketResolved(log);
         for (const log of winLogs) await handleWinningsClaimed(log);
 
-        if (betLogs.length || winLogs.length) {
-          console.log(`✅ Processed ${betLogs.length} bets, ${winLogs.length} wins`);
+        if (betLogs.length || winLogs.length || marketLogs.length || resolvedLogs.length) {
+          console.log(`✅ Processed ${marketLogs.length} markets, ${betLogs.length} bets, ${resolvedLogs.length} resolved, ${winLogs.length} wins`);
         }
 
         from = to + 1n;
+        lastProcessedBlock = to;
+        
+        // Wait 300ms between chunks to prevent RPC rate-limits (HTTP 429)
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
-
-      lastProcessedBlock = currentBlock;
     } catch (error) {
       console.error('❌ Error in polling loop:', error.message);
+    } finally {
+      isProcessing = false;
     }
   }, 5000);
 }
