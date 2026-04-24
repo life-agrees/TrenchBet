@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createLogger } from '../utils/logger';
 import { NOTIFICATION_TYPES, DEFAULT_NOTIFICATION_SETTINGS, MARKET_ENDING_REMINDERS } from '../utils/notificationTypes';
+import { usePushSubscription } from './usePushSubscription';
+import { useAccount } from 'wagmi';
 
 const logger = createLogger('useEnhancedNotifications');
 
@@ -9,6 +11,9 @@ const NOTIFICATION_HISTORY_KEY = 'trenchy_notification_history';
 const MAX_NOTIFICATION_HISTORY = 100;
 
 export const useEnhancedNotifications = () => {
+  const { address } = useAccount();
+  const push = usePushSubscription(address);
+
   // State
   const [enabled, setEnabled] = useState(false);
   const [permission, setPermission] = useState('default');
@@ -164,9 +169,28 @@ export const useEnhancedNotifications = () => {
     if (settings.enabled && settings.desktop) {
       showBrowserNotification(type, data);
     }
+
+    // Trigger backend push if enabled and user has a subscription
+    if (settings.enabled && push.subscription) {
+      // Note: In a production app, the backend would trigger this based on on-chain events.
+      // Here we provide the client-side trigger logic for immediate feedback.
+      fetch('/api/push/notify', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-secret': process.env.VITE_ADMIN_SECRET // Placeholder
+        },
+        body: JSON.stringify({
+          wallet_address: address,
+          title: config.title,
+          body: data.message,
+          url: data.url || '/'
+        })
+      }).catch(err => logger.error('Failed to send push notification:', err));
+    }
     
     return notification;
-  }, [settings, getNotificationConfig, saveToNotificationCenter, showBrowserNotification]);
+  }, [settings, getNotificationConfig, saveToNotificationCenter, showBrowserNotification, push.subscription, address]);
   
   // Mark notification as read
   const markAsRead = useCallback((notificationId) => {
@@ -339,6 +363,11 @@ export const useEnhancedNotifications = () => {
     
     // Config
     notificationTypes: NOTIFICATION_TYPES,
+
+    // Push Integration
+    pushStatus: push,
+    subscribeToPush: push.subscribeUser,
+    unsubscribeFromPush: push.unsubscribeUser
   };
 };
 

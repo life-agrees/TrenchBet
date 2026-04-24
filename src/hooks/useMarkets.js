@@ -11,6 +11,16 @@ const logger = createLogger('useMarkets');
 
 const PROXY_CONTRACT_ADDRESS = PROXY_ADDRESS;
 
+// Map assets/titles to categories (Crypto, Sports, Politics, etc.)
+function getCategory(asset, title) {
+  const lowerTitle = (title || '').toLowerCase();
+  const lowerAsset = (asset || '').toLowerCase();
+  if (lowerTitle.includes('winner') || lowerTitle.includes('league') || lowerTitle.includes('cup') || lowerTitle.includes('match')) return 'Sports';
+  if (lowerTitle.includes('election') || lowerTitle.includes('president') || lowerTitle.includes('senate')) return 'Politics';
+  if (lowerTitle.includes('oscar') || lowerTitle.includes('grammy') || lowerTitle.includes('movie')) return 'Entertainment';
+  return 'Crypto'; // Default for price-based markets
+}
+
 function getContractForMarketType(marketType) {
   return {
     address: PROXY_CONTRACT_ADDRESS,
@@ -270,6 +280,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
       id: marketId,
       marketType,
       asset: market.asset || 'BTC',
+      category: getCategory(market.asset, market.title || ''),
       startTime: rawStartTime * 1000,  // stored as ms
       endTime: validEndTime * 1000,  // stored as ms
       startPrice: market.startPrice ? Number(formatUnits(market.startPrice, 8)) : 0,
@@ -545,6 +556,7 @@ async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap) {
       id: marketId,
       marketType,
       asset: market.asset || 'BTC',
+      category: getCategory(market.asset, market.title || ''),
       startTime: rawStartTime * 1000,
       endTime: validEndTime * 1000,
       startPrice: market.startPrice ? Number(formatUnits(market.startPrice, 8)) : 0,

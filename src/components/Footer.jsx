@@ -3,7 +3,7 @@ import { TrendingUp, Twitter, Send, FileText, Shield, Mail, ArrowRight, External
 import { TrenchyBetLogo } from "./TrenchyBetLogo.jsx";
 
 
-const Footer = () => {
+const Footer = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -102,16 +102,31 @@ const Footer = () => {
             <h5 className="text-neutral-900 dark:text-white font-bold mb-4 text-sm uppercase tracking-wider">Legal</h5>
             <ul className="space-y-3">
               <li>
-                <a href="#" className="link-hover-underline text-neutral-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2 group">
+                <button 
+                  onClick={() => onNavigate?.('terms')}
+                  className="link-hover-underline text-neutral-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2 group text-left w-full"
+                >
                   <FileText className="w-4 h-4 text-neutral-500 group-hover:text-[#c0ff00]" />
                   Terms of Service
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#" className="link-hover-underline text-neutral-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2 group">
+                <button 
+                  onClick={() => onNavigate?.('privacy')}
+                  className="link-hover-underline text-neutral-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2 group text-left w-full"
+                >
                   <FileText className="w-4 h-4 text-neutral-500 group-hover:text-[#c0ff00]" />
                   Privacy Policy
-                </a>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => onNavigate?.('responsible-gambling')}
+                  className="link-hover-underline text-neutral-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2 group text-left w-full"
+                >
+                  <Shield className="w-4 h-4 text-neutral-500 group-hover:text-[#c0ff00]" />
+                  Responsible Gambling
+                </button>
               </li>
               <li>
                 <a href="mailto:pndukwe824@gmail.com" className="link-hover-underline text-neutral-400 hover:text-[#c0ff00] transition-colors text-sm flex items-center gap-2 group">

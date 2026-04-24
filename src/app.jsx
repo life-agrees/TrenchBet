@@ -5,7 +5,7 @@ import { formatUnits } from 'viem';
 import {
   TrendingUp, Clock, DollarSign, Wallet, Trophy, Star,
   Target, BarChart3, Settings, AlertTriangle, CheckCircle,
-  XCircle, RefreshCw, Loader2,
+  XCircle, RefreshCw, Loader2, Bitcoin, Users,
   Zap  // FIX 1: Added missing Zap import (was crashing the Streaks view)
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -23,6 +23,10 @@ import NotificationCenter from './components/NotificationCenter';
 import ReferralDashboard from './components/ReferralDashboard';
 import AchievementsPage from './components/AchievementsPage';
 import AirdropClaimModal from './components/AirdropClaimModal';
+import TermsOfUse from './components/legal/TermsOfUse';
+import PrivacyPolicy from './components/legal/PrivacyPolicy';
+import ResponsibleGambling from './components/legal/ResponsibleGambling';
+import useActivityFeed from './hooks/useActivityFeed';
 import MarketCard from './components/MarketCard';
 import BetModal from './components/BetModal';
 import VirtualMarketList from './components/VirtualMarketList';
@@ -36,6 +40,8 @@ import { calculateMarketPercentages, formatOddsDisplay } from './marketUtils';
 // New Layout & Dashboard Components
 import MainLayout from './components/Layout/MainLayout';
 import DashboardView from './components/Dashboard/DashboardView';
+import PortfolioView from './components/Portfolio/PortfolioView';
+import WinShareCard from './components/WinShareCard';
 
 // Custom hooks
 import { useMarkets } from './hooks/useMarkets';
@@ -217,12 +223,14 @@ const {
   const [farcasterUser, setFarcasterUser]           = useState(null);
   const [betAmount, setBetAmount]                   = useState('10');
   const [selectedBet, setSelectedBet]               = useState(null);
-  const [selectedAssetFilter, setSelectedAssetFilter] = useState('ALL');
+  const [selectedTopicFilter, setSelectedTopicFilter] = useState('ALL');
+  const [selectedTypeFilter, setSelectedTypeFilter]   = useState('ALL');
   const [shareModalData, setShareModalData]         = useState(null);
   const [showPointsHistory, setShowPointsHistory]   = useState(false);
   const [showLanding, setShowLanding]               = useState(true);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [showAirdropModal, setShowAirdropModal]     = useState(false);
+  const [winShareBet, setWinShareBet]               = useState(null);
   const [sortBy, setSortBy]                         = useState('endingSoon');
 
   const previousAchievementsCount = useRef(0);
@@ -335,6 +343,13 @@ const {
         args: [BigInt(marketId)],
       });
       toast.success('Claim sent. Your winnings will be available shortly.');
+      
+      // Auto-trigger win share card if it was a significant win
+      const bet = wonBets.find(b => b.market?.id === marketId);
+      if (bet) {
+        setTimeout(() => setWinShareBet(bet), 3000);
+      }
+
       setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
     } catch (error) {
       toast.error(`Claim failed: ${error.shortMessage || error.message}`);
@@ -351,6 +366,12 @@ const handleClaimAdvanced = async (marketId) => {
         args: [BigInt(marketId)],
       });
       toast.success('Claim sent. Your winnings will be available shortly.');
+      
+      const bet = wonBets.find(b => b.market?.id === marketId);
+      if (bet) {
+        setTimeout(() => setWinShareBet(bet), 3000);
+      }
+
       setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
     } catch (error) {
       toast.error(`Claim failed: ${error.shortMessage || error.message}`);
@@ -399,6 +420,9 @@ const handleClaimAdvanced = async (marketId) => {
       streaks:     'streaks',   // FIX  was missing
       admin:       'admin',
       settings:    'settings',
+      terms:       'terms',
+      privacy:     'privacy',
+      'responsible-gambling': 'responsible-gambling',
     };
     if (viewMap[viewId]) setCurrentView(viewMap[viewId]);
   }, []);
@@ -459,6 +483,22 @@ const handleClaimAdvanced = async (marketId) => {
     return () => { isMounted = false; };
   }, []);
 
+  // Social Proof Logic
+  const { activities } = useActivityFeed();
+  const recentlyActiveMarketIds = useMemo(() => {
+    if (!activities) return new Set();
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+    const activeIds = activities
+      .filter(a => new Date(a.timestamp).getTime() > fiveMinutesAgo)
+      .map(a => a.marketId);
+    return new Set(activeIds);
+  }, [activities]);
+
+  // Derived bet states for sharing/claiming
+  const claimableBets = useMemo(() => {
+    return (wonBets || []).filter(bet => !bet.claimed);
+  }, [wonBets]);
+
   // FIX 5: use notifiedBetIds ref instead of mutating bet objects
   useEffect(() => {
     if (!wonBets?.length || !rtNotifications) return;
@@ -501,126 +541,6 @@ const handleClaimAdvanced = async (marketId) => {
 
   // ── Render helpers ─────────────────────────────────────────────────────────
 
-  const renderUserBet = (bet) => {
-    const market  = bet.market;
-    const claimed = bet.claimed;
-    const canClaim = bet.isClaimableConfirmed && !bet.claimed;
-
-    let isWin = false;
-    let isLoss = false;
-if (market?.resolved) {
-  if (market.marketType === 0) {
-    const predictedUp = bet.choice === 1;
-    isWin  = predictedUp === market.priceWentUp;
-    isLoss = !isWin;
-  } else if (market.marketType === 1 || 
-             market.marketType === 2 || 
-             market.marketType === 3) {  // ← ADD types 2 & 3
-    if (market.winningChoice !== null && market.winningChoice !== undefined) {
-      isWin  = Number(bet.choice) === Number(market.winningChoice);
-      isLoss = !isWin;
-    }
-  }
-}
-
-    let oddsDisplay = '';
-    if (market && !market.resolved) {
-      const isUp = bet.choice === 1;
-      const oddsData = formatOddsDisplay({
-        useFixedOdds: market.useFixedOdds,
-        multiplier: isUp ? market.yesMultiplier : market.noMultiplier,
-        poolPercentage: isUp
-          ? calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).upPercentage
-          : calculateMarketPercentages(market.yesPool || 0, market.noPool || 0).downPercentage,
-        choice: bet.choice,
-      });
-      oddsDisplay = oddsData.text;
-    }
-
-    return (
-      <div key={bet.txHash} className={`bg-white dark:bg-dark-800 p-4 rounded-xl shadow-md flex justify-between items-center transition-all duration-300 ${claimed && isWin ? 'opacity-70' : ''}`}>
-        <div className="flex flex-col">
-          <span className="text-lg font-bold text-neutral-900 dark:text-white">{bet.marketLabel}</span>
-          <span className="text-sm text-neutral-400">
-            Bet on: <span className="font-semibold text-primary">{bet.choiceLabel}</span>
-            {!market.resolved && oddsDisplay && (
-              <span className="ml-2 text-secondary font-medium">• {oddsDisplay}</span>
-            )}
-          </span>
-          <span className="text-sm text-neutral-400">
-            Amount: <span className="font-semibold text-success">{formatUnits(bet.amount, 6)} USDC</span>
-          </span>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          {!market.resolved ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-blue-500 text-neutral-900 dark:text-white">
-              {getMarketTimeRemaining(market)}
-            </span>
-          ) : isWin && canClaim ? (
-            <button onClick={() => {
-  if (market.marketType === 0) {
-    handleClaim(market.id);
-  } else {
-    handleClaimAdvanced(market.id); // ← need to add this handler
-  }
-}} className="bg-secondary hover:bg-secondary-500 text-neutral-900 font-bold py-2 px-4 rounded-lg flex items-center gap-1 text-sm">
-              <Trophy size={16} /> Claim Winnings
-            </button>
-          ) : isWin && claimed ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-success text-neutral-900 dark:text-white flex items-center gap-1">
-              <CheckCircle size={14} /> Claimed
-            </span>
-          ) : isLoss ? (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-red-500 text-neutral-900 dark:text-white flex items-center gap-1">
-              <XCircle size={14} /> Lost
-            </span>
-          ) : (
-            <span className="px-3 py-1 text-xs font-bold rounded-full bg-neutral-500 text-neutral-900 dark:text-white">Unknown</span>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderUserBetsLoading = () => (
-    <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-dark-800 rounded-xl">
-      <Loader2 className="animate-spin text-primary mb-3" size={32} />
-      <p className="text-neutral-400">Loading your bets...</p>
-    </div>
-  );
-
-  const renderUserBetsError = () => (
-    <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-dark-800 rounded-xl border border-red-500/30">
-      <AlertTriangle className="text-red-500 mb-3" size={32} />
-      <p className="text-red-400 mb-2">Failed to load bets</p>
-      <p className="text-sm text-neutral-500 mb-3">{userBetsError}</p>
-      <button
-        onClick={() => refreshUserBets()}
-        className="px-4 py-2 bg-primary hover:bg-primary/90 text-dark-950 font-bold rounded-lg flex items-center gap-2"
-      >
-        <RefreshCw size={16} /> Retry
-      </button>
-    </div>
-  );
-
-  const renderUserBetsEmpty = (message) => (
-    <div className="flex flex-col items-center justify-center h-48 bg-white dark:bg-dark-800 rounded-xl text-neutral-400">
-      <BarChart3 size={32} className="mb-3 opacity-50" />
-      <p className="text-lg">{message}</p>
-      <p className="text-sm text-neutral-500 mt-2">Place a bet to see it here</p>
-    </div>
-  );
-
-  const getFilteredBets = useCallback(() => {
-    switch (betView) {
-      case 'ongoing':  return ongoingBets;
-      case 'pending':  return pendingBets;
-      case 'wins':     return wonBets;
-      case 'losses':   return lostBets;
-      default:         return userBets;
-    }
-  }, [betView, ongoingBets, pendingBets, wonBets, lostBets, userBets]);
-
   // ── Early return (after all hooks) ────────────────────────────────────────
 
 
@@ -642,49 +562,21 @@ if (market?.resolved) {
         ) : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'myBets':
-        return (
-          <section id="myBets-panel" role="tabpanel" className="animate-in fade-in duration-500">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-primary">My Bets</h2>
-              <button
-                onClick={() => refreshUserBets()}
-                disabled={isLoadingUserBets}
-                className="flex items-center gap-2 px-4 py-2 bg-neutral-100 dark:bg-dark-700 hover:bg-neutral-200 dark:bg-dark-600 border-2 border-neutral-200 dark:border-dark-600 rounded-xl transition-all disabled:opacity-50"
-              >
-                <RefreshCw size={16} className={isLoadingUserBets ? 'animate-spin' : ''} />
-                {isLoadingUserBets ? 'Refreshing...' : 'Refresh'}
-              </button>
-            </div>
-            <div className="flex border-b border-neutral-200 dark:border-dark-600 mb-6 overflow-x-auto" role="tablist">
-              {[
-                { key: 'ongoing', label: `Ongoing (${ongoingBets.length})`,  icon: Clock },
-                { key: 'pending', label: `Pending (${pendingBets.length})`,  icon: AlertTriangle, hidden: pendingBets.length === 0 },
-                { key: 'wins',    label: `Wins (${wonBets.length})`,         icon: Trophy },
-                { key: 'losses',  label: `Losses (${lostBets.length})`,      icon: XCircle },
-              ].filter(item => !item.hidden).map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setBetView(key)}
-                  className={`py-3 px-6 text-lg font-semibold transition-all flex items-center gap-2 ${
-                    betView === key ? 'text-primary border-b-2 border-primary' : 'text-neutral-400 hover:text-neutral-900 dark:text-white hover:bg-primary/5'
-                  }`}
-                >
-                  <Icon size={20} className={betView === key ? 'text-primary' : 'text-neutral-500'} />
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-4">
-              {isLoadingUserBets ? renderUserBetsLoading()
-               : userBetsError ? renderUserBetsError()
-               : (() => {
-                  const filteredBets = getFilteredBets();
-                  if (filteredBets.length === 0) return renderUserBetsEmpty(`No ${betView} bets found`);
-                  return filteredBets.map(renderUserBet);
-                })()}
-            </div>
-          </section>
-        );
+        return isConnected ? (
+          <PortfolioView
+            userBets={userBets}
+            ongoingBets={ongoingBets}
+            pendingBets={pendingBets}
+            wonBets={wonBets}
+            lostBets={lostBets}
+            isLoadingUserBets={isLoadingUserBets}
+            userBetsError={userBetsError}
+            refreshUserBets={refreshUserBets}
+            userStats={userStats}
+            handleClaim={handleClaim}
+            handleClaimAdvanced={handleClaimAdvanced}
+          />
+        ) : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'leaderboard':
         return (
@@ -703,10 +595,6 @@ if (market?.resolved) {
           ? <AchievementsPage isOpen achievements={achievements} stats={achievementStats} onClose={() => setCurrentView('dashboard')} onShare={shareAchievement} />
           : <EmptyState isConnected={isConnected} variant="empty" />;
 
-      case 'referrals':
-        return isConnected
-          ? <ReferralDashboard isOpen stats={referralStats} onClose={() => setCurrentView('dashboard')} onShare={shareReferral} />
-          : <EmptyState isConnected={isConnected} variant="empty" />;
 
       case 'admin':
         return isOwner
@@ -728,7 +616,19 @@ if (market?.resolved) {
           />
         );
 
+      case 'terms':
+        return <TermsOfUse />;
+      case 'privacy':
+        return <PrivacyPolicy />;
+      case 'responsible-gambling':
+        return <ResponsibleGambling />;
+
       // FIX 2: Streaks view now reachable via handleSidebarNavigation
+      case 'referrals':
+        return isConnected ? (
+          <ReferralDashboard inline />
+        ) : <EmptyState isConnected={isConnected} variant="empty" />;
+
       case 'streaks':
         return isConnected ? (
           <section id="streaks-panel" className="animate-in fade-in duration-500">
@@ -795,86 +695,78 @@ if (market?.resolved) {
                     )}
                   </h2>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <div className="flex items-center gap-2 bg-white dark:bg-dark-800 p-1 rounded-2xl border border-neutral-200 dark:border-dark-700 shadow-sm">
-                      <span className="text-xs font-bold text-neutral-500 uppercase tracking-widest pl-3">Sort:</span>
-                      <select
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-1.5 bg-transparent text-sm font-bold text-neutral-900 dark:text-white focus:outline-none cursor-pointer"
-                      >
-                        <option value="endingSoon">Ending Soon</option>
-                        <option value="mostActive">Most Active</option>
-                        <option value="highestPool">Highest Pool</option>
-                      </select>
-                    </div>
+                    {/* Sort moved inside Discovery Bar */}
                     
                     {/* Filter Container with Premium Dynamic Mask */}
-                    <div className="relative flex-1 max-w-full overflow-hidden group">
-                      <div 
-                        ref={filterScrollRef}
-                        onScroll={checkScroll}
-                        className="flex items-center gap-1.5 overflow-x-auto pb-2 sm:pb-0 no-scrollbar transition-all duration-300" 
-                        role="group"
-                        style={{
-                          maskImage: `linear-gradient(to right, 
-                            ${canScrollLeft ? 'transparent' : 'black'} 0%, 
-                            black ${canScrollLeft ? '40px' : '0px'}, 
-                            black calc(100% - ${canScrollRight ? '40px' : '0px'}), 
-                            ${canScrollRight ? 'transparent' : 'black'} 100%)`,
-                          WebkitMaskImage: `linear-gradient(to right, 
-                            ${canScrollLeft ? 'transparent' : 'black'} 0%, 
-                            black ${canScrollLeft ? '40px' : '0px'}, 
-                            black calc(100% - ${canScrollRight ? '40px' : '0px'}), 
-                            ${canScrollRight ? 'transparent' : 'black'} 100%)`
-                        }}
-                      >
-                        <span className="hidden sm:inline text-xs font-bold text-neutral-500 uppercase tracking-widest mr-1 flex-shrink-0">Filter:</span>
-                        <div className="flex items-center gap-1.5 pr-8">
-                          {/* ALL Option */}
-                          <button
-                            onClick={() => setSelectedAssetFilter('ALL')}
-                            className={`whitespace-nowrap px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border-2 flex-shrink-0 ${
-                              selectedAssetFilter === 'ALL'
-                                ? 'bg-primary border-primary text-dark-950 shadow-[0_0_15px_rgba(205,255,0,0.3)] scale-[1.02]'
-                                : 'bg-white dark:bg-dark-800 border-neutral-200 dark:border-dark-700 text-neutral-400 hover:border-primary/50 hover:text-neutral-900 dark:text-white'
-                            }`}
-                          >
-                            🌐 ALL <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === 'ALL' ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>{(liveMarkets || []).length}</span>
-                          </button>
-
-                          {/* Dynamic Assets from Config */}
-                          {Object.values(ASSET_CONFIG).map((asset) => {
-                            const activeMarkets = liveMarkets || [];
-                            const count = activeMarkets.filter(m => m.asset === asset.symbol).length;
-                            const isSoon = asset.status === ASSET_STATUS.UPCOMING;
-                            
+                    <div className="flex flex-col gap-6 w-full">
+                      
+                      {/* Topic Strip (Iconic) */}
+                      <div className="relative group">
+                        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+                          {[
+                            { id: 'ALL',      label: 'All Markets', icon: Target },
+                            { id: 'CRYPTO',   label: 'Crypto',      icon: Bitcoin },
+                            { id: 'SPORTS',   label: 'Sports',      icon: Trophy },
+                            { id: 'POLITICS', label: 'Politics',    icon: Users },
+                            { id: 'ENTERTAINMENT', label: 'Fun',    icon: Zap },
+                          ].map((topic) => {
+                            const Icon = topic.icon;
+                            const isActive = selectedTopicFilter === topic.id;
                             return (
                               <button
-                                key={asset.symbol}
-                                onClick={() => !isSoon && setSelectedAssetFilter(asset.symbol)}
-                                disabled={isSoon}
-                                className={`whitespace-nowrap px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border-2 flex-shrink-0 transform active:scale-95 ${
-                                  selectedAssetFilter === asset.symbol
-                                    ? 'bg-primary border-primary text-dark-950 shadow-[0_0_15px_rgba(205,255,0,0.3)] scale-[1.02]'
-                                    : isSoon 
-                                      ? 'bg-neutral-50 dark:bg-dark-900/50 border-neutral-100 dark:border-dark-800 text-neutral-400 cursor-not-allowed opacity-60'
-                                      : 'bg-white dark:bg-dark-800 border-neutral-200 dark:border-dark-700 text-neutral-400 hover:border-primary/50 hover:text-neutral-900 dark:text-white'
+                                key={topic.id}
+                                onClick={() => setSelectedTopicFilter(topic.id)}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl font-bold text-sm transition-all border-2 whitespace-nowrap ${
+                                  isActive
+                                    ? 'bg-primary border-primary text-dark-950 shadow-[0_0_20px_rgba(205,255,0,0.2)]'
+                                    : 'bg-white/5 border-white/5 text-neutral-400 hover:border-white/10 hover:bg-white/10'
                                 }`}
                               >
-                                <span>
-                                  {asset.icon ? <asset.icon className="w-3.5 h-3.5" /> : asset.symbol}
-                                </span> 
-                                {asset.symbol}
-                                {isSoon ? (
-                                  <span className="text-[9px] bg-secondary/10 dark:bg-secondary/5 text-secondary-500 px-1.5 py-0.5 rounded-md uppercase tracking-tighter font-black border border-secondary/20 shadow-sm backdrop-blur-md">Soon</span>
-                                ) : (
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedAssetFilter === asset.symbol ? 'bg-dark-950/20 text-dark-950' : 'bg-neutral-100 dark:bg-dark-700 text-neutral-500'}`}>
-                                    {count}
-                                  </span>
-                                )}
+                                <Icon size={16} className={isActive ? 'text-dark-950' : 'text-primary'} />
+                                {topic.label}
                               </button>
                             );
                           })}
+                        </div>
+                      </div>
+
+                      {/* Sub-Filters: Type & Sort */}
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center p-1 bg-dark-800/80 backdrop-blur-md rounded-2xl border border-white/5">
+                          {[
+                            { id: 'ALL', label: 'All' },
+                            { id: '0',   label: 'Binary' },
+                            { id: '1',   label: 'Multi' },
+                            { id: '2',   label: 'Range' },
+                            { id: '3',   label: 'Time' },
+                          ].map((type) => (
+                            <button
+                              key={type.id}
+                              onClick={() => setSelectedTypeFilter(type.id)}
+                              className={`px-4 py-1.5 rounded-xl font-bold text-[11px] uppercase tracking-wider transition-all ${
+                                selectedTypeFilter === type.id
+                                  ? 'bg-secondary text-dark-950 shadow-lg'
+                                  : 'text-neutral-500 hover:text-white'
+                              }`}
+                            >
+                              {type.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="h-8 w-px bg-white/10 mx-1 hidden sm:block"></div>
+
+                        <div className="flex items-center gap-2 bg-dark-800/80 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/5">
+                          <span className="text-[10px] font-black text-neutral-500 uppercase tracking-widest">Sort:</span>
+                          <select
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                            className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer pr-2"
+                          >
+                            <option value="endingSoon">Ending Soon</option>
+                            <option value="mostActive">Most Active</option>
+                            <option value="highestPool">Highest Pool</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -891,9 +783,23 @@ if (market?.resolved) {
 
             {(() => {
               const currentLiveMarkets = liveMarkets || [];
-              let filteredMarkets = selectedAssetFilter === 'ALL'
-                ? currentLiveMarkets
-                : currentLiveMarkets.filter(m => m.asset === selectedAssetFilter);
+              let filteredMarkets = currentLiveMarkets;
+
+              if (selectedTopicFilter !== 'ALL') {
+                // For now, most markets are CRYPTO.
+                if (selectedTopicFilter === 'CRYPTO') {
+                  // Keep crypto assets
+                  const cryptoAssets = ['BTC', 'ETH', 'SOL', 'LINK', 'PEPE', 'DOGE'];
+                  filteredMarkets = filteredMarkets.filter(m => cryptoAssets.includes(m.asset));
+                } else {
+                  // Other topics might be empty for now
+                  filteredMarkets = filteredMarkets.filter(m => m.category === selectedTopicFilter);
+                }
+              }
+
+              if (selectedTypeFilter !== 'ALL') {
+                filteredMarkets = filteredMarkets.filter(m => String(m.marketType) === selectedTypeFilter);
+              }
 
               if (debouncedSearchQuery.trim()) {
                 const query = debouncedSearchQuery.toLowerCase();
@@ -927,13 +833,33 @@ if (market?.resolved) {
                       </h3>
                       {pinned.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION ? (
                         <ErrorBoundary variant="inline">
-                          <VirtualMarketList markets={pinned} currentPrices={currentPrices} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite} onToggleFavorite={toggleFavorite} pinned />
+                          <VirtualMarketList 
+                            markets={pinned} 
+                            currentPrices={currentPrices} 
+                            onBetClick={handleBetClick} 
+                            usdcBalance={usdcBalanceNum} 
+                            isFavorite={isFavorite} 
+                            onToggleFavorite={toggleFavorite} 
+                            recentlyActiveMarketIds={recentlyActiveMarketIds}
+                            pinned 
+                          />
                         </ErrorBoundary>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                           {pinned.map(market => (
                             <ErrorBoundary variant="inline" key={Number(market.id) + "-eb"}>
-                              <MarketCard key={Number(market.id)} market={market} currentPrice={currentPrices[market.asset]} onClick={() => handleOpenShareModal(market)} onBetClick={handleBetClick} usdcBalance={usdcBalanceNum} isFavorite={isFavorite(market.id)} onToggleFavorite={() => toggleFavorite(market.id)} pinned />
+                              <MarketCard 
+                                key={Number(market.id)} 
+                                market={market} 
+                                currentPrice={currentPrices[market.asset]} 
+                                onClick={() => handleOpenShareModal(market)} 
+                                onBetClick={handleBetClick} 
+                                usdcBalance={usdcBalanceNum} 
+                                isFavorite={isFavorite(market.id)} 
+                                onToggleFavorite={() => toggleFavorite(market.id)} 
+                                isRecentlyActive={recentlyActiveMarketIds.has(market.id)}
+                                pinned 
+                              />
                             </ErrorBoundary>
                           ))}
                         </div>
@@ -957,6 +883,7 @@ if (market?.resolved) {
                         usdcBalance={usdcBalanceNum}
                         isFavorite={isFavorite}
                         onToggleFavorite={toggleFavorite}
+                        recentlyActiveMarketIds={recentlyActiveMarketIds}
                       />
                     </ErrorBoundary>
                   ) : (
@@ -974,6 +901,7 @@ if (market?.resolved) {
                             isPlacingBet={false}
                             isFavorite={isFavorite(market.id)}
                             onToggleFavorite={() => toggleFavorite(market.id)}
+                            isRecentlyActive={recentlyActiveMarketIds.has(market.id)}
                           />
                         </ErrorBoundary>
                       ))}
@@ -1039,6 +967,13 @@ if (market?.resolved) {
             usdcBalanceNum={usdcBalanceNum}
             userAddress={address}
             onBetPlaced={handleBetPlaced}
+            hasClaimableWins={claimableBets.length > 0}
+            onShareWin={() => {
+              if (claimableBets.length > 0) {
+                setWinShareBet(claimableBets[0]);
+                setSelectedBet(null);
+              }
+            }}
           />
         )}
 
@@ -1064,9 +999,15 @@ if (market?.resolved) {
 
         <ShareModal market={shareModalData} isOpen={!!shareModalData} onClose={() => setShareModalData(null)} />
         <PointsHistoryModal isOpen={showPointsHistory} onClose={() => setShowPointsHistory(false)} walletAddress={address} />
+
+        <WinShareCard 
+          bet={winShareBet} 
+          isVisible={!!winShareBet} 
+          onClose={() => setWinShareBet(null)} 
+        />
       </MainLayout>
 
-      <Footer />
+      <Footer onNavigate={handleSidebarNavigation} />
     </>
   );
 };

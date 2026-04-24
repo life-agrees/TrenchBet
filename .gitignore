@@ -13,7 +13,11 @@ secrets/
 # Build outputs
 dist/
 build/
+dev-dist/
 .cache/
+.parcel-cache/
+.next/
+.vercel/
 
 # IDE files
 .vscode/

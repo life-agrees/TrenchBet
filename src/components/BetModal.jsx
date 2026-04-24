@@ -40,7 +40,8 @@ const getMarketTypeLabel = (type) => {
 };
 
 export const BetModal = ({ isOpen, onClose, market, usdcBalance, 
-  formattedUsdcBalance, usdcBalanceNum, onBetPlaced, initialChoice, userAddress }) => {
+  formattedUsdcBalance, usdcBalanceNum, onBetPlaced, initialChoice, userAddress,
+  hasClaimableWins = false, onShareWin }) => {
   const [position, setPosition] = useState('yes');
   const [selectedChoice, setSelectedChoice] = useState(0);
   const [amount, setAmount] = useState('');
@@ -72,9 +73,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   // Clear input error when amount changes
   useEffect(() => {
     const betAmount = parseFloat(amount);
-    if (amount && betAmount > totalBalanceNum) {
-      setInputError(`Insufficient balance. You have $${totalBalanceFormatted} (USDC + Vouchers)`);
-    } else if (amount && betAmount < MARKET.MIN_BET_AMOUNT) {
+    if (amount && betAmount < MARKET.MIN_BET_AMOUNT) {
       setInputError(`Minimum bet is ${MARKET.MIN_BET_AMOUNT} USDC`);
     } else if (amount && betAmount > MARKET.MAX_BET_AMOUNT) {
       setInputError(`Maximum bet is ${MARKET.MAX_BET_AMOUNT.toLocaleString()} USDC`);
@@ -83,7 +82,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
     } else {
       setInputError('');
     }
-  }, [amount, usdcBalanceNum, formattedUsdcBalance]);
+  }, [amount]); // Only depend on amount to keep UI responsive
 
   // Reset and check allowance when modal opens
   useEffect(() => {
@@ -292,6 +291,11 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   // NEW FUNCTION: Handle the actual bet placement (second button)
   const handleConfirmBet = async () => {
     const betAmount = parseFloat(amount);
+    
+    if (betAmount > usdcBalanceNum) {
+      setInputError(`Insufficient balance. You have ${formattedUsdcBalance} USDC`);
+      return;
+    }
     
     let choice;
     if (market.marketType === 0) {
@@ -782,11 +786,30 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
             </div>
           )}
 
-          {/* Success Message */}
           {isSuccess && (
-            <div className="flex items-center gap-2 p-3 bg-green-500/20 border border-green-500/50 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              <span className="text-green-400 text-sm">Bet placed successfully!</span>
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 bg-green-500/20 border border-green-500/50 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-400" />
+                <span className="text-green-400 text-sm">Bet placed successfully!</span>
+              </div>
+              
+              {hasClaimableWins && (
+                <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg animate-in slide-in-from-bottom-2 duration-500">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span className="text-xs text-primary font-bold uppercase tracking-wider">Claimable Win Detected!</span>
+                    </div>
+                    <button 
+                      onClick={onShareWin}
+                      className="px-3 py-1 bg-primary text-dark-950 text-[10px] font-black rounded uppercase hover:scale-105 transition-transform"
+                    >
+                      Share Win 🎉
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-neutral-400 mt-1">You have unclaimed winnings. Brag about them while your new bet processes!</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -802,7 +825,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               )}
               <button
                 onClick={handlePlaceBet}
-                disabled={isApproved || !amount || isPlacingBet || !!inputError || isReconnecting || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+                disabled={isApproved || !amount || isPlacingBet || !!inputError || isReconnecting || parseFloat(amount) <= 0}
                 className={`w-full py-3 font-semibold rounded-lg transition-all flex items-center justify-center gap-2 ${
                   isApproved 
                     ? 'bg-green-500/20 border border-green-500/30 text-green-400 cursor-default' 
@@ -834,7 +857,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
               )}
               <button
                 onClick={handleConfirmBet}
-                disabled={!isApproved || !amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0 || parseFloat(amount) > usdcBalanceNum}
+                disabled={!isApproved || !amount || isPlacingBet || !!inputError || parseFloat(amount) <= 0}
                 className={`w-full py-3 font-semibold rounded-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                   !isApproved 
                     ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed' 

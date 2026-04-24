@@ -80,8 +80,7 @@ export const usePointsData = (walletAddress) => {
           headers: { 'Cache-Control': 'no-cache' },
         });
       } catch (networkErr) {
-        // Network error — API is unreachable. Do NOT fall back to mock data.
-        // This surfaces the real problem instead of silently hiding it.
+        if (networkErr.name === 'AbortError') throw networkErr; // Let the outer catch handle it
         logger.error('Network error fetching points — API unreachable:', networkErr.message);
         throw new Error(`Points API unreachable: ${networkErr.message}`);
       }

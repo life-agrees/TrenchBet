@@ -1,5 +1,6 @@
-import React from 'react';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, ShieldAlert, Loader2 } from 'lucide-react';
+import { usePushSubscription } from '../hooks/usePushSubscription';
+import { useAccount } from 'wagmi';
 
 /**
  * NotificationSettings
@@ -15,12 +16,16 @@ import { Bell, X } from 'lucide-react';
  *      write through `onUpdateSettings` prop. Changes now persist in
  *      useEnhancedNotifications (and to localStorage via that hook).
  */
-export const NotificationSettings = ({
-  isOpen,
-  onClose,
-  settings      = {},       // from App.jsx's useEnhancedNotifications
-  onUpdateSettings,         // from App.jsx's useEnhancedNotifications
-}) => {
+const NotificationSettings = ({ isOpen, onClose, settings, onUpdateSettings }) => {
+  const { address } = useAccount();
+  const { 
+    subscription, 
+    isSubscribing, 
+    subscribeUser, 
+    unsubscribeUser, 
+    isSupported 
+  } = usePushSubscription(address);
+
   if (!isOpen) return null;
 
   // Map internal setting keys to human-readable labels
@@ -61,7 +66,44 @@ export const NotificationSettings = ({
           </button>
         </div>
 
-        <div className="p-4 space-y-3 max-h-[70vh] overflow-y-auto">
+        <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+          {/* Push Notifications Section */}
+          <div className="pb-4 border-b border-dark-800">
+            <h3 className="text-xs font-black text-primary uppercase tracking-widest mb-3">Browser Push</h3>
+            <div className="bg-dark-800/50 rounded-xl p-4 border border-dark-700">
+              {!isSupported ? (
+                <div className="flex items-center gap-3 text-neutral-500">
+                  <ShieldAlert size={20} />
+                  <span className="text-sm italic">Push not supported on this device</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-white text-sm font-bold block">Mobile Push Alerts</span>
+                    <span className="text-neutral-500 text-xs">Get notified even when app is closed</span>
+                  </div>
+                  <button
+                    onClick={subscription ? unsubscribeUser : subscribeUser}
+                    disabled={isSubscribing}
+                    className={`w-12 h-6 rounded-full transition-colors flex items-center px-1 ${
+                      subscription ? 'bg-success' : 'bg-neutral-600'
+                    }`}
+                  >
+                    {isSubscribing ? (
+                      <Loader2 size={12} className="animate-spin text-white" />
+                    ) : (
+                      <div className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                        subscription ? 'translate-x-6' : 'translate-x-0'
+                      }`} />
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <h3 className="text-xs font-black text-neutral-500 uppercase tracking-widest mt-2">Activity Types</h3>
+
           {Object.entries(SETTING_LABELS).map(([key, label]) => {
             const value = settings[key] ?? true;
             return (

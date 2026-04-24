@@ -4,7 +4,7 @@ import { LogOut, ChevronLeft, ChevronRight, Menu, X } from 'lucide-react';
 import * as Tooltip from '@radix-ui/react-tooltip';
 import { motion } from 'framer-motion';
 import {
-  Home, BarChart3, Target, Users, Trophy, Zap, Settings, Download, Plus
+  Home, BarChart3, Target, Users, Trophy, Zap, Settings, Download, Plus, Briefcase
 } from 'lucide-react';
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
@@ -153,7 +153,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, i
   const mainItems = [
     { id: 'addFunds',    label: 'Add Funds',    icon: Plus,     requiresConnect: true, badge: 'USDC' },
     { id: 'dashboard',   label: 'Dashboard',    icon: Home,    requiresConnect: true  },
-    { id: 'myBets',      label: 'My Portfolio', icon: BarChart3, requiresConnect: true },
+    { id: 'myBets',      label: 'My Portfolio', icon: Briefcase, requiresConnect: true },
     { id: 'markets',     label: 'Markets',      icon: Target,  requiresConnect: false, badge: 'LIVE' },
     { id: 'leaderboard', label: 'Leaderboard',  icon: Trophy,  requiresConnect: false },
   ];

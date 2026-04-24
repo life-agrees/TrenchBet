@@ -27,6 +27,7 @@
     "ethers": "^6.16.0",
     "framer-motion": "^12.35.2",
     "hardhat-gas-reporter": "^2.3.0",
+    "html2canvas": "^1.4.1",
     "install": "^0.13.0",
     "lucide-react": "^0.263.1",
     "prop-types": "^15.8.1",

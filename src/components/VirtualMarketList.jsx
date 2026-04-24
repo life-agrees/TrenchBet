@@ -33,6 +33,7 @@ const VirtualMarketList = ({
   isPlacingBet  = false,
   isFavorite,          // FIX 3: accept and forward
   onToggleFavorite,    // FIX 3: accept and forward
+  recentlyActiveMarketIds = new Set(),
 }) => {
   const useVirtualization = markets.length >= VIRTUAL_SCROLL.MIN_ITEMS_FOR_VIRTUALIZATION; // FIX 4
 
@@ -55,6 +56,7 @@ const VirtualMarketList = ({
             isPlacingBet={isPlacingBet}
             isFavorite={isFavorite?.(market.id)}           // FIX 3
             onToggleFavorite={() => onToggleFavorite?.(market.id)} // FIX 3
+            isRecentlyActive={recentlyActiveMarketIds.has(market.id)}
           />
         ))}
       </div>
@@ -115,6 +117,7 @@ const VirtualMarketList = ({
                       isPlacingBet={isPlacingBet}
                       isFavorite={isFavorite?.(market.id)}              // FIX 3
                       onToggleFavorite={() => onToggleFavorite?.(market.id)} // FIX 3
+                      isRecentlyActive={recentlyActiveMarketIds.has(market.id)}
                     />
                   </div>
                 ))}
