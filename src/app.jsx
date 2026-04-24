@@ -816,12 +816,44 @@ const handleClaimAdvanced = async (marketId) => {
               const rest = sortedMarkets.filter(m => !isFavorite(m.id));
 
               if (!isLoadingMarkets && currentLiveMarkets.length === 0) return <EmptyState isConnected={isConnected} variant="empty" />;
-              if (!isLoadingMarkets && sortedMarkets.length === 0) return (
-                <div className="flex flex-col items-center justify-center h-64 bg-white dark:bg-dark-800 rounded-2xl border-2 border-neutral-200 dark:border-dark-600">
-                  <AlertTriangle size={48} className="text-primary mb-4" />
-                  <p className="text-xl text-neutral-400">No markets available</p>
-                </div>
-              );
+              if (!isLoadingMarkets && sortedMarkets.length === 0) {
+                const isComingSoon = ['SPORTS', 'POLITICS', 'ENTERTAINMENT'].includes(selectedTopicFilter);
+                
+                if (isComingSoon) {
+                  const categoryMeta = {
+                    SPORTS: { icon: Trophy, color: 'text-orange-400', label: 'Sports Betting' },
+                    POLITICS: { icon: Users, color: 'text-blue-400', label: 'Political Markets' },
+                    ENTERTAINMENT: { icon: Zap, color: 'text-purple-400', label: 'Entertainment' }
+                  }[selectedTopicFilter];
+                  const Icon = categoryMeta.icon;
+
+                  return (
+                    <div className="flex flex-col items-center justify-center py-16 px-6 bg-dark-800/50 backdrop-blur-md rounded-3xl border-2 border-dashed border-white/5 text-center animate-in fade-in zoom-in duration-500">
+                      <div className={`w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 ${categoryMeta.color}`}>
+                        <Icon size={40} />
+                      </div>
+                      <h3 className="text-3xl font-black text-white mb-2">Coming Soon 🚀</h3>
+                      <p className="text-neutral-400 max-w-md mx-auto mb-8">
+                        Our experts are curating the best {categoryMeta.label} markets for the Mainnet launch. Stay tuned!
+                      </p>
+                      <button 
+                        onClick={() => setCurrentView('settings')}
+                        className="px-8 py-3 bg-white text-dark-950 font-black rounded-2xl hover:scale-105 transition-transform flex items-center gap-2"
+                      >
+                        <Bell size={18} /> Enable Notifications
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 bg-white dark:bg-dark-800 rounded-2xl border-2 border-neutral-200 dark:border-dark-600">
+                    <AlertTriangle size={48} className="text-primary mb-4" />
+                    <p className="text-xl text-neutral-400">No matching markets found</p>
+                    <button onClick={() => { setSelectedTopicFilter('ALL'); setSelectedTypeFilter('ALL'); }} className="mt-4 text-primary font-bold">Clear Filters</button>
+                  </div>
+                );
+              }
 
               return (
                 <div className="space-y-6">
