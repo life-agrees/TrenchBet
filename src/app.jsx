@@ -5,7 +5,7 @@ import { formatUnits } from 'viem';
 import {
   TrendingUp, Clock, DollarSign, Wallet, Trophy, Star,
   Target, BarChart3, Settings, AlertTriangle, CheckCircle,
-  XCircle, RefreshCw, Loader2, Bitcoin, Users,
+  XCircle, RefreshCw, Loader2, Bitcoin, Users, Bell,
   Zap  // FIX 1: Added missing Zap import (was crashing the Streaks view)
 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
