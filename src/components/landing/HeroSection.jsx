@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
-export const HeroSection = ({ onLaunchApp }) => {
+export const HeroSection = ({ onLaunchApp, liveStats }) => {
   return (
     <section className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 overflow-hidden">
       {/* Background Effects - Electric Lime Theme */}
@@ -43,21 +43,7 @@ export const HeroSection = ({ onLaunchApp }) => {
           </button>
         </div>
 
-        {/* Stats Preview */}
-        <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-neutral-900 dark:text-white">$2.5M+</div>
-            <div className="text-neutral-400 text-sm font-bold tracking-wider uppercase">Total Volume</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-black text-neutral-900 dark:text-white">50K+</div>
-            <div className="text-neutral-400 text-sm font-bold tracking-wider uppercase">Active Users</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-black text-neutral-900 dark:text-white">100+</div>
-            <div className="text-neutral-400 text-sm font-bold tracking-wider uppercase">Markets</div>
-          </div>
-        </div>
+
       </div>
     </section>
   );

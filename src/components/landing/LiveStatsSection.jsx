@@ -1,5 +1,5 @@
 import React from 'react';
-import { TrendingUp, Users, Target, DollarSign } from 'lucide-react';
+import { Users, Target, DollarSign } from 'lucide-react';
 
 export const LiveStatsSection = ({ liveStats, isLoading }) => {
   const stats = liveStats || {
@@ -12,26 +12,20 @@ export const LiveStatsSection = ({ liveStats, isLoading }) => {
     {
       icon: Target,
       label: 'Active Markets',
-      value: stats.activeMarkets || 0,
+      value: isLoading ? null : (stats.activeMarkets || 0).toLocaleString(),
       color: 'text-[#c0ff00]'
     },
     {
       icon: Users,
       label: 'Total Bets',
-      value: stats.totalBets || 0,
+      value: isLoading ? null : (stats.totalBets || 0).toLocaleString(),
       color: 'text-[#00FF88]'
     },
     {
       icon: DollarSign,
       label: 'Total Volume',
-      value: `$${((stats.totalVolume || 0) / 1e6).toFixed(2)}M`,
+      value: isLoading ? null : `$${((stats.totalVolume || 0) / 1e6).toFixed(2)}M`,
       color: 'text-[#c0ff00]'
-    },
-    {
-      icon: TrendingUp,
-      label: '24h Change',
-      value: '+12.5%',
-      color: 'text-[#00FF88]'
     }
   ];
 
@@ -44,7 +38,7 @@ export const LiveStatsSection = ({ liveStats, isLoading }) => {
           <p className="text-neutral-300 font-medium">Real-time data directly from the Base network</p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {statItems.map((item, index) => (
             <div
               key={index}

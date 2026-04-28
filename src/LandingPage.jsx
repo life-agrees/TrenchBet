@@ -41,7 +41,7 @@ const LandingPage = ({
         <LandingHeader onLaunchApp={onLaunchApp} />
 
         <div className="pt-16 sm:pt-20">
-          <HeroSection onLaunchApp={onLaunchApp} />
+          <HeroSection onLaunchApp={onLaunchApp} liveStats={liveStats} />
         </div>
 
         <div id="live-stats">
@@ -62,7 +62,7 @@ const LandingPage = ({
         </div>
 
         <div id="testimonials">
-          <TestimonialsSection />
+          <TestimonialsSection onLaunchApp={onLaunchApp} />
         </div>
 
         <Footer />
