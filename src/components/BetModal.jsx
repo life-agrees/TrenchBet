@@ -136,21 +136,12 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   }, [isOpen, initialChoice, market?.marketType]);
 
   
-  // Helper to get option color based on index (Brand-aligned)
+  // Helper to get option color based on index (Brand-aligned & Professional)
   const getOptionColor = (index, isSelected) => {
-    const baseColors = [
-      'bg-primary/20 text-primary border-primary/30',
-      'bg-secondary/20 text-secondary border-secondary/30',
-      'bg-success/20 text-success border-success/30',
-      'bg-danger/20 text-danger border-danger/30',
-    ];
-    const selectedColors = [
-      'bg-primary/40 text-primary border-primary shadow-lg shadow-primary/20',
-      'bg-secondary/40 text-secondary border-secondary shadow-lg shadow-secondary/20',
-      'bg-success/40 text-success border-success shadow-lg shadow-success/20',
-      'bg-danger/40 text-danger border-danger shadow-lg shadow-danger/20',
-    ];
-    return isSelected ? selectedColors[index % selectedColors.length] : baseColors[index % baseColors.length];
+    if (isSelected) {
+      return 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/20';
+    }
+    return 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:border-gray-500';
   };
 
 

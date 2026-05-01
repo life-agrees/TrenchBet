@@ -200,6 +200,8 @@ export const useBetPlacement = () => {
         throw new Error('Insufficient ETH for gas fees');
       } else if (err.message?.includes('nonce')) {
         throw new Error('Transaction nonce error. Please refresh and try again.');
+      } else if (err.message?.toLowerCase().includes('rate limit')) {
+        throw new Error('Network is busy (rate limited). Please wait a few seconds and try again.');
       }
       
       throw new Error(err.message || 'Failed to approve USDC');
@@ -302,6 +304,8 @@ export const useBetPlacement = () => {
         throw new Error('USDC approval required. Please try again.');
       } else if (err.message?.includes('nonce')) {
         throw new Error('Transaction nonce error. Please refresh and try again.');
+      } else if (err.message?.toLowerCase().includes('rate limit')) {
+        throw new Error('Network is busy (rate limited). Please wait a few seconds and try again.');
       }
       
       throw new Error(err.message || 'Failed to place bet');
