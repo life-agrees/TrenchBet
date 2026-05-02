@@ -73,6 +73,16 @@ const rawBetsLengthRef = useRef(0);
 
       if (supaErr) throw supaErr;
 
+      const marketIds = [...new Set((bets || []).map(b => Number(b.market_id)))];
+      let dbMarketsMap = {};
+      if (marketIds.length > 0) {
+        const { data: mData } = await supabase
+          .from('markets')
+          .select('id, resolved, winning_choice, price_went_up')
+          .in('id', marketIds);
+        dbMarketsMap = Object.fromEntries((mData || []).map(m => [m.id, m]));
+      }
+
       const rawBetData = (bets || []).map(bet => ({
         txHash: bet.tx_hash,
         marketId: Number(bet.market_id),
@@ -80,7 +90,8 @@ const rawBetsLengthRef = useRef(0);
         amount: BigInt(Math.floor(Number(bet.amount) * 1000000)), // Convert numeric back to 6-decimal BigInt
         multiplier: Number(bet.multiplier),
         blockNumber: BigInt(bet.block_number),
-        claimed: bet.claimed
+        claimed: bet.claimed,
+        dbMarket: dbMarketsMap[Number(bet.market_id)] || null
       }));
 
       const previousLength = rawBetsLengthRef.current;
@@ -127,8 +138,21 @@ const rawBetsLengthRef = useRef(0);
 
     try {
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
-        const { marketId, choice, amount, claimed } = rawBet;
+        const { marketId, choice, amount, claimed, dbMarket } = rawBet;
         let market = markets?.find(m => m.id === marketId);
+        
+        // Ensure advanced markets get their winning choice from DB if resolved
+        if (market && dbMarket && dbMarket.resolved) {
+            market = { ...market };
+            market.resolved = true;
+            if (dbMarket.winning_choice !== null && dbMarket.winning_choice !== undefined) {
+                market.winningChoice = dbMarket.winning_choice;
+            }
+            if (dbMarket.price_went_up !== null) {
+                market.priceWentUp = dbMarket.price_went_up;
+            }
+        }
+
         if (!market) {
           try {
             const raw = await publicClient.readContract({
@@ -138,13 +162,14 @@ const rawBetsLengthRef = useRef(0);
               args: [BigInt(marketId)]
             });
             if (raw && Number(raw.startTime) !== 0) {
+              const isResolved = dbMarket ? dbMarket.resolved : raw.resolved;
               market = {
                 id: marketId,
                 marketType: Number(raw.marketType),
                 asset: raw.asset,
-                resolved: raw.resolved,
-                priceWentUp: raw.priceWentUp,
-                winningChoice: raw.resolved ? (raw.marketType === 0 ? (raw.priceWentUp ? 1 : 0) : null) : null,
+                resolved: isResolved,
+                priceWentUp: dbMarket && dbMarket.price_went_up !== null ? dbMarket.price_went_up : raw.priceWentUp,
+                winningChoice: dbMarket && dbMarket.winning_choice !== null ? dbMarket.winning_choice : (isResolved ? (raw.marketType === 0 ? (raw.priceWentUp ? 1 : 0) : null) : null),
                 endTime: Number(raw.endTime) * 1000,
                 yesPool: 0, noPool: 0,
                 totalBets: Number(raw.totalBets),

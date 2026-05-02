@@ -61,7 +61,7 @@ const PortfolioBetCard = ({ bet, handleClaim, handleClaimAdvanced }) => {
 
   // Calculate potential/actual payout
   const amountWagered = Number(formatUnits(bet.amount, 6));
-  const multiplier = Number(bet.multiplier) || 1.5;
+  const multiplier = bet.multiplier ? (Number(bet.multiplier) / 100) : 1.5;
   const payoutAmount = (amountWagered * multiplier).toFixed(2);
 
   return (
