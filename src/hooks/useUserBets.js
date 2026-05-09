@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
 import { parseAbiItem, formatUnits } from 'viem';
 import { createLogger } from '../utils/logger';
-import { CONTRACTS } from '../config/wagmi';
+import { useContractAddresses } from './useContractAddresses';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { supabase } from '../lib/supabase';
 
@@ -15,7 +15,8 @@ const MAX_BLOCK_RANGE = null; // search all blocks
 
 export const useUserBets = (address, markets) => {
   const { address: connectedAddress } = useAccount();
-  const publicClient = usePublicClient({ chainId: 84532 });
+  const { PROXY: PROXY_CONTRACT_ADDRESS, chainId, isArc } = useContractAddresses();
+  const publicClient = usePublicClient({ chainId });
   const effectiveAddress = address || connectedAddress;
 
   const [userBets, setUserBets]           = useState([]);
@@ -63,44 +64,83 @@ const rawBetsLengthRef = useRef(0);
     setLastRefreshTime(now);
 
     try {
-      logger.info(`[useUserBets] Fetching bets from Supabase Indexer for ${effectiveAddress}`);
-      
-      const { data: bets, error: supaErr } = await supabase
-        .from('user_bets')
-        .select('*')
-        .eq('wallet_address', effectiveAddress.toLowerCase())
-        .order('block_number', { ascending: false });
+      let rawBetData = [];
 
-      if (supaErr) throw supaErr;
+      if (!isArc) {
+        logger.info(`[useUserBets] Fetching bets from Supabase Indexer for ${effectiveAddress}`);
+        const { data: bets, error: supaErr } = await supabase
+          .from('user_bets')
+          .select('*')
+          .eq('wallet_address', effectiveAddress.toLowerCase())
+          .order('block_number', { ascending: false });
 
-      const marketIds = [...new Set((bets || []).map(b => Number(b.market_id)))];
-      let dbMarketsMap = {};
-      if (marketIds.length > 0) {
-        const { data: mData } = await supabase
-          .from('markets')
-          .select('id, resolved, winning_choice, price_went_up')
-          .in('id', marketIds);
-        dbMarketsMap = Object.fromEntries((mData || []).map(m => [m.id, m]));
+        if (!supaErr && bets) {
+          const marketIds = [...new Set(bets.map(b => Number(b.market_id)))];
+          let dbMarketsMap = {};
+          if (marketIds.length > 0) {
+            const { data: mData } = await supabase
+              .from('markets')
+              .select('id, resolved, winning_choice, price_went_up')
+              .in('id', marketIds);
+            dbMarketsMap = Object.fromEntries((mData || []).map(m => [m.id, m]));
+          }
+
+          rawBetData = bets.map(bet => ({
+            txHash: bet.tx_hash,
+            marketId: Number(bet.market_id),
+            choice: Number(bet.choice),
+            amount: BigInt(Math.floor(Number(bet.amount) * 1000000)),
+            multiplier: Number(bet.multiplier),
+            blockNumber: BigInt(bet.block_number),
+            claimed: bet.claimed,
+            dbMarket: dbMarketsMap[Number(bet.market_id)] || null
+          }));
+        }
       }
 
-      const rawBetData = (bets || []).map(bet => ({
-        txHash: bet.tx_hash,
-        marketId: Number(bet.market_id),
-        choice: Number(bet.choice),
-        amount: BigInt(Math.floor(Number(bet.amount) * 1000000)), // Convert numeric back to 6-decimal BigInt
-        multiplier: Number(bet.multiplier),
-        blockNumber: BigInt(bet.block_number),
-        claimed: bet.claimed,
-        dbMarket: dbMarketsMap[Number(bet.market_id)] || null
-      }));
+      // ── Arc Fallback / Chain Sync ──
+      // If we are on Arc, or if Supabase is empty, scan the logs directly
+      if (isArc || rawBetData.length === 0) {
+        logger.info(`[useUserBets] Scanning blockchain logs for ${effectiveAddress} on ${isArc ? 'Arc' : 'Base'}`);
+        const currentBlock = await publicClient.getBlockNumber();
+        const fromBlock = isArc ? 0n : (currentBlock > 10000n ? currentBlock - 10000n : 0n);
+
+        const logs = await publicClient.getLogs({
+          address: PROXY_CONTRACT_ADDRESS,
+          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
+          args: { user: effectiveAddress },
+          fromBlock,
+          toBlock: currentBlock
+        });
+
+        const logBets = logs.map(log => ({
+          txHash: log.transactionHash,
+          marketId: Number(log.args.marketId),
+          choice: Number(log.args.choice),
+          amount: log.args.amount,
+          multiplier: Number(log.args.effectiveMultiplier),
+          blockNumber: log.blockNumber,
+          claimed: false, // Will be checked via contract call in enrichment if needed
+          dbMarket: null
+        }));
+
+        // Merge and deduplicate (prioritize logs for freshness)
+        const seenHashes = new Set(rawBetData.map(b => b.txHash));
+        logBets.forEach(lb => {
+          if (!seenHashes.has(lb.txHash)) {
+            rawBetData.push(lb);
+            seenHashes.add(lb.txHash);
+          }
+        });
+      }
 
       const previousLength = rawBetsLengthRef.current;
       rawBetsLengthRef.current = rawBetData.length;
       
-      setHasMoreBets(false); // Supabase returns ALL bets, no pagination needed yet
+      setHasMoreBets(false);
       setRawBets(rawBetData);
       
-      logger.info(`[useUserBets] Loaded ${rawBetData.length} bets from Supabase`);
+      logger.info(`[useUserBets] Loaded ${rawBetData.length} total bets`);
     } catch (err) {
       logger.error('[useUserBets] Error fetching user bets:', err);
       setError(err.message || 'Failed to fetch user bets');
@@ -156,7 +196,7 @@ const rawBetsLengthRef = useRef(0);
         if (!market) {
           try {
             const raw = await publicClient.readContract({
-              address: CONTRACTS.PROXY,
+              address: PROXY_CONTRACT_ADDRESS,
               abi: PREDICTION_MARKET_PROXY_ABI,
               functionName: 'markets',
               args: [BigInt(marketId)]
