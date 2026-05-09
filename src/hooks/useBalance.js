@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useAccount, useBalance as useWagmiBalance } from 'wagmi';
 import { createLogger } from '../utils/logger';
-import { CONTRACTS } from '../config/wagmi';
+import { useContractAddresses } from './useContractAddresses';
 
 const logger = createLogger('useBalance');
 
@@ -22,6 +22,7 @@ const logger = createLogger('useBalance');
  */
 export const useBalance = () => {
   const { address } = useAccount();
+  const { USDC: USDC_ADDRESS, chainId, isArc } = useContractAddresses();
 
   // ETH balance (for gas)
   const {
@@ -31,6 +32,7 @@ export const useBalance = () => {
     refetch: refetchEth,
   } = useWagmiBalance({
     address,
+    chainId,
     // FIX 2: watch is deprecated in Wagmi v2 — use refetchInterval instead
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
@@ -44,7 +46,8 @@ export const useBalance = () => {
     refetch: refetchUsdc,
   } = useWagmiBalance({
     address,
-    token: CONTRACTS.USDC,
+    token: USDC_ADDRESS,
+    chainId,
     // FIX 2: same here
     refetchInterval: 15_000,
     refetchOnWindowFocus: true,
