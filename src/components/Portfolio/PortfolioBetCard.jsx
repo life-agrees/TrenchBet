@@ -5,6 +5,7 @@ import { formatOddsDisplay, calculateMarketPercentages } from '../../marketUtils
 
 // Helper to get time remaining formatting
 const getMarketTimeRemaining = (market) => {
+  if (!market) return 'Loading...';
   if (market.marketType === 3) return market.resolved ? 'Ended' : 'Active Target';
   if (market.resolved) return 'Market Ended';
 
@@ -63,6 +64,21 @@ const PortfolioBetCard = ({ bet, handleClaim, handleClaimAdvanced }) => {
   const amountWagered = Number(formatUnits(bet.amount, 6));
   const multiplier = bet.multiplier ? (Number(bet.multiplier) / 100) : 1.5;
   const payoutAmount = (amountWagered * multiplier).toFixed(2);
+
+  // If market is still loading, show a simplified state
+  if (!market) {
+    return (
+      <div className="bg-white dark:bg-dark-800 p-5 rounded-2xl border border-neutral-200 dark:border-dark-700 animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="flex flex-col gap-2">
+            <div className="h-5 w-48 bg-neutral-200 dark:bg-dark-600 rounded"></div>
+            <div className="h-4 w-32 bg-neutral-100 dark:bg-dark-700 rounded"></div>
+          </div>
+          <div className="h-10 w-24 bg-neutral-200 dark:bg-dark-600 rounded-xl"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-white dark:bg-dark-800 p-5 rounded-2xl border border-neutral-200 dark:border-dark-700 hover:border-primary/50 transition-all duration-300 ${claimed && isWin ? 'opacity-70' : ''}`}>

@@ -501,21 +501,49 @@ async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PR
       args: [BigInt(id)],
     }));
 
+    // ── Check for Multicall Support ──
+    const hasMulticall = publicClient.chain?.contracts?.multicall3;
+
     try {
-      const results = await publicClient.multicall({ contracts, allowFailure: true });
-      results.forEach((res, idx) => {
-        if (res.status === 'success' && res.result) {
-          const raw = res.result;
-          const marketId = chunk[idx];
-          const market = parseMarketArray(raw);
-          if (market && Number(market.startTime) > 0) {
-            market.id = marketId; // number
-            proxyMarkets.push(market);
+      if (hasMulticall) {
+        const results = await publicClient.multicall({ contracts, allowFailure: true });
+        results.forEach((res, idx) => {
+          if (res.status === 'success' && res.result) {
+            const raw = res.result;
+            const marketId = chunk[idx];
+            const market = parseMarketArray(raw);
+            if (market && Number(market.startTime) > 0) {
+              market.id = marketId;
+              proxyMarkets.push(market);
+            }
           }
-        }
-      });
+        });
+      } else {
+        // Fallback: Individual calls for chains like Arc
+        logger.info(`Chain ${publicClient.chain?.name} has no multicall3. Falling back to individual reads.`);
+        const results = await Promise.all(
+          chunk.map(id => 
+            publicClient.readContract({
+              address: PROXY_CONTRACT_ADDRESS,
+              abi: PREDICTION_MARKET_PROXY_ABI,
+              functionName: 'markets',
+              args: [BigInt(id)],
+            }).catch(() => null)
+          )
+        );
+        results.forEach((raw, idx) => {
+          if (raw) {
+            const marketId = chunk[idx];
+            const market = parseMarketArray(raw);
+            if (market && Number(market.startTime) > 0) {
+              market.id = marketId;
+              proxyMarkets.push(market);
+            }
+          }
+        });
+      }
     } catch (e) {
-      logger.error('Multicall base markets batch failed:', e);
+      logger.error('Market fetch batch failed:', e);
     }
   }
 
@@ -615,11 +643,23 @@ async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PR
     }
   }
 
-  // Phase 3: Execute additional calls via multicall
+  // Phase 3: Execute additional calls (Multicall with Fallback)
+  const hasMulticall = publicClient.chain?.contracts?.multicall3;
+
   for (let i = 0; i < additionalCalls.length; i += CHUNK_SIZE) {
     const chunk = additionalCalls.slice(i, i + CHUNK_SIZE);
     try {
-      const results = await publicClient.multicall({ contracts: chunk, allowFailure: true });
+      let results;
+      if (hasMulticall) {
+        results = await publicClient.multicall({ contracts: chunk, allowFailure: true });
+      } else {
+        // Fallback for Arc
+        const rawResults = await Promise.all(
+          chunk.map(call => publicClient.readContract(call).catch(() => null))
+        );
+        results = rawResults.map(r => ({ status: r ? 'success' : 'failure', result: r }));
+      }
+
       results.forEach((res, idx) => {
         const mapInfo = callMap[i + idx];
         const market = finalMarkets.find(m => m.id === mapInfo.marketId);
@@ -648,7 +688,7 @@ async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PR
         }
       });
     } catch (e) {
-      logger.error('Multicall additional fields batch failed:', e);
+      logger.error('Additional fields batch failed:', e);
     }
   }
 
