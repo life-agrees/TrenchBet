@@ -23,6 +23,11 @@ module.exports = {
       url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 8453,
+    },
+    arcTestnet: {
+      url: "https://rpc.testnet.arc.network",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 5042002,
     }
   },
   etherscan: {

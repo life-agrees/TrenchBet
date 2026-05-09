@@ -14,6 +14,20 @@ const baseSepoliaWithRPC = {
   },
 };
 
+const arcTestnet = {
+  id: 5042002,
+  name: 'Arc Testnet',
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+  rpcUrls: {
+    default: { http: ['https://rpc.testnet.arc.network'] },
+    public: { http: ['https://rpc.testnet.arc.network'] },
+  },
+  blockExplorers: {
+    default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' },
+  },
+  testnet: true,
+};
+
 const createTransport = (publicUrls) => {
   const transports = publicUrls.map(url =>
     http(url, {
@@ -53,9 +67,10 @@ export const config = getDefaultConfig({
   walletConnectOptions: {
     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
   },
-  chains: [baseSepoliaWithRPC],
+  chains: [baseSepoliaWithRPC, arcTestnet],
   transports: {
     [baseSepoliaWithRPC.id]: createTransport(FREE_RPC_PROVIDERS.baseSepolia),
+    [arcTestnet.id]: http('https://rpc.testnet.arc.network'),
   },
   ssr: false,
 });

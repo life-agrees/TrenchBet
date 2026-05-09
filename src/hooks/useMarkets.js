@@ -2,14 +2,13 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePublicClient } from 'wagmi';
 import { baseSepolia } from 'wagmi/chains';
 import { formatUnits, parseAbiItem } from 'viem';
-import { PROXY_ADDRESS, DURATIONS, BATCH } from '../utils/constants';
+import { DURATIONS, BATCH } from '../utils/constants';
+import { useContractAddresses } from './useContractAddresses';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { createLogger } from '../utils/logger';
 import { calculateMarketPercentages, calculateFixedOddsPercentage, formatTimeframeLabel } from '../marketUtils';
 
 const logger = createLogger('useMarkets');
-
-const PROXY_CONTRACT_ADDRESS = PROXY_ADDRESS;
 
 // Map assets/titles to categories (Crypto, Sports, Politics, etc.)
 function getCategory(asset, title) {
@@ -21,16 +20,17 @@ function getCategory(asset, title) {
   return 'Crypto'; // Default for price-based markets
 }
 
-function getContractForMarketType(marketType) {
+function getContractForMarketType(marketType, proxyAddress) {
   return {
-    address: PROXY_CONTRACT_ADDRESS,
+    address: proxyAddress,
     abi: PREDICTION_MARKET_PROXY_ABI,
     source: 'proxy'
   };
 }
 
 export function useMarkets() {
-  const publicClient = usePublicClient({ chainId: baseSepolia.id });
+  const { PROXY: PROXY_CONTRACT_ADDRESS, chainId } = useContractAddresses();
+  const publicClient = usePublicClient({ chainId });
   const [markets, setMarkets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -99,7 +99,7 @@ export function useMarkets() {
 
       // ── Step 4: Fetch each market's data by ID via MULTICALL ──
       logger.info(`Fetching ${recentIds.length} specific markets by ID via Multicall`);
-      const allMarkets = await fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap);
+      const allMarkets = await fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PROXY_CONTRACT_ADDRESS);
 
       hasLoadedOnce.current = true;
       setMarkets(allMarkets);
@@ -162,7 +162,7 @@ export function useMarkets() {
   };
 }
 
-async function fetchMarketsFromProxy(publicClient, startIndex, totalCount) {
+async function fetchMarketsFromProxy(publicClient, startIndex, totalCount, PROXY_CONTRACT_ADDRESS) {
   if (totalCount === 0) return [];
 
   // Fetch ALL MarketResolved events once — much faster than per-market
@@ -204,7 +204,7 @@ async function fetchMarketsFromProxy(publicClient, startIndex, totalCount) {
   return validMarkets;
 }
 
-async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0, resolvedMap = {}) {
+async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0, resolvedMap = {}, PROXY_CONTRACT_ADDRESS) {
   const MAX_RETRIES = 2;
 
   try {
@@ -370,7 +370,7 @@ async function fetchSingleMarketFromProxy(publicClient, marketId, retryCount = 0
     if (retryCount < MAX_RETRIES) {
       logger.info(`Retrying market ${marketId} (attempt ${retryCount + 1}) due to: ${error.shortMessage || error.message}`);
       await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-      return fetchSingleMarketFromProxy(publicClient, marketId, retryCount + 1, resolvedMap);
+      return fetchSingleMarketFromProxy(publicClient, marketId, retryCount + 1, resolvedMap, PROXY_CONTRACT_ADDRESS);
     }
 
     return null;
@@ -487,7 +487,7 @@ function getCoinName(asset) {
   return { BTC: 'Bitcoin', ETH: 'Ethereum', LINK: 'Chainlink' }[asset] || asset;
 }
 
-async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap) {
+async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PROXY_CONTRACT_ADDRESS) {
   const CHUNK_SIZE = 50;
   const proxyMarkets = [];
 

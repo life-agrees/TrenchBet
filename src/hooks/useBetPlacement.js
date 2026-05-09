@@ -3,31 +3,21 @@ import { useAccount, usePublicClient, useWalletClient, useReadContract } from 'w
 import { createLogger } from '../utils/logger';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { ERC20_ABI } from '../contracts/abis';
-import { CONTRACTS, PROXY_ADDRESS } from '../utils/constants';
+import { useContractAddresses } from './useContractAddresses';
 import { parseUnits, formatUnits } from 'viem';
 
 const logger = createLogger('useBetPlacement');
 
 // PROXY PATTERN: All interactions go through the proxy contract
-const PROXY_CONTRACT_ADDRESS = PROXY_ADDRESS;
-
-/**
- * PROXY PATTERN: All market types use the proxy contract
- * The proxy delegates to Core/Types implementations via delegatecall
- */
-function getContractForMarketType(marketType) {
-  // All market types use the same proxy contract
-  return {
-    address: PROXY_CONTRACT_ADDRESS,
-    abi: PREDICTION_MARKET_PROXY_ABI,
-    source: 'proxy'
-  };
-}
+// Handled dynamically via useContractAddresses inside the hook
 
 export const useBetPlacement = () => {
   const { address, isConnecting, isReconnecting } = useAccount();
   const isConnected = !!address && !isReconnecting;
-  const publicClient = usePublicClient({ chainId: 84532 });
+
+  const { PROXY: PROXY_CONTRACT_ADDRESS, USDC: USDC_ADDRESS, chainId } = useContractAddresses();
+
+  const publicClient = usePublicClient({ chainId });
   const { data: walletClient } = useWalletClient();
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -40,7 +30,7 @@ export const useBetPlacement = () => {
 
   // PROXY PATTERN: Read USDC allowance for proxy contract only
   const { data: proxyAllowance, refetch: refetchProxyAllowance } = useReadContract({
-    address: CONTRACTS.USDC,
+    address: USDC_ADDRESS,
     abi: ERC20_ABI,
     functionName: 'allowance',
     args: address && PROXY_CONTRACT_ADDRESS ? [address, PROXY_CONTRACT_ADDRESS] : undefined,
@@ -152,7 +142,7 @@ export const useBetPlacement = () => {
 
       // Send approval transaction
       const txHash = await walletClient.writeContract({
-        address: CONTRACTS.USDC,
+        address: USDC_ADDRESS,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [PROXY_CONTRACT_ADDRESS, amountInUnits],

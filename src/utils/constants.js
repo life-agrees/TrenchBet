@@ -191,43 +191,60 @@ export const POINTS_CLAIM = {
   CONTRACT_ADDRESS: import.meta.env.VITE_CLAIMS_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
 };
 
+// Multi-Chain Configuration
+// This allows the app to automatically switch contract addresses based on the connected network
+export const MULTICHAIN_CONTRACTS = {
+  // Base Sepolia (Testnet)
+  84532: {
+    PROXY: "0x2d1d11Fb8A0C899c681C2D66b555eF37650fdFC8",
+    USDC: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    VOUCHERS: "0x0FcdB56b713a12a6C11Efa33d6DE1CAA1947294c",
+    CORE: "0x49E8CBe89934FD2b53aCEcaA05c1DCfE747BB8f8",
+    TYPES: "0xC58A97aA13103474401A83c9DD2739c6e2788E16",
+  },
+  // Arc Testnet
+  5042002: {
+    PROXY: "0xa9d3532401E3DAF004C3031A3715c7bb311CD38f",
+    USDC: "0x3600000000000000000000000000000000000000",
+    VOUCHERS: "0x4785CFe39f68e1d45a3eCa6c6A8378c3A3CBf3c6",
+    CORE: "0x91Da6845Bd26292cacD4E70AbC9cEB3356970DeC",
+    TYPES: "0x417aD3CF4F50CdB69371BcC5BD25859fba1c757a",
+  }
+};
+
+/**
+ * Get contract addresses for a specific chain
+ * Falls back to Base Sepolia if chain is not supported
+ */
+export function getContracts(chainId) {
+  return MULTICHAIN_CONTRACTS[chainId] || MULTICHAIN_CONTRACTS[84532];
+}
+
 // Contract Addresses
-// IMPORTANT: These are BASE SEPOLIA TESTNET addresses
-// For mainnet, these would be different
+// IMPORTANT: These are DEFAULT addresses (Base Sepolia)
+// Use getContracts(chainId) for dynamic switching
 export const CONTRACTS = {
   // USDC on Base Sepolia Testnet (NOT mainnet!)
-  // This is the testnet USDC contract for testing
   USDC: import.meta.env.VITE_USDC_CONTRACT_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-  // PredictionMarket contract - DEPRECATED: Use PREDICTION_MARKET_CORE or PREDICTION_MARKET_TYPES
-  PREDICTION_MARKET: import.meta.env.VITE_PREDICTION_MARKET_ADDRESS || '0x5c07E771b5BC9e574b551A3f032AE3A8A3BeeE9E',
-  // PROXY CONTRACT (NEW - Use this for all interactions!)
-  // This proxy delegates to Core and Types implementations with shared storage
+  
+  // PROXY CONTRACT
   PROXY: import.meta.env.VITE_PROXY_ADDRESS || PROXY_ADDRESS,
   
-  // Modular Prediction Market Contracts (Phase 2) - NOW BEHIND PROXY
-  // Core contract: Handles binary (UP/DOWN) markets (implementation only)
+  // Vouchers
+  VOUCHERS: import.meta.env.VITE_BET_VOUCHERS_ADDRESS || '0x0FcdB56b713a12a6C11Efa33d6DE1CAA1947294c',
+
+  // Modular Prediction Market Contracts (Phase 2)
   PREDICTION_MARKET_CORE: import.meta.env.VITE_PREDICTION_MARKET_CORE_ADDRESS || PREDICTION_MARKET_CORE_ADDRESS,
-  // Types contract: Handles multi-choice, range, and time-based markets (implementation only)
   PREDICTION_MARKET_TYPES: import.meta.env.VITE_PREDICTION_MARKET_TYPES_ADDRESS || PREDICTION_MARKET_TYPES_ADDRESS,
 
-
-  // TrenchyReferrals contract - Referral tracking system
+  // Utility Contracts
   REFERRALS: import.meta.env.VITE_REFERRALS_CONTRACT_ADDRESS || '0xF5f960a38d6cCF8EabD06fF6fcB15Ee1bBA4021f',
-  // TrenchyAchievements contract - Achievements & badges system
   ACHIEVEMENTS: import.meta.env.VITE_ACHIEVEMENTS_CONTRACT_ADDRESS || '0x52D0F8A6c40807d149f382E89949511378056781',
-  // TrenchyStreaks contract - Streak tracking system
   STREAKS: import.meta.env.VITE_STREAKS_CONTRACT_ADDRESS || '0xcBB0b5e027a4C2baFCAa928949d889B577646C70',
-  // LaunchAirdrop contract - Airdrop for early users
   AIRDROP: import.meta.env.VITE_AIRDROP_CONTRACT_ADDRESS || '0x0971F70091Dc0F956033e991FBF8A9e803a5Ff3b',
-  // FirstBetInsurance contract - Insurance for first bet
   INSURANCE: import.meta.env.VITE_INSURANCE_CONTRACT_ADDRESS || '0x0000000000000000000000000000000000000000',
-
-  // ChainlinkResolver contract - Automated market resolution
   CHAINLINK_RESOLVER: import.meta.env.VITE_CHAINLINK_RESOLVER_ADDRESS || CHAINLINK_RESOLVER_ADDRESS,
-
-  // TrenchyStaking contract - Tiered staking system
   STAKING: import.meta.env.VITE_STAKING_CONTRACT_ADDRESS || '0x2513f27B994523B2DB87dE2F3c6C79d6E1557228',
-
 };
 
 // Export individual addresses for convenience

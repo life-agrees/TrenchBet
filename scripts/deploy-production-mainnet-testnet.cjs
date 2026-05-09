@@ -41,6 +41,16 @@ const NETWORK_CONFIG = {
       PEPE: "0xB48ac6409C0c3718b956089b0fFE295A10ACDdad"
       // LINK is omitted for Mainnet per user request
     }
+  },
+  arcTestnet: {
+    usdc: "0x3600000000000000000000000000000000000000", // Native USDC on Arc
+    admin: "0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d",
+    feeds: {
+      // Note: Chainlink feeds on Arc might be newer/limited. 
+      // Replace these with actual Arc addresses once verified.
+      BTC:  "0x0000000000000000000000000000000000000000", 
+      ETH:  "0x0000000000000000000000000000000000000000",
+    }
   }
 };
 
@@ -111,7 +121,7 @@ async function main() {
   // ── 5. Set USDC on Proxy ────────────────────────────────────────────────────
   log("\n5. Syncing USDC on Proxy...");
   const storage = await hre.ethers.getContractAt("PredictionMarketStorage", proxyAddr, adminWallet);
-  const currentUSDC = await storage.getUSDC();
+  const currentUSDC = await storage.usdc();
   if (currentUSDC.toLowerCase() !== config.usdc.toLowerCase()) {
     const tx = await storage.setUSDC(config.usdc);
     await tx.wait();
