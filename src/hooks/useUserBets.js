@@ -103,7 +103,9 @@ const rawBetsLengthRef = useRef(0);
       if (isArc || rawBetData.length === 0) {
         logger.info(`[useUserBets] Scanning blockchain logs for ${effectiveAddress} on ${isArc ? 'Arc' : 'Base'}`);
         const currentBlock = await publicClient.getBlockNumber();
-        const fromBlock = isArc ? 0n : (currentBlock > 10000n ? currentBlock - 10000n : 0n);
+        // Arc Testnet strictly enforces a 10,000 block range limit on getLogs.
+        // To prevent RPC errors, we limit the scan to the last 9,900 blocks.
+        const fromBlock = currentBlock > 9900n ? currentBlock - 9900n : 0n;
 
         const logs = await publicClient.getLogs({
           address: PROXY_CONTRACT_ADDRESS,
