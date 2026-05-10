@@ -103,19 +103,32 @@ const rawBetsLengthRef = useRef(0);
       if (isArc || rawBetData.length === 0) {
         logger.info(`[useUserBets] Scanning blockchain logs for ${effectiveAddress} on ${isArc ? 'Arc' : 'Base'}`);
         const currentBlock = await publicClient.getBlockNumber();
-        // Arc Testnet strictly enforces a 10,000 block range limit on getLogs.
-        // To prevent RPC errors, we limit the scan to the last 9,900 blocks.
-        const fromBlock = currentBlock > 9900n ? currentBlock - 9900n : 0n;
+        const isArcChain = publicClient.chain?.id === 5042002 || isArc;
+        
+        // Arc strictly enforces 10k limit. We use chunks to scan further back safely.
+        const CHUNK_SIZE = isArcChain ? 9900n : 99999n;  
+        const maxHistory = isArcChain ? 49500n : 490000n; // ~50k blocks on Arc (approx 14 hours)
+        
+        const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
+        const allLogs = [];
 
-        const logs = await publicClient.getLogs({
-          address: PROXY_CONTRACT_ADDRESS,
-          event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
-          args: { user: effectiveAddress },
-          fromBlock,
-          toBlock: currentBlock
-        });
+        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+          try {
+            const logs = await publicClient.getLogs({
+              address: PROXY_CONTRACT_ADDRESS,
+              event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
+              args: { user: effectiveAddress },
+              fromBlock: from,
+              toBlock: to
+            });
+            allLogs.push(...logs);
+          } catch (e) {
+             logger.warn(`Failed to fetch bet logs chunk: ${e.message}`);
+          }
+        }
 
-        const logBets = logs.map(log => ({
+        const logBets = allLogs.map(log => ({
           txHash: log.transactionHash,
           marketId: Number(log.args.marketId),
           choice: Number(log.args.choice),
