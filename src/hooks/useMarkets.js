@@ -169,8 +169,13 @@ async function fetchMarketsFromProxy(publicClient, startIndex, totalCount, PROXY
   const resolvedMap = {};
   try {
     const currentBlock = await publicClient.getBlockNumber();
-    const CHUNK_SIZE = 99999n;  // Optimized for Infura (2x faster)
-    const fromBlock = currentBlock > 490000n ? currentBlock - 490000n : 0n;
+    const isArc = publicClient.chain?.id === 5042002;
+    
+    // Arc strictly enforces 10k limit. Base can handle 100k chunks.
+    const CHUNK_SIZE = isArc ? 9900n : 99999n;  
+    const maxHistory = isArc ? 9900n : 490000n;
+    
+    const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
     for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
       const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
       try {
