@@ -173,7 +173,7 @@ async function fetchMarketsFromProxy(publicClient, startIndex, totalCount, PROXY
     
     // Arc strictly enforces 10k limit. Base can handle 100k chunks.
     const CHUNK_SIZE = isArc ? 9900n : 99999n;  
-    const maxHistory = isArc ? 9900n : 490000n;
+    const maxHistory = isArc ? 99000n : 490000n;
     
     const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
     for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
