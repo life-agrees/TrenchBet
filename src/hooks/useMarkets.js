@@ -92,10 +92,33 @@ export function useMarkets() {
       );
       logger.info(`Scanning last ${scanCount} market IDs (${proxyTotal - scanCount} to ${proxyTotal - 1})`);
 
-      // ── Step 3: Fetch resolvedMap (optional enrichment — OK if it fails) ──
+      // ── Step 3: Build resolvedMap from MarketResolved events ──
+      // This is CRITICAL for Range/Multi/Time markets — the only way to get
+      // the winning choice index is from the on-chain MarketResolved event.
+      // We use chunked scanning to stay within Arc's 10,000-block RPC limit.
       const resolvedMap = {};
-      // DISABLED getLogs polling to prevent Infura RPC 429 'Too Many Requests' rate-limits.
-      // Market.resolved state is provided safely native via multicall instead.
+      try {
+        const currentBlock = await publicClient.getBlockNumber();
+        const isArcNet = publicClient.chain?.id === 5042002;
+        const CHUNK_SIZE = isArcNet ? 9900n : 99999n;
+        const maxHistory  = isArcNet ? 216000n : 490000n;
+        const fromBlock   = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
+
+        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+          try {
+            const chunks = await publicClient.getLogs({
+              address: PROXY_CONTRACT_ADDRESS,
+              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+              fromBlock: from, toBlock: to,
+            });
+            chunks.forEach(log => {
+              resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
+            });
+          } catch { /* skip individual chunk errors */ }
+        }
+        logger.info(`resolvedMap built: ${Object.keys(resolvedMap).length} resolved markets found`);
+      } catch { /* skip — resolvedMap stays empty, binary markets still work via priceWentUp */ }
 
       // ── Step 4: Fetch each market's data by ID via MULTICALL ──
       logger.info(`Fetching ${recentIds.length} specific markets by ID via Multicall`);

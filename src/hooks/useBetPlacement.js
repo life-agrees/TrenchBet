@@ -233,6 +233,43 @@ export const useBetPlacement = () => {
     try {
       const amountInUnits = parseUnits(amount.toString(), 6);
       
+      // ── Pre-flight market validity check ──
+      // Verify the market is still active BEFORE sending the transaction.
+      // This prevents a cryptic "Transaction failed" revert on Arc/Base.
+      try {
+        const marketState = await publicClient.readContract({
+          address: PROXY_CONTRACT_ADDRESS,
+          abi: PREDICTION_MARKET_PROXY_ABI,
+          functionName: 'markets',
+          args: [BigInt(numericMarketId)],
+        });
+        if (marketState) {
+          const resolved  = Boolean(marketState.resolved  ?? marketState[9]);
+          const endTime   = Number(marketState.endTime    ?? marketState[4] ?? 0);
+          const startTime = Number(marketState.startTime  ?? marketState[3] ?? 0);
+          const nowSec    = Math.floor(Date.now() / 1000);
+
+          if (resolved) {
+            throw new Error('This market has already been resolved. Please choose an active market.');
+          }
+          if (startTime === 0) {
+            throw new Error('Market not found on this network.');
+          }
+          if (endTime > 0 && nowSec >= endTime) {
+            throw new Error('This market has already expired. Please choose an active market.');
+          }
+        }
+      } catch (preflightErr) {
+        // Only re-throw if it's our own validation error, not an RPC error
+        if (preflightErr.message?.includes('already') || 
+            preflightErr.message?.includes('expired') ||
+            preflightErr.message?.includes('not found')) {
+          throw preflightErr;
+        }
+        // Otherwise log and continue (RPC failure shouldn't block the bet)
+        logger.warn('Pre-flight check failed (non-critical):', preflightErr.message);
+      }
+
       // CRITICAL FIX: Use different functions based on market type
       const isBinary = marketType === 0;
       const functionName = isBinary ? 'placeBet' : 'placeBetAdvanced';
