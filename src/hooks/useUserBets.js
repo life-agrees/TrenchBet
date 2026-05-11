@@ -105,9 +105,12 @@ const rawBetsLengthRef = useRef(0);
         const currentBlock = await publicClient.getBlockNumber();
         const isArcChain = publicClient.chain?.id === 5042002 || isArc;
         
-        // Arc strictly enforces 10k limit. We use chunks to scan further back safely.
+        // Arc produces ~1 block/second, so:
+        //   1 day  =  ~86,400 blocks
+        //   2 days = ~172,800 blocks
+        // We scan 216,000 blocks (~2.5 days) in safe 9,900-block chunks.
         const CHUNK_SIZE = isArcChain ? 9900n : 99999n;  
-        const maxHistory = isArcChain ? 49500n : 490000n; // ~50k blocks on Arc (approx 14 hours)
+        const maxHistory = isArcChain ? 216000n : 490000n;
         
         const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
         const allLogs = [];

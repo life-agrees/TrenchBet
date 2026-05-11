@@ -171,9 +171,10 @@ async function fetchMarketsFromProxy(publicClient, startIndex, totalCount, PROXY
     const currentBlock = await publicClient.getBlockNumber();
     const isArc = publicClient.chain?.id === 5042002;
     
-    // Arc strictly enforces 10k limit. Base can handle 100k chunks.
+    // Arc produces ~1 block/sec. 216k blocks = ~2.5 days of history.
+    // This must match the maxHistory in useUserBets.js to avoid "Resolving..." limbo.
     const CHUNK_SIZE = isArc ? 9900n : 99999n;  
-    const maxHistory = isArc ? 99000n : 490000n;
+    const maxHistory = isArc ? 216000n : 490000n;
     
     const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
     for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
