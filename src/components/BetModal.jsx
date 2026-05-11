@@ -842,8 +842,15 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
             {/* Step 2: Place Bet - Only enabled AFTER approval is successful */}
             <div className="relative group">
               {isApproved && !isSuccess && (
-                <div className="absolute -top-3 left-4 px-2 bg-dark-900 border border-primary/20 rounded text-[10px] font-bold text-primary uppercase tracking-tighter z-10 group-hover:block hidden">
+                <div className="absolute -top-3 left-4 px-2 bg-dark-900 border border-primary/20 rounded text-[10px] font-bold text-primary uppercase tracking-tighter z-10">
                   Step 2: Confirm Transaction
+                </div>
+              )}
+              {/* Pulsing CTA banner — only shows after approval so user knows what to do */}
+              {isApproved && !isSuccess && !isPlacingBet && (
+                <div className="mb-2 flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/40 text-primary text-xs font-bold animate-pulse">
+                  <Zap className="w-3.5 h-3.5 flex-shrink-0" />
+                  USDC approved! Now click Place Bet to confirm your position.
                 </div>
               )}
               <button
@@ -852,7 +859,7 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
                 className={`w-full py-3 font-semibold rounded-lg transition-all shadow-lg flex items-center justify-center gap-2 ${
                   !isApproved 
                     ? 'bg-gray-800 text-gray-500 border border-gray-700 cursor-not-allowed' 
-                    : 'bg-primary hover:bg-primary-dark text-black shadow-primary/20'
+                    : 'bg-primary hover:bg-primary-dark text-black shadow-primary/20 hover:scale-[1.02] active:scale-95'
                 }`}
               >
                 {isPlacingBet && !needsApproval ? (
