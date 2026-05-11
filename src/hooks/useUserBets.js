@@ -166,7 +166,7 @@ const rawBetsLengthRef = useRef(0);
       isFetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [effectiveAddress, lastRefreshTime]);
+  }, [effectiveAddress, lastRefreshTime, isArc, publicClient, PROXY_CONTRACT_ADDRESS]);
 
   const enrichBets = useCallback(async () => {
     if (rawBets.length === 0) {
@@ -219,21 +219,41 @@ const rawBetsLengthRef = useRef(0);
               functionName: 'markets',
               args: [BigInt(marketId)]
             });
-            if (raw && Number(raw.startTime) !== 0) {
-              const isResolved = dbMarket ? dbMarket.resolved : raw.resolved;
+            // Safely read fields by name OR positional index —
+            // Arc's RPC may return a plain array tuple instead of named fields.
+            const startTime = Number(raw.startTime ?? raw[3] ?? 0);
+            if (raw && startTime !== 0) {
+              const marketTypeNum  = Number(raw.marketType  ?? raw[1]  ?? 0);
+              const assetStr       = String(raw.asset       ?? raw[2]  ?? 'BTC');
+              const isResolved     = Boolean(dbMarket ? dbMarket.resolved : (raw.resolved ?? raw[9]));
+              const priceWentUp    = Boolean(
+                dbMarket && dbMarket.price_went_up !== null
+                  ? dbMarket.price_went_up
+                  : (raw.priceWentUp ?? raw[10])
+              );
+              const rawWinChoice   = raw.winningChoice ?? raw[18] ?? null;
+
               market = {
                 id: marketId,
-                marketType: Number(raw.marketType),
-                asset: raw.asset,
+                marketType: marketTypeNum,
+                asset: assetStr,
                 resolved: isResolved,
-                priceWentUp: dbMarket && dbMarket.price_went_up !== null ? dbMarket.price_went_up : raw.priceWentUp,
-                winningChoice: dbMarket && dbMarket.winning_choice !== null ? dbMarket.winning_choice : (isResolved ? (raw.marketType === 0 ? (raw.priceWentUp ? 1 : 0) : null) : null),
-                endTime: Number(raw.endTime) * 1000,
+                priceWentUp,
+                winningChoice:
+                  dbMarket && dbMarket.winning_choice !== null
+                    ? dbMarket.winning_choice
+                    : isResolved
+                      ? (marketTypeNum === 0
+                          ? (priceWentUp ? 1 : 0)
+                          : rawWinChoice !== null ? Number(rawWinChoice) : null)
+                      : null,
+                endTime: Number(raw.endTime ?? raw[4] ?? 0) * 1000,
                 yesPool: 0, noPool: 0,
-                totalBets: Number(raw.totalBets),
+                totalBets: Number(raw.totalBets ?? raw[11] ?? 0),
               };
             }
           } catch { /* leave undefined */ }
+
         }
 
         const marketLabel = market
