@@ -17,7 +17,12 @@ const baseSepoliaWithRPC = {
 const arcTestnet = {
   id: 5042002,
   name: 'Arc Testnet',
-  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+  // Arc native USDC uses 18 decimals for gas (like ETH on Ethereum).
+  // The ERC-20 interface at 0x3600... uses 6 decimals for token transfers,
+  // but nativeCurrency.decimals must match the gas token precision (18).
+  // Setting this to 6 causes MetaMask to miscalculate gas by 10^12x,
+  // which triggers InternalRpcError on every transaction.
+  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
   rpcUrls: {
     default: { http: ['https://rpc.testnet.arc.network'] },
     public: { http: ['https://rpc.testnet.arc.network'] },
