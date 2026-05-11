@@ -25,6 +25,7 @@ export const useUserBets = (address, markets) => {
   const [lastRefreshTime, setLastRefreshTime] = useState(0);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [rawBets, setRawBets] = useState([]);
+  const [resolvedMap, setResolvedMap] = useState({});
   const [hasMoreBets, setHasMoreBets]       = useState(true);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
 
@@ -138,9 +139,32 @@ const rawBetsLengthRef = useRef(0);
           amount: log.args.amount,
           multiplier: Number(log.args.effectiveMultiplier),
           blockNumber: log.blockNumber,
-          claimed: false, // Will be checked via contract call in enrichment if needed
+          claimed: false,
           dbMarket: null
         }));
+
+        // ── Scan MarketResolved events in the SAME block range ──
+        // This is the ONLY source of winningChoice for Range/Multi/Time markets.
+        // The market struct on-chain does NOT store winningChoice.
+        const localResolvedMap = {};
+        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+          try {
+            const resolvedLogs = await publicClient.getLogs({
+              address: PROXY_CONTRACT_ADDRESS,
+              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+              fromBlock: from,
+              toBlock: to
+            });
+            resolvedLogs.forEach(log => {
+              localResolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
+            });
+          } catch (e) {
+            logger.warn(`Failed to fetch resolved logs chunk: ${e.message}`);
+          }
+        }
+        logger.info(`[useUserBets] resolvedMap: ${Object.keys(localResolvedMap).length} resolved markets`);
+        setResolvedMap(localResolvedMap);
 
         // Merge and deduplicate (prioritize logs for freshness)
         const seenHashes = new Set(rawBetData.map(b => b.txHash));
@@ -211,6 +235,14 @@ const rawBetsLengthRef = useRef(0);
             }
         }
 
+        // For markets found in cache but still missing winningChoice,
+        // patch from our locally-scanned resolvedMap (covers Range/Multi/Time)
+        if (market && market.resolved && (market.winningChoice === null || market.winningChoice === undefined)) {
+          if (resolvedMap[marketId] !== undefined) {
+            market = { ...market, winningChoice: resolvedMap[marketId] };
+          }
+        }
+
         if (!market) {
           try {
             const raw = await publicClient.readContract({
@@ -231,7 +263,9 @@ const rawBetsLengthRef = useRef(0);
                   ? dbMarket.price_went_up
                   : (raw.priceWentUp ?? raw[10])
               );
-              const rawWinChoice   = raw.winningChoice ?? raw[18] ?? null;
+              // Try resolvedMap first (most reliable for Range/Multi/Time markets)
+              const resolvedMapChoice = resolvedMap[marketId] !== undefined ? resolvedMap[marketId] : null;
+              const rawWinChoice = resolvedMapChoice ?? raw.winningChoice ?? null;
 
               market = {
                 id: marketId,
@@ -304,7 +338,7 @@ const rawBetsLengthRef = useRef(0);
     } catch (err) {
       logger.error('Error enriching bets:', err);
     }
-  }, [rawBets, markets, publicClient]);
+  }, [rawBets, markets, publicClient, resolvedMap, PROXY_CONTRACT_ADDRESS]);
 
   const fetchUserBets = useCallback(async (force = false) => {
     await fetchRawBets(force);
