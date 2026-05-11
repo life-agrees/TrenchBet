@@ -6,6 +6,7 @@ import { Bell, Wallet, Plus, Coins, Sun, Moon, LogOut } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useDisconnect } from 'wagmi';
+import toast from 'react-hot-toast';
 
 /**
  * HeaderStats — memoized component to prevent re-rendering the whole layout
@@ -223,11 +224,15 @@ const MainLayout = ({
                   <ConnectButton showBalance={false} chainStatus="icon" accountStatus="avatar" />
                   {isConnected && (
                     <button
-                      onClick={() => disconnect()}
-                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 transition-all shadow-sm"
+                      onClick={() => {
+                        console.log('Disconnecting wallet...');
+                        disconnect();
+                        toast.success('Wallet disconnected');
+                      }}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 transition-all shadow-sm group"
                       title="Disconnect Wallet"
                     >
-                      <LogOut size={16} />
+                      <LogOut size={16} className="group-hover:scale-110 transition-transform" />
                     </button>
                   )}
                 </div>
@@ -235,11 +240,15 @@ const MainLayout = ({
                   <ConnectButton chainStatus="none" accountStatus="avatar" />
                   {isConnected && (
                     <button
-                      onClick={() => disconnect()}
-                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 transition-all shadow-sm"
+                      onClick={() => {
+                        console.log('Disconnecting wallet...');
+                        disconnect();
+                        toast.success('Wallet disconnected');
+                      }}
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-500 transition-all shadow-sm group"
                       title="Disconnect Wallet"
                     >
-                      <LogOut size={16} />
+                      <LogOut size={16} className="group-hover:scale-110 transition-transform" />
                     </button>
                   )}
                 </div>

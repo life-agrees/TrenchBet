@@ -9,6 +9,7 @@ import {
 import { useUserPreferences } from '../../hooks/useUserPreferences';
 import { usePWAInstall } from '../../hooks/usePWAInstall';
 import { TrenchyBetLogo } from '../TrenchyBetLogo.jsx';
+import toast from 'react-hot-toast';
 
 /**
  * NavItem — defined OUTSIDE Sidebar so it isn't re-created on every render.
@@ -141,7 +142,9 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, i
       return;
     }
     if (id === 'logout') {
+      console.log('Disconnecting wallet via Sidebar...');
       disconnect();
+      toast.success('Wallet disconnected');
       setIsMobileOpen(false);
       return;
     }

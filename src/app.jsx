@@ -427,6 +427,15 @@ const handleClaimAdvanced = async (marketId) => {
     if (viewMap[viewId]) setCurrentView(viewMap[viewId]);
   }, []);
 
+  // Auto-reset landing when disconnected
+  useEffect(() => {
+    if (!isConnected && !isReconnecting && !showLanding) {
+      logger.info('User disconnected, redirecting to landing page');
+      setShowLanding(true);
+      setCurrentView('markets'); // Reset view to default
+    }
+  }, [isConnected, isReconnecting, showLanding]);
+
   // ── Effects ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -961,7 +970,7 @@ const handleClaimAdvanced = async (marketId) => {
       <MainLayout
         currentView={currentView}
         onNavigate={handleSidebarNavigation}
-        isConnected={isConnected || isReconnecting}
+        isConnected={isConnected}
         isWalletReconnecting={isReconnecting}
         isOwner={isOwner}
         formattedUsdcBalance={formattedUsdcBalance}
