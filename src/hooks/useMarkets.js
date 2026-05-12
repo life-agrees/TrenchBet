@@ -100,7 +100,7 @@ export function useMarkets() {
       try {
         const currentBlock = await publicClient.getBlockNumber();
         const isArcNet = publicClient.chain?.id === 5042002;
-        const CHUNK_SIZE = isArcNet ? 9900n : 99999n;
+        const CHUNK_SIZE = isArcNet ? 2000n : 99999n;
         const maxHistory  = isArcNet ? 216000n : 490000n;
         const fromBlock   = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
 

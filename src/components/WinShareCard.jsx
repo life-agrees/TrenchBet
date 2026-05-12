@@ -11,24 +11,31 @@ const WinShareCard = ({ bet, isVisible = false, onClose }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [dataUrl, setDataUrl] = useState(null);
 
-  if (!bet) return null;
-  const { market, amount, multiplier, choiceLabel } = bet;
-  const amountWon = (Number(amount) / 1e6) * (Number(multiplier) || 1.5);
-  
+  // ── Derived values (safe even when bet is null) ──
+  const market      = bet?.market ?? null;
+  const amount      = bet?.amount ?? 0;
+  const multiplier  = bet?.multiplier ?? 1.5;
+  const choiceLabel = bet?.choiceLabel ?? '';
+  const amountWon   = (Number(amount) / 1e6) * (Number(multiplier) || 1.5);
+
+  // All hooks MUST be declared before any conditional return (React rule of hooks)
   useEffect(() => {
-    if (isVisible && cardRef.current) {
+    if (bet && isVisible && cardRef.current) {
       generateImage();
     }
-  }, [isVisible]);
+  }, [isVisible, bet]);
+
+  // NOW it is safe to return early
+  if (!bet) return null;
 
   const generateImage = async () => {
     if (!cardRef.current) return;
     setIsGenerating(true);
     try {
       const canvas = await html2canvas(cardRef.current, {
-        scale: 2, // High resolution
+        scale: 2,
         useCORS: true,
-        backgroundColor: '#0F172A', // Dark-900 background to match theme
+        backgroundColor: '#0F172A',
         logging: false,
       });
       const url = canvas.toDataURL('image/png');

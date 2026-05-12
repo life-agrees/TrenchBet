@@ -335,48 +335,61 @@ const {
 
   const handleClaim = async (marketId) => {
     if (!address) { toast.error('Please connect your wallet first.'); return; }
+    const market = markets.find(m => m.id === marketId);
+    const isBinary = !market || Number(market.marketType) === 0;
+    const functionName = isBinary ? 'claimWinnings' : 'claimWinningsAdvanced';
+
+    const claimArgs = {
+      address: CONTRACTS.PROXY,
+      abi: PREDICTION_MARKET_PROXY_ABI,
+      functionName,
+      args: [BigInt(marketId)],
+    };
+
     try {
-      await writeContractAsync({
-        address: CONTRACTS.PROXY,
-        abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: 'claimWinnings',
-        args: [BigInt(marketId)],
-      });
-      toast.success('Claim sent. Your winnings will be available shortly.');
+      toast.loading('Claiming winnings...', { id: `claim-${marketId}` });
+
+      // Try without gas first, then fall back with manual gas for Arc InternalRpcError
+      let txHash;
+      try {
+        txHash = await writeContractAsync(claimArgs);
+      } catch (claimErr) {
+        const isRpcSim = claimErr.message?.includes('Internal error') ||
+          claimErr.message?.includes('InternalRpcError') ||
+          (claimErr.cause?.message || '').includes('Transaction failed');
+        if (isRpcSim) {
+          logger.warn('Claim simulation failed on Arc, retrying with manual gas...');
+          // Use 500k gas limit for claims to be safe
+          txHash = await writeContractAsync({ ...claimArgs, gas: 500000n });
+        } else {
+          throw claimErr;
+        }
+      }
+
+      toast.success('Winnings claimed! 🎉', { id: `claim-${marketId}` });
       
-      // Auto-trigger win share card if it was a significant win
+      // Show win share card for won bets
       const bet = wonBets.find(b => b.market?.id === marketId);
       if (bet) {
-        setTimeout(() => setWinShareBet(bet), 3000);
+        setTimeout(() => setWinShareBet(bet), 2000);
       }
 
       setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
     } catch (error) {
-      toast.error(`Claim failed: ${error.shortMessage || error.message}`);
-    }
-  };
-
-const handleClaimAdvanced = async (marketId) => {
-    if (!address) { toast.error('Please connect your wallet first.'); return; }
-    try {
-      await writeContractAsync({
-        address: CONTRACTS.PROXY,
-        abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: 'claimWinningsAdvanced',
-        args: [BigInt(marketId)],
-      });
-      toast.success('Claim sent. Your winnings will be available shortly.');
-      
-      const bet = wonBets.find(b => b.market?.id === marketId);
-      if (bet) {
-        setTimeout(() => setWinShareBet(bet), 3000);
+      toast.dismiss(`claim-${marketId}`);
+      const msg = error.shortMessage || error.message || 'Claim failed';
+      if (msg.includes('already claimed') || msg.includes('No winnings')) {
+        toast.error('No claimable winnings for this bet.');
+      } else if (msg.includes('User rejected')) {
+        toast.error('Claim cancelled.');
+      } else {
+        toast.error(`Claim failed: ${msg}`);
       }
-
-      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
-    } catch (error) {
-      toast.error(`Claim failed: ${error.shortMessage || error.message}`);
     }
   };
+
+  // handleClaimAdvanced is now unified into handleClaim (auto-detects market type)
+  const handleClaimAdvanced = handleClaim;
 
   const handleBetClick = useCallback((market, choiceIndex, choiceLabel, multiplier, defaultBet) => {
     setBetAmount(defaultBet?.toString() || '10');

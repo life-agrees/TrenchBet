@@ -262,6 +262,16 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
       setInputError(`Insufficient balance. You have ${formattedUsdcBalance} USDC`);
       return;
     }
+
+    // ── Client-side expiry guard ──
+    // Catch expired markets before sending any transaction (stale UI data)
+    if (market.endDate) {
+      const endMs = typeof market.endDate === 'number' ? market.endDate : new Date(market.endDate).getTime();
+      if (Date.now() >= endMs) {
+        setInputError('This market has already ended and is not accepting bets.');
+        return;
+      }
+    }
     
     // Determine choice based on market type
     let choice;
@@ -271,20 +281,13 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
       choice = selectedChoice;
     }
     
-    logger.info('Starting bet approval:', { marketId: market.id, choice, amount: betAmount, marketType: market.marketType });
-        // CRITICAL FIX: Use different functions based on market type
-      // Normalize to Number to handle string inputs from contract/proxy
-      const normalizedType = Number(market.marketType);
-      const isBinary = normalizedType === 0;
-      const functionName = isBinary ? 'placeBet' : 'placeBetAdvanced';
-      
-      logger.info(`Placing bet via proxy (${functionName}):`, {
-        marketId: market.id,
-        choice: choice,
-        amount: betAmount,
-        marketType: normalizedType,
-        isBinary,
-      });
+    logger.info('Starting bet flow:', { 
+      marketId: market.id, 
+      choice, 
+      amount: betAmount, 
+      marketType: market.marketType,
+      isBinary: Number(market.marketType) === 0
+    });
     
     const result = await placeBet(market, choice, betAmount);
 
