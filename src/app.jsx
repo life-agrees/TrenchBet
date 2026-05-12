@@ -118,7 +118,7 @@ const handleMarketCreated = useCallback(() => {
 
   const {
     userBets, ongoingBets, pendingBets, wonBets, lostBets,
-    isLoading: isLoadingUserBets, error: userBetsError, refresh: refreshUserBets
+    isLoading: isLoadingUserBets, error: userBetsError, refresh: refreshUserBets, markAsClaimed
   } = useUserBets(address, markets);
 
 const {
@@ -368,6 +368,9 @@ const {
 
       toast.success('Winnings claimed! 🎉', { id: `claim-${marketId}` });
       
+      // Optimistically update UI
+      markAsClaimed(marketId);
+      
       // Show win share card for won bets
       // FIX: Use loose comparison or Number() for ID safety
       const bet = wonBets.find(b => Number(b.market?.id) === Number(marketId));
@@ -375,9 +378,9 @@ const {
         setTimeout(() => setWinShareBet(bet), 2000);
       }
 
-      // Wait 5 seconds for Arc state propagation before refreshing
-      logger.info('Waiting 5s for Arc state propagation before refresh...');
-      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 5000);
+      // Wait 2 seconds for Arc state propagation before background refresh
+      logger.info('Waiting 2s for Arc state propagation before refresh...');
+      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
     } catch (error) {
       toast.dismiss(`claim-${marketId}`);
       const msg = error.shortMessage || error.message || 'Claim failed';

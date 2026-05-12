@@ -457,7 +457,15 @@ const rawBetsLengthRef = useRef(0);
     }),
   [userBets]);
 
-return {
+  const markAsClaimed = useCallback((marketId) => {
+    setUserBets(prev => prev.map(bet => 
+      Number(bet.marketId) === Number(marketId) 
+        ? { ...bet, claimed: true, isClaimableConfirmed: false } 
+        : bet
+    ));
+  }, []);
+
+  return {
     userBets,
     ongoingBets,
     pendingBets,
@@ -469,6 +477,7 @@ return {
     error,
     refresh: forceRefresh,
     loadOlderBets,
+    markAsClaimed,
   };
 };
 
