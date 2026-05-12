@@ -84,7 +84,7 @@ export function useMarkets() {
       // ── Step 2: Build market IDs directly from counter ──
       // Scan the recent market IDs (or all if fewer exist)
       // This is the PRIMARY discovery mechanism — no getLogs required
-      const MAX_SCAN = 20; // Reduced from 300 to 20 to prevent Infura limits while unauthenticated
+      const MAX_SCAN = 100; // Increased from 20 to 100 for better discovery on Arc
       const scanCount = Math.min(MAX_SCAN, proxyTotal);
       const recentIds = Array.from(
         { length: scanCount },
@@ -101,7 +101,7 @@ export function useMarkets() {
         const currentBlock = await publicClient.getBlockNumber();
         const isArcNet = publicClient.chain?.id === 5042002;
         const CHUNK_SIZE = isArcNet ? 2000n : 99999n;
-        const maxHistory  = isArcNet ? 216000n : 490000n;
+        const maxHistory  = isArcNet ? 1000000n : 490000n;
         const fromBlock   = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
 
         for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {

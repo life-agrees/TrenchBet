@@ -111,7 +111,7 @@ const rawBetsLengthRef = useRef(0);
         //   2 days = ~172,800 blocks
         // We scan 216,000 blocks (~2.5 days) in safe 2,000-block chunks to avoid RPC timeouts.
         const CHUNK_SIZE = isArcChain ? 2000n : 99999n;  
-        const maxHistory = isArcChain ? 216000n : 490000n;
+        const maxHistory = isArcChain ? 1000000n : 490000n;
         
         const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
         const allLogs = [];

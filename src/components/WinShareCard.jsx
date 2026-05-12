@@ -14,9 +14,11 @@ const WinShareCard = ({ bet, isVisible = false, onClose }) => {
   // ── Derived values (safe even when bet is null) ──
   const market      = bet?.market ?? null;
   const amount      = bet?.amount ?? 0;
-  const multiplier  = bet?.multiplier ?? 1.5;
+  const rawMultiplier = bet?.multiplier ? Number(bet.multiplier) : 150;
+  // Contract returns multiplier as 150 for 1.5x, 200 for 2x, etc.
+  const actualMultiplier = rawMultiplier > 10 ? rawMultiplier / 100 : rawMultiplier;
   const choiceLabel = bet?.choiceLabel ?? '';
-  const amountWon   = (Number(amount) / 1e6) * (Number(multiplier) || 1.5);
+  const amountWon   = (Number(amount) / 1e6) * actualMultiplier;
 
   // All hooks MUST be declared before any conditional return (React rule of hooks)
   useEffect(() => {
@@ -164,7 +166,7 @@ const WinShareCard = ({ bet, isVisible = false, onClose }) => {
                   <div className="flex flex-col items-end">
                     <span className="text-2xl text-neutral-400 font-bold uppercase tracking-widest mb-2">Multiplier</span>
                     <span className="text-[72px] leading-none font-black text-white">
-                      {multiplier}x
+                      {actualMultiplier.toFixed(2)}x
                     </span>
                   </div>
                 </div>

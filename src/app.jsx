@@ -369,12 +369,15 @@ const {
       toast.success('Winnings claimed! 🎉', { id: `claim-${marketId}` });
       
       // Show win share card for won bets
-      const bet = wonBets.find(b => b.market?.id === marketId);
+      // FIX: Use loose comparison or Number() for ID safety
+      const bet = wonBets.find(b => Number(b.market?.id) === Number(marketId));
       if (bet) {
         setTimeout(() => setWinShareBet(bet), 2000);
       }
 
-      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 2000);
+      // Wait 5 seconds for Arc state propagation before refreshing
+      logger.info('Waiting 5s for Arc state propagation before refresh...');
+      setTimeout(() => { refreshUserBets(); refetchBalance(); }, 5000);
     } catch (error) {
       toast.dismiss(`claim-${marketId}`);
       const msg = error.shortMessage || error.message || 'Claim failed';
