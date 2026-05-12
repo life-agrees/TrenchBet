@@ -219,8 +219,48 @@ const rawBetsLengthRef = useRef(0);
     }
 
     try {
+      // ── Arc Real-time Claimed Check ──
+      // Log scanning doesn't know if a bet is claimed. We must query the contract.
+      const arcClaimedMap = {};
+      if (isArc && effectiveAddress) {
+        try {
+          const uniqueMarketIds = [...new Set(rawBets.map(b => b.marketId))];
+          const results = await publicClient.multicall({
+            contracts: uniqueMarketIds.map(mId => ({
+              address: PROXY_CONTRACT_ADDRESS,
+              abi: PREDICTION_MARKET_PROXY_ABI,
+              functionName: 'getUserPositionsInMarket',
+              args: [BigInt(mId), effectiveAddress],
+            })),
+          });
+
+          uniqueMarketIds.forEach((mId, idx) => {
+            const positions = results[idx]?.result || [];
+            // Store as mId -> { choiceIndex -> claimedStatus }
+            const marketPositions = {};
+            positions.forEach(pos => {
+              // Note: the position struct field index for 'claimed' is 5 or 'claimed'
+              const choice = Number(pos.choice ?? pos[3]);
+              const isClaimed = Boolean(pos.claimed ?? pos[5]);
+              // If multiple positions for same choice, if ANY is claimed, we'll see it
+              if (isClaimed) marketPositions[choice] = true;
+            });
+            arcClaimedMap[mId] = marketPositions;
+          });
+          logger.debug(`[useUserBets] Refreshed claimed status for ${uniqueMarketIds.length} markets on Arc`);
+        } catch (err) {
+          logger.warn('[useUserBets] Multicall for claimed status failed:', err.message);
+        }
+      }
+
       const enrichedBets = await Promise.all(rawBets.map(async (rawBet) => {
-        const { marketId, choice, amount, claimed, dbMarket } = rawBet;
+        const { marketId, choice, amount, dbMarket } = rawBet;
+        
+        // Use real-time claimed status for Arc, fallback to rawBet.claimed for Base
+        const claimed = isArc 
+          ? Boolean(arcClaimedMap[marketId]?.[choice]) 
+          : rawBet.claimed;
+
         let market = markets?.find(m => m.id === marketId);
         
         // Ensure advanced markets get their winning choice from DB if resolved
