@@ -427,13 +427,19 @@ const handleClaimAdvanced = async (marketId) => {
     if (viewMap[viewId]) setCurrentView(viewMap[viewId]);
   }, []);
 
-  // Auto-reset landing when disconnected
+  // Track previous connection state to detect a real "disconnect" event
+  const wasConnected = useRef(isConnected);
+
   useEffect(() => {
-    if (!isConnected && !isReconnecting && !showLanding) {
-      logger.info('User disconnected, redirecting to landing page');
+    // If user was connected and is now disconnected (and not just reconnecting)
+    if (wasConnected.current && !isConnected && !isReconnecting && !showLanding) {
+      logger.info('User explicitly disconnected, redirecting to landing page');
       setShowLanding(true);
       setCurrentView('markets'); // Reset view to default
     }
+    
+    // Update the ref for next render
+    wasConnected.current = isConnected;
   }, [isConnected, isReconnecting, showLanding]);
 
   // ── Effects ────────────────────────────────────────────────────────────────
