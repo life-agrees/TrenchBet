@@ -238,7 +238,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
   }, [potentialPayout, amount]);
 
   const handleMaxClick = () => {
-    const balanceMax = Math.max(0, usdcBalanceNum - 0.01);
+    // Arc uses USDC for gas, so we need a larger buffer (0.05 USDC)
+    const balanceMax = Math.max(0, usdcBalanceNum - 0.05);
     const cappedMax = Math.min(balanceMax, MARKET.MAX_BET_AMOUNT);
     setAmount(cappedMax > 0 ? cappedMax.toFixed(2) : '0');
   };
@@ -271,6 +272,19 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
     }
     
     logger.info('Starting bet approval:', { marketId: market.id, choice, amount: betAmount, marketType: market.marketType });
+        // CRITICAL FIX: Use different functions based on market type
+      // Normalize to Number to handle string inputs from contract/proxy
+      const normalizedType = Number(market.marketType);
+      const isBinary = normalizedType === 0;
+      const functionName = isBinary ? 'placeBet' : 'placeBetAdvanced';
+      
+      logger.info(`Placing bet via proxy (${functionName}):`, {
+        marketId: market.id,
+        choice: choice,
+        amount: betAmount,
+        marketType: normalizedType,
+        isBinary,
+      });
     
     const result = await placeBet(market, choice, betAmount);
 

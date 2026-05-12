@@ -109,8 +109,8 @@ const rawBetsLengthRef = useRef(0);
         // Arc produces ~1 block/second, so:
         //   1 day  =  ~86,400 blocks
         //   2 days = ~172,800 blocks
-        // We scan 216,000 blocks (~2.5 days) in safe 9,900-block chunks.
-        const CHUNK_SIZE = isArcChain ? 9900n : 99999n;  
+        // We scan 216,000 blocks (~2.5 days) in safe 2,000-block chunks to avoid RPC timeouts.
+        const CHUNK_SIZE = isArcChain ? 2000n : 99999n;  
         const maxHistory = isArcChain ? 216000n : 490000n;
         
         const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;

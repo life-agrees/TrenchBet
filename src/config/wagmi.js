@@ -24,8 +24,14 @@ const arcTestnet = {
   // which triggers InternalRpcError on every transaction.
   nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://rpc.testnet.arc.network'] },
-    public: { http: ['https://rpc.testnet.arc.network'] },
+    default: { http: [
+      'https://rpc.testnet.arc.network',
+      'https://arc-testnet.drpc.org'
+    ] },
+    public: { http: [
+      'https://rpc.testnet.arc.network',
+      'https://arc-testnet.drpc.org'
+    ] },
   },
   blockExplorers: {
     default: { name: 'ArcScan', url: 'https://testnet.arcscan.app' },
@@ -75,7 +81,11 @@ export const config = getDefaultConfig({
   chains: [baseSepoliaWithRPC, arcTestnet],
   transports: {
     [baseSepoliaWithRPC.id]: createTransport(FREE_RPC_PROVIDERS.baseSepolia),
-    [arcTestnet.id]: http('https://rpc.testnet.arc.network'),
+    [arcTestnet.id]: createTransport([
+      'https://rpc.testnet.arc.network',
+      'https://arc-testnet.drpc.org',
+      'https://5042002.rpc.thirdweb.com'
+    ]),
   },
   ssr: false,
 });

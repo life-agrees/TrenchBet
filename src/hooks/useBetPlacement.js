@@ -271,7 +271,9 @@ export const useBetPlacement = () => {
       }
 
       // CRITICAL FIX: Use different functions based on market type
-      const isBinary = marketType === 0;
+      // Normalize to Number to handle string inputs from contract/proxy
+      const normalizedType = Number(marketType);
+      const isBinary = normalizedType === 0;
       const functionName = isBinary ? 'placeBet' : 'placeBetAdvanced';
       
       logger.info(`Placing bet via proxy (${functionName}):`, {
@@ -279,7 +281,7 @@ export const useBetPlacement = () => {
         choice: numericChoice,
         amount: amount.toString(),
         amountInUnits: amountInUnits.toString(),
-        marketType,
+        marketType: normalizedType,
         isBinary,
         proxyAddress: PROXY_CONTRACT_ADDRESS
       });
@@ -287,13 +289,32 @@ export const useBetPlacement = () => {
       setIsPending(true);
 
       // Route to correct function based on market type
-      const txHash = await walletClient.writeContract({
-        address: PROXY_CONTRACT_ADDRESS,
-        abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: functionName,  // ✅ Dynamic: 'placeBet' OR 'placeBetAdvanced'
-        args: [BigInt(numericMarketId), numericChoice, amountInUnits],
-        account: address,
-      });
+      let txHash;
+      try {
+        txHash = await walletClient.writeContract({
+          address: PROXY_CONTRACT_ADDRESS,
+          abi: PREDICTION_MARKET_PROXY_ABI,
+          functionName: functionName,
+          args: [BigInt(numericMarketId), numericChoice, amountInUnits],
+          account: address,
+        });
+      } catch (writeErr) {
+        // FALLBACK: If simulation fails with InternalRpcError (common on Arc), 
+        // retry with a manual gas limit to bypass the RPC estimation bottleneck.
+        if (writeErr.message?.includes('Internal error') || writeErr.message?.includes('Transaction failed')) {
+          logger.warn('Initial write failed, retrying with manual gas limit...');
+          txHash = await walletClient.writeContract({
+            address: PROXY_CONTRACT_ADDRESS,
+            abi: PREDICTION_MARKET_PROXY_ABI,
+            functionName: functionName,
+            args: [BigInt(numericMarketId), numericChoice, amountInUnits],
+            account: address,
+            gas: 600000n, // Manual 600k gas limit (generous for Arc)
+          });
+        } else {
+          throw writeErr;
+        }
+      }
 
       logger.info('Bet placement transaction submitted:', { txHash });
       setHash(txHash);
