@@ -110,29 +110,51 @@ const rawBetsLengthRef = useRef(0);
         //   1 day  =  ~86,400 blocks
         //   2 days = ~172,800 blocks
         // We scan 216,000 blocks (~2.5 days) in safe 2,000-block chunks to avoid RPC timeouts.
-        const CHUNK_SIZE = isArcChain ? 2000n : 99999n;  
+        const CHUNK_SIZE = isArcChain ? 5000n : 99999n;  
         const maxHistory = isArcChain ? 1000000n : 490000n;
-        
         const fromBlock = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
-        const allLogs = [];
+        
+        const betPlacedRequests = [];
+        const resolvedRequests = [];
 
         for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
           const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-          try {
-            const logs = await publicClient.getLogs({
+          
+          // Queue BetPlaced logs
+          betPlacedRequests.push(
+            publicClient.getLogs({
               address: PROXY_CONTRACT_ADDRESS,
               event: parseAbiItem('event BetPlaced(uint256 indexed marketId, address indexed user, uint8 choice, uint256 amount, uint256 effectiveMultiplier)'),
               args: { user: effectiveAddress },
-              fromBlock: from,
-              toBlock: to
-            });
-            allLogs.push(...logs);
-          } catch (e) {
-             logger.warn(`Failed to fetch bet logs chunk: ${e.message}`);
-          }
+              fromBlock: from, toBlock: to
+            }).catch(() => [])
+          );
+
+          // Queue MarketResolved logs
+          resolvedRequests.push(
+            publicClient.getLogs({
+              address: PROXY_CONTRACT_ADDRESS,
+              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+              fromBlock: from, toBlock: to
+            }).catch(() => [])
+          );
         }
 
-        const logBets = allLogs.map(log => ({
+        // Execute in parallel batches (10 at a time)
+        const BATCH_SIZE = 10;
+        const allBetLogs = [];
+        const allResolvedLogs = [];
+
+        for (let i = 0; i < betPlacedRequests.length; i += BATCH_SIZE) {
+          const [bets, resolutions] = await Promise.all([
+            Promise.all(betPlacedRequests.slice(i, i + BATCH_SIZE)),
+            Promise.all(resolvedRequests.slice(i, i + BATCH_SIZE))
+          ]);
+          allBetLogs.push(...bets.flat());
+          allResolvedLogs.push(...resolutions.flat());
+        }
+
+        const logBets = allBetLogs.map(log => ({
           txHash: log.transactionHash,
           marketId: Number(log.args.marketId),
           choice: Number(log.args.choice),
@@ -143,26 +165,10 @@ const rawBetsLengthRef = useRef(0);
           dbMarket: null
         }));
 
-        // ── Scan MarketResolved events in the SAME block range ──
-        // This is the ONLY source of winningChoice for Range/Multi/Time markets.
-        // The market struct on-chain does NOT store winningChoice.
         const localResolvedMap = {};
-        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-          try {
-            const resolvedLogs = await publicClient.getLogs({
-              address: PROXY_CONTRACT_ADDRESS,
-              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-              fromBlock: from,
-              toBlock: to
-            });
-            resolvedLogs.forEach(log => {
-              localResolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
-            });
-          } catch (e) {
-            logger.warn(`Failed to fetch resolved logs chunk: ${e.message}`);
-          }
-        }
+        allResolvedLogs.forEach(log => {
+          localResolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
+        });
         logger.info(`[useUserBets] resolvedMap: ${Object.keys(localResolvedMap).length} resolved markets`);
         setResolvedMap(localResolvedMap);
 

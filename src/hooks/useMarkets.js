@@ -82,9 +82,7 @@ export function useMarkets() {
       }
 
       // ── Step 2: Build market IDs directly from counter ──
-      // Scan the recent market IDs (or all if fewer exist)
-      // This is the PRIMARY discovery mechanism — no getLogs required
-      const MAX_SCAN = 100; // Increased from 20 to 100 for better discovery on Arc
+      const MAX_SCAN = 100; 
       const scanCount = Math.min(MAX_SCAN, proxyTotal);
       const recentIds = Array.from(
         { length: scanCount },
@@ -92,43 +90,57 @@ export function useMarkets() {
       );
       logger.info(`Scanning last ${scanCount} market IDs (${proxyTotal - scanCount} to ${proxyTotal - 1})`);
 
-      // ── Step 3: Build resolvedMap from MarketResolved events ──
-      // This is CRITICAL for Range/Multi/Time markets — the only way to get
-      // the winning choice index is from the on-chain MarketResolved event.
-      // We use chunked scanning to stay within Arc's 10,000-block RPC limit.
-      const resolvedMap = {};
-      try {
-        const currentBlock = await publicClient.getBlockNumber();
-        const isArcNet = publicClient.chain?.id === 5042002;
-        const CHUNK_SIZE = isArcNet ? 2000n : 99999n;
-        const maxHistory  = isArcNet ? 1000000n : 490000n;
-        const fromBlock   = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
-
-        for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
-          const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
-          try {
-            const chunks = await publicClient.getLogs({
-              address: PROXY_CONTRACT_ADDRESS,
-              event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
-              fromBlock: from, toBlock: to,
-            });
-            chunks.forEach(log => {
-              resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
-            });
-          } catch { /* skip individual chunk errors */ }
-        }
-        logger.info(`resolvedMap built: ${Object.keys(resolvedMap).length} resolved markets found`);
-      } catch { /* skip — resolvedMap stays empty, binary markets still work via priceWentUp */ }
-
-      // ── Step 4: Fetch each market's data by ID via MULTICALL ──
-      logger.info(`Fetching ${recentIds.length} specific markets by ID via Multicall`);
-      const allMarkets = await fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PROXY_CONTRACT_ADDRESS);
-
-      hasLoadedOnce.current = true;
-      setMarkets(allMarkets);
+      // ── Step 3: Fetch markets IMMEDIATELY (Fast Path) ──
+      // This gets markets on screen in ~1 second. Resolution logs will follow.
+      const initialMarkets = await fetchMarketsViaMulticall(publicClient, recentIds, {}, PROXY_CONTRACT_ADDRESS);
+      setMarkets(initialMarkets);
       setIsLoading(false);
+      hasLoadedOnce.current = true;
 
-      logger.info(`✅ Loaded ${allMarkets.length} valid markets from ${recentIds.length} IDs (counter-based)`);
+      // ── Step 4: Background Resolution Scan (Slow Path) ──
+      // Now we scan for MarketResolved events to fill in the winningChoice for non-binary markets.
+      // This is non-blocking and uses parallel requests for speed.
+      (async () => {
+        const resolvedMap = {};
+        try {
+          const currentBlock = await publicClient.getBlockNumber();
+          const isArcNet = publicClient.chain?.id === 5042002;
+          const CHUNK_SIZE = isArcNet ? 5000n : 99999n; // Increased chunk size for efficiency
+          const maxHistory  = isArcNet ? 300000n : 490000n; // 300k is ~3.5 days, plenty for "recent" resolutions
+          const fromBlock   = currentBlock > maxHistory ? currentBlock - maxHistory : 0n;
+
+          const chunkRequests = [];
+          for (let from = fromBlock; from < currentBlock; from += CHUNK_SIZE) {
+            const to = from + CHUNK_SIZE > currentBlock ? currentBlock : from + CHUNK_SIZE;
+            chunkRequests.push(
+              publicClient.getLogs({
+                address: PROXY_CONTRACT_ADDRESS,
+                event: parseAbiItem('event MarketResolved(uint256 indexed marketId, uint8 winningChoice, uint256 protocolFee)'),
+                fromBlock: from, toBlock: to,
+              }).catch(() => []) // ignore individual chunk failures
+            );
+          }
+
+          // Parallel fetch with concurrency (limited to batches of 10 to be RPC-friendly)
+          const BATCH_SIZE = 10;
+          for (let i = 0; i < chunkRequests.length; i += BATCH_SIZE) {
+            const batchResults = await Promise.all(chunkRequests.slice(i, i + BATCH_SIZE));
+            batchResults.flat().forEach(log => {
+              if (log.args && log.args.marketId) {
+                resolvedMap[Number(log.args.marketId)] = Number(log.args.winningChoice);
+              }
+            });
+          }
+
+          logger.info(`Background resolvedMap built: ${Object.keys(resolvedMap).length} entries`);
+          
+          // Final pass: Re-enrich markets with the background log data
+          const finalMarkets = await fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PROXY_CONTRACT_ADDRESS);
+          setMarkets(finalMarkets);
+        } catch (e) {
+          logger.warn('Background resolution scan failed:', e.message);
+        }
+      })();
     } catch (err) {
       logger.error('Failed to fetch markets:', err);
       // Preserve existing markets on transient errors (don't blank the UI)
