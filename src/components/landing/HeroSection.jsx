@@ -23,7 +23,7 @@ export const HeroSection = ({ onLaunchApp, liveStats }) => {
         </h1>
 
         <p className="text-xl text-neutral-300 mb-10 max-w-2xl mx-auto drop-shadow-sm font-medium">
-          The fastest prediction markets on Base. 15-minute cycles, instant payouts, 
+          The fastest prediction markets on modern L2s. 15-minute cycles, instant payouts, 
           and earn points with every bet. Convert points to $TRENCHY tokens.
         </p>
 

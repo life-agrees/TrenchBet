@@ -15,12 +15,14 @@ import {
   getMarketStatus, generateAlerts, getSystemStatus, getPlatformMetrics, formatTimeString
 } from '../utils/adminDashboardUtils';
 import { generateMarketTitle } from '../utils/marketDisplay';
+import { useContractAddresses } from '../hooks/useContractAddresses';
 
 const DashboardTab = ({
   stats, isLoadingStats, handleWithdraw, contractAddress, isPending, isConfirming, 
   onNavigate, markets = []
 }) => {
   const publicClient = usePublicClient();
+  const { explorerUrl, networkName } = useContractAddresses();
   const [timeRange, setTimeRange] = useState('7d');
   const [marketFilter, setMarketFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -409,7 +411,7 @@ const DashboardTab = ({
                           </div>
                         </td>
                         <td className="px-5 py-4 font-mono text-neutral-500 font-bold text-xs underline decoration-primary/30 underline-offset-4">
-                          <a href={`https://sepolia.basescan.org/address/${activity.user}`} target="_blank" rel="noopener noreferrer">{activity.user.slice(0, 12)}...</a>
+                          <a href={`${explorerUrl}/address/${activity.user}`} target="_blank" rel="noopener noreferrer">{activity.user.slice(0, 12)}...</a>
                         </td>
                         <td className="px-5 py-4 text-right">
                           <span className="text-secondary font-black tracking-tight">${activity.amount.toFixed(2)}</span>

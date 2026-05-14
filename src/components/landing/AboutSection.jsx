@@ -30,7 +30,7 @@ const AboutSection = ({ onLaunchApp }) => {
           <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-10 shadow-xl">
             <h3 className="text-3xl font-black text-neutral-900 dark:text-white mb-6 tracking-tight">What We Do</h3>
             <p className="text-neutral-200 leading-relaxed text-xl">
-              TrenchyBet is a decentralized prediction market platform built on Base. We let you bet on crypto price movements, create custom markets, and settle everything on-chain with zero middlemen.
+              TrenchyBet is a decentralized prediction market platform built for a multi-chain future. We let you bet on crypto price movements, create custom markets, and settle everything on-chain with zero middlemen.
             </p>
             <p className="text-neutral-200 leading-relaxed text-xl mt-6">
               No KYC. No withdrawal limits. No "trust us, bro." Just you, your wallet, and Chainlink price feeds that don't lie.
@@ -58,7 +58,7 @@ const AboutSection = ({ onLaunchApp }) => {
                 </div>
                 <div>
                   <h4 className="text-neutral-900 dark:text-white font-bold text-lg mb-2 tracking-tight">Transparency</h4>
-                  <p className="text-neutral-300 text-sm leading-relaxed font-medium">Every bet, every market, every payout lives on-chain. You can verify everything yourself on BaseScan.</p>
+                  <p className="text-neutral-300 text-sm leading-relaxed font-medium">Every bet, every market, every payout lives on-chain. You can verify everything yourself on the block explorer.</p>
                 </div>
               </div>
 
@@ -88,7 +88,7 @@ const AboutSection = ({ onLaunchApp }) => {
           <div className="bg-white/5 border border-white/10 backdrop-blur-md rounded-2xl p-10 shadow-xl">
             <h3 className="text-3xl font-black text-neutral-900 dark:text-white mb-6 tracking-tight">The Tech</h3>
             <p className="text-neutral-200 leading-relaxed text-xl">
-              Built on Base for low fees and fast finality. Powered by Chainlink for tamper-proof price data. Smart contracts audited and battle-tested (okay, still getting there, but we're transparent about it).
+              Built on high-performance L2s for low fees and fast finality. Powered by Chainlink for tamper-proof price data. Smart contracts audited and battle-tested.
             </p>
             <p className="text-neutral-200 leading-relaxed text-xl mt-6">
               We're not trying to be Wall Street. We're trying to be better than Wall Street.

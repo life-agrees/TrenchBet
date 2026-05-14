@@ -3,6 +3,7 @@ import { X, Coins, AlertCircle, CheckCircle, Loader2, TrendingUp, Lock } from 'l
 import { useAccount } from 'wagmi';
 import { usePointsClaim } from '../hooks/usePointsClaim';
 import { usePointsData } from '../hooks/usePointsData';
+import { useContractAddresses } from '../hooks/useContractAddresses';
 
 const POINTS_PER_TRENCHY = 100;
 
@@ -30,6 +31,7 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
   // FIX 1: get wallet address from wagmi (or prop fallback)
   const { address: connectedAddress } = useAccount();
   const walletAddress = walletAddressProp ?? connectedAddress;
+  const { explorerUrl, networkName } = useContractAddresses();
 
   // FIX 1 + 2: pass walletAddress, destructure pointsData correctly
   const { pointsData, isLoading: isLoadingPoints } = usePointsData(walletAddress);
@@ -243,12 +245,12 @@ export const PointsClaimModal = ({ isOpen, onClose, walletAddress: walletAddress
               </p>
               {transactionHash && (
                 <a
-                  href={`https://sepolia.basescan.org/tx/${transactionHash}`}
+                  href={`${explorerUrl}/tx/${transactionHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:text-primary/80 text-sm underline"
                 >
-                  View on BaseScan
+                  View on {networkName} Explorer
                 </a>
               )}
               <button

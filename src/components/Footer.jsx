@@ -47,7 +47,7 @@ const Footer = ({ onNavigate }) => {
               </span>
             </div>
             <p className="text-sm text-neutral-300 mb-6 leading-relaxed">
-              High-velocity prediction markets on Base. 15-minute cycles, instant payouts, and provably fair outcomes.
+              High-velocity multi-chain prediction markets. 15-minute cycles, instant payouts, and provably fair outcomes.
             </p>
             <div className="flex items-center gap-3">
               <a
@@ -180,7 +180,7 @@ const Footer = ({ onNavigate }) => {
               <span className="w-2 h-2 bg-[#00FF88] rounded-full animate-pulse shadow-[0_0_8px_#00FF88]"></span>
               v1.0.0
             </span>
-            <span>Built on Base</span>
+            <span>Multi-Chain Optimized</span>
             <span>Powered by Chainlink</span>
           </div>
         </div>

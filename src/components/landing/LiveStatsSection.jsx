@@ -35,7 +35,7 @@ export const LiveStatsSection = ({ liveStats, isLoading }) => {
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl font-black text-neutral-900 dark:text-white mb-4 tracking-tight">Live Platform Stats</h2>
-          <p className="text-neutral-300 font-medium">Real-time data directly from the Base network</p>
+          <p className="text-neutral-300 font-medium">Real-time data directly from the blockchain</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">

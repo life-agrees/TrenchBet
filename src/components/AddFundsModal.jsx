@@ -1,59 +1,66 @@
 import React from 'react';
 import { X, Copy, ExternalLink, DollarSign, ArrowRightLeft, Zap, Wallet } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useContractAddresses } from '../hooks/useContractAddresses';
 
 const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance, usdcBalanceNum }) => {
 
   if (!isOpen) return null;
+
+  const { explorerUrl, networkName, isArc, isBase, chainId, USDC: USDC_CONTRACT } = useContractAddresses();
 
   const handleCopyAddress = (address) => {
     navigator.clipboard.writeText(address);
     toast.success('Address copied to clipboard!');
   };
 
-  // Helper function to open Uniswap swap interface with pre-filled params
+  const isTestnet = chainId === 84532 || chainId === 5042002;
+
+  // Helper function to open Uniswap swap interface
   const openUniswapSwap = () => {
-    const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'; // USDC on Base Mainnet
-    const USDC_BASE_SEPOLIA = '0x036CbD53842c5426634e7929541eC2318f3dCF7e'; // USDC on Base Sepolia
-    
-    if (network === 'Base Sepolia') {
-      // For testnet, open Uniswap testnet or use a DEX aggregator
-      const uniswapUrl = `https://app.uniswap.org/#/swap?chain=base-sepolia&inputCurrency=ETH&outputCurrency=${USDC_BASE_SEPOLIA}`;
-      window.open(uniswapUrl, '_blank');
-    } else {
-      // For mainnet, use Uniswap with Base chain
-      const uniswapUrl = `https://app.uniswap.org/#/swap?chain=base&inputCurrency=ETH&outputCurrency=${USDC_BASE}`;
-      window.open(uniswapUrl, '_blank');
-    }
+    const uniswapUrl = `https://app.uniswap.org/#/swap?chain=${isBase ? 'base' : isArc ? 'arc' : 'base'}&outputCurrency=${USDC_CONTRACT}`;
+    window.open(uniswapUrl, '_blank');
   };
 
-  // Open 1inch swap (alternative to Uniswap)
+  // Open 1inch swap
   const open1inchSwap = () => {
-    const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
-    const url = `https://app.1inch.io/#/8453/simple/swap/ETH/USDC`;
+    const chainIdMap = { 84532: '84532', 5042002: '5042002', 8453: '8453' };
+    const id = chainIdMap[chainId] || '8453';
+    const url = `https://app.1inch.io/#/${id}/simple/swap/ETH/USDC`;
     window.open(url, '_blank');
   };
 
   const getNetworkInfo = () => {
-    if (network === 'Base Sepolia') {
+    if (isArc) {
+      return {
+        name: 'Arc Testnet',
+        faucetUrl: 'https://faucet.arc.net/', // Placeholder for Arc faucet
+        bridgeUrl: 'https://bridge.arc.net/',
+        explorerUrl: explorerUrl,
+        nativeToken: 'ARC',
+        testnet: true
+      };
+    }
+    if (isBase) {
       return {
         name: 'Base Sepolia',
         faucetUrl: 'https://sepoliafaucet.com/',
         bridgeUrl: 'https://bridge.base.org/',
-        explorerUrl: 'https://sepolia.basescan.org/',
+        explorerUrl: explorerUrl,
         nativeToken: 'ETH',
         testnet: true
       };
     }
     return {
-      name: network || 'Base',
+      name: networkName || 'Network',
       faucetUrl: null,
-      bridgeUrl: 'https://bridge.base.org/',
-      explorerUrl: 'https://basescan.org/',
+      bridgeUrl: '#',
+      explorerUrl: explorerUrl,
       nativeToken: 'ETH',
-      testnet: false
+      testnet: !networkName?.includes('Mainnet')
     };
   };
+
 
   const networkInfo = getNetworkInfo();
 
@@ -245,7 +252,7 @@ const AddFundsModal = ({ isOpen, onClose, network, address, formattedUsdcBalance
                   rel="noopener noreferrer"
                   className="w-full bg-primary hover:bg-primary-400 text-dark-950 font-bold py-3 rounded-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  Open Base Bridge
+                  Open {networkName} Bridge
                   <ExternalLink size={16} aria-hidden="true" />
                 </a>
                 <p className="text-xs text-neutral-500 mt-2 text-center">

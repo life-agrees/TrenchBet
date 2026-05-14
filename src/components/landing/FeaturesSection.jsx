@@ -30,8 +30,8 @@ export const FeaturesSection = ({ onLaunchApp }) => {
     },
     {
       icon: Globe,
-      title: 'Base Network',
-      description: 'Lightning-fast transactions with minimal fees. Built on Coinbase L2.'
+      title: 'Multi-Chain Ready',
+      description: 'High-speed execution across leading L2 networks. Low fees, instant finality.'
     }
   ];
 
@@ -42,7 +42,7 @@ export const FeaturesSection = ({ onLaunchApp }) => {
         <div className="text-center mb-16">
           <h2 className="text-4xl font-black text-neutral-900 dark:text-white mb-4 tracking-tight">Why TrenchyBet?</h2>
           <p className="text-neutral-300 font-medium max-w-2xl mx-auto">
-            The most advanced prediction market platform on Base
+            The most advanced multi-chain prediction market platform
           </p>
         </div>
 

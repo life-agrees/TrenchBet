@@ -60,6 +60,7 @@ import { useCurrentPrices } from './hooks/useCurrentPrice';
 import { useFavorites } from './hooks/useFavorites';
 import { useUserPreferences } from './hooks/useUserPreferences';
 import { useLeaderboard } from './hooks/useLeaderboard';
+import { useContractAddresses } from './hooks/useContractAddresses';
 import { trackBetPlaced } from './services/analyticsService';
 
 // Skeleton components
@@ -244,6 +245,8 @@ const {
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const { PROXY: PROXY_CONTRACT_ADDRESS } = useContractAddresses();
+
   const checkScroll = useCallback(() => {
     const el = filterScrollRef.current;
     if (el) {
@@ -322,7 +325,7 @@ const {
 
     try {
       await writeContractAsync({
-        address: CONTRACTS.PROXY,
+        address: PROXY_CONTRACT_ADDRESS,
         abi: PREDICTION_MARKET_PROXY_ABI,
         functionName,
         args,
@@ -340,7 +343,7 @@ const {
     const functionName = isBinary ? 'claimWinnings' : 'claimWinningsAdvanced';
 
     const claimArgs = {
-      address: CONTRACTS.PROXY,
+      address: PROXY_CONTRACT_ADDRESS,
       abi: PREDICTION_MARKET_PROXY_ABI,
       functionName,
       args: [BigInt(marketId)],

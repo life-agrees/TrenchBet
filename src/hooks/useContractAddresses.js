@@ -17,6 +17,8 @@ export function useContractAddresses() {
 
   return {
     ...contracts,
+    explorerUrl: contracts.EXPLORER,
+    networkName: contracts.NAME,
     isArc: chainId === 5042002,
     isBase: chainId === 84532,
     chainId

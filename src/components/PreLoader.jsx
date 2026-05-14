@@ -172,7 +172,7 @@ const PreLoader = ({ onLoadingComplete }) => {
       <div className="absolute bottom-8 left-8 text-neutral-600 text-xs font-mono">
         <div className="flex flex-col gap-1">
           <span>v2.0.0</span>
-          <span className="text-primary/60">BASE SEPOLIA</span>
+          <span className="text-primary/60">NEXT-GEN MULTI-CHAIN L2</span>
         </div>
       </div>
 

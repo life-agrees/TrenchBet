@@ -9,7 +9,8 @@ import CreateTab from './CreateTab';
 import ManageTab from './ManageTab';
 import BotControlPanel from './BotControlPanel.jsx';
 import VouchersTab from './VouchersTab';
-import { CONTRACTS, PROXY_ADDRESS, CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
+import { SUPPORTED_ASSETS, hasChainlinkFeed } from '../utils/constants';
+import { useContractAddresses } from '../hooks/useContractAddresses';
 
 
 import { 
@@ -35,6 +36,7 @@ export default function AdminPanel({
   isLoadingMarkets: parentIsLoadingMarkets,
   vouchersContractAddress 
 }) {
+  const { PROXY: PROXY_ADDRESS, USDC: USDC_ADDRESS, CHAINLINK_RESOLVER: CHAINLINK_RESOLVER_ADDRESS, networkName } = useContractAddresses();
 
 
 /**
@@ -421,7 +423,7 @@ function getContractForMarketType(marketType) {
       let contractBalance = 0n;
       try {
         contractBalance = await publicClient.readContract({
-          address: CONTRACTS.USDC,
+          address: USDC_ADDRESS,
           abi: ERC20_ABI,
           functionName: 'balanceOf',
           args: [PROXY_ADDRESS]

@@ -26,7 +26,7 @@ export const TestimonialsSection = ({ onLaunchApp }) => {
         <div className="text-center mb-16 relative z-10">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#c0ff00]/10 border border-[#c0ff00]/30 rounded-full mb-6">
             <span className="w-2 h-2 bg-[#c0ff00] rounded-full animate-pulse" />
-            <span className="text-[#c0ff00] text-sm font-semibold tracking-wide">Early Access — Live Now on Base Sepolia</span>
+            <span className="text-[#c0ff00] text-sm font-semibold tracking-wide">Early Access — Multi-Chain Testnet Live</span>
           </div>
           <h2 className="text-4xl font-black text-neutral-900 dark:text-white mb-4 tracking-tight">
             Be Among the First
