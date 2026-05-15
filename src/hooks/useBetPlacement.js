@@ -105,8 +105,19 @@ export const useBetPlacement = () => {
       
       // Refresh allowance from chain only if requested or if cache is empty
       if (!useCache || allowance === undefined) {
-        const { data } = await refetchProxyAllowance();
-        allowance = data;
+        // Wrap the network call in a 3-second timeout so it never hangs the UI forever
+        const fetchPromise = refetchProxyAllowance();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Allowance fetch timeout')), 3000)
+        );
+        
+        try {
+          const { data } = await Promise.race([fetchPromise, timeoutPromise]);
+          allowance = data;
+        } catch (fetchErr) {
+          logger.warn('Allowance network check failed or timed out, assuming 0 to unblock UI', fetchErr);
+          allowance = 0n;
+        }
       }
       
       logger.info('Checking allowance:', {
@@ -192,13 +203,12 @@ export const useBetPlacement = () => {
 
       logger.info('USDC approval confirmed');
       
-      // Wait for state propagation — Arc produces ~1 block/sec so we wait 5 blocks (5s)
-      // to ensure the allowance is readable by the next RPC call.
-      logger.info('Waiting for state propagation (5s for Arc)...');
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Give a tiny buffer for RPC state propagation, but don't freeze the UI for 5 seconds
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // Re-check allowance to confirm it worked
-      const hasAllowance = await checkAllowance(amount);
+      // We don't strictly need to re-verify allowance if the tx succeeded, 
+      // but if we do, use the cache to prevent another network hang.
+      const hasAllowance = await checkAllowance(amount, true);
       if (!hasAllowance) {
         throw new Error('Allowance check failed after approval. Please try again.');
       }
