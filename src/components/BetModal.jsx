@@ -95,7 +95,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
       const checkInitialAllowance = async () => {
         if (address && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
           try {
-            const hasAllowance = await checkAllowance(parseFloat(amount));
+            // Use cache for background checks to prevent RPC socket exhaustion
+            const hasAllowance = await checkAllowance(parseFloat(amount), true);
             if (hasAllowance) {
               setIsApproved(true);
             }
@@ -114,7 +115,8 @@ export const BetModal = ({ isOpen, onClose, market, usdcBalance,
     if (isOpen && address && !isNaN(parseFloat(amount)) && parseFloat(amount) > 0) {
       const timer = setTimeout(async () => {
         try {
-          const hasAllowance = await checkAllowance(parseFloat(amount));
+          // Use cache for background typing checks to prevent RPC socket exhaustion
+          const hasAllowance = await checkAllowance(parseFloat(amount), true);
           setIsApproved(hasAllowance);
         } catch (err) {
           // Silent fail for auto-check
