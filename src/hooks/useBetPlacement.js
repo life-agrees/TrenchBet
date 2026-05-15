@@ -89,7 +89,7 @@ export const useBetPlacement = () => {
   /**
    * PROXY PATTERN: Check if user has sufficient USDC allowance for proxy
    */
-  const checkAllowance = useCallback(async (amount) => {
+  const checkAllowance = useCallback(async (amount, useCache = false) => {
     if (!address) {
       if (isReconnecting) {
         throw new Error('Wallet is resyncing... please try again in a moment.');
@@ -101,9 +101,13 @@ export const useBetPlacement = () => {
       // Convert amount to USDC units (6 decimals)
       const amountInUnits = parseUnits(amount.toString(), 6);
       
-      // Refresh allowance from chain
-      const { data } = await refetchProxyAllowance();
-      const allowance = data;
+      let allowance = proxyAllowance;
+      
+      // Refresh allowance from chain only if requested or if cache is empty
+      if (!useCache || allowance === undefined) {
+        const { data } = await refetchProxyAllowance();
+        allowance = data;
+      }
       
       logger.info('Checking allowance:', {
         contract: 'proxy',
@@ -117,7 +121,7 @@ export const useBetPlacement = () => {
       logger.error('Error checking allowance:', err);
       throw new Error('Failed to check USDC allowance: ' + err.message);
     }
-  }, [address, refetchProxyAllowance]);
+  }, [address, refetchProxyAllowance, proxyAllowance]);
 
   /**
    * PROXY PATTERN: Approve USDC spending for proxy contract
@@ -448,8 +452,9 @@ const placeBet = useCallback(async (market, choice, amount) => {
 
   try {
     // ONLY check and approve - DO NOT place bet yet!
-    logger.info('Checking if approval is needed...');
-    const hasAllowance = await checkAllowance(amount);
+    // Use cached allowance data for instant check instead of forcing a network read
+    logger.info('Checking if approval is needed (using cache)...');
+    const hasAllowance = await checkAllowance(amount, true);
     
     if (!hasAllowance) {
       logger.info('Approval needed, requesting USDC approval...');
