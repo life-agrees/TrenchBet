@@ -231,14 +231,24 @@ const rawBetsLengthRef = useRef(0);
       if (isArc && effectiveAddress) {
         try {
           const uniqueMarketIds = [...new Set(rawBets.map(b => b.marketId))];
-          const results = await publicClient.multicall({
-            contracts: uniqueMarketIds.map(mId => ({
-              address: PROXY_CONTRACT_ADDRESS,
-              abi: PREDICTION_MARKET_PROXY_ABI,
-              functionName: 'getUserPositionsInMarket',
-              args: [BigInt(mId), effectiveAddress],
-            })),
-          });
+          const contracts = uniqueMarketIds.map(mId => ({
+            address: PROXY_CONTRACT_ADDRESS,
+            abi: PREDICTION_MARKET_PROXY_ABI,
+            functionName: 'getUserPositionsInMarket',
+            args: [BigInt(mId), effectiveAddress],
+          }));
+
+          const hasMulticall = publicClient.chain?.contracts?.multicall3;
+          let results;
+          
+          if (hasMulticall) {
+            results = await publicClient.multicall({ contracts, allowFailure: true });
+          } else {
+            const rawResults = await Promise.all(
+              contracts.map(c => publicClient.readContract(c).catch(() => null))
+            );
+            results = rawResults.map(r => ({ status: r ? 'success' : 'failure', result: r }));
+          }
 
           uniqueMarketIds.forEach((mId, idx) => {
             const positions = results[idx]?.result || [];
