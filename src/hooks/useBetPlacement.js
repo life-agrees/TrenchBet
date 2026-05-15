@@ -377,7 +377,8 @@ export const useBetPlacement = () => {
 
       // ── Step 5: Send the transaction ──
       // Bypass gas estimation on Arc to prevent wallet popup latency
-      const betGasLimit = isArc ? 500000n : undefined;
+      // Increased from 500k to 3M to prevent Out-Of-Gas reverts on complex placeBetAdvanced calculations
+      const betGasLimit = isArc ? 3000000n : undefined;
       
       const txHash = await walletClient.writeContract({
         address: PROXY_CONTRACT_ADDRESS,
