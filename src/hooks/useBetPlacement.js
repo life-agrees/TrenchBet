@@ -15,7 +15,7 @@ export const useBetPlacement = () => {
   const { address, isConnecting, isReconnecting } = useAccount();
   const isConnected = !!address && !isReconnecting;
 
-  const { PROXY: PROXY_CONTRACT_ADDRESS, USDC: USDC_ADDRESS, chainId } = useContractAddresses();
+  const { PROXY: PROXY_CONTRACT_ADDRESS, USDC: USDC_ADDRESS, chainId, isArc } = useContractAddresses();
 
   const publicClient = usePublicClient({ chainId });
   const { data: walletClient } = useWalletClient();
@@ -141,8 +141,9 @@ export const useBetPlacement = () => {
       setIsPending(true);
 
       // Send approval transaction
-      // Arc's RPC often fails to simulate approve with InternalRpcError.
-      // We retry with a manual gas limit to bypass estimation.
+      // On Arc, eth_estimateGas is very slow/fails. We bypass it by providing a manual gas limit.
+      const gasLimit = isArc ? 100000n : undefined;
+      
       let txHash;
       try {
         txHash = await walletClient.writeContract({
@@ -151,14 +152,15 @@ export const useBetPlacement = () => {
           functionName: 'approve',
           args: [PROXY_CONTRACT_ADDRESS, amountInUnits],
           account: address,
+          gas: gasLimit,
         });
       } catch (approveErr) {
         const isRpcSimFailure = approveErr.message?.includes('Internal error') ||
           approveErr.message?.includes('InternalRpcError') ||
           (approveErr.cause?.message || '').includes('Transaction failed');
         
-        if (isRpcSimFailure) {
-          logger.warn('Approve simulation failed on Arc RPC, retrying with manual gas...');
+        if (isRpcSimFailure && !gasLimit) {
+          logger.warn('Approve simulation failed on RPC, retrying with manual gas...');
           txHash = await walletClient.writeContract({
             address: USDC_ADDRESS,
             abi: ERC20_ABI,
@@ -317,51 +319,59 @@ export const useBetPlacement = () => {
       setIsPending(true);
 
       // ── Step 4: Simulate first to get REAL revert reason ──
-      try {
-        await publicClient.simulateContract({
-          address: PROXY_CONTRACT_ADDRESS,
-          abi: PREDICTION_MARKET_PROXY_ABI,
-          functionName: functionName,
-          args: [BigInt(numericMarketId), numericChoice, amountInUnits],
-          account: address,
-        });
-        logger.info('Simulation passed, sending transaction...');
-      } catch (simErr) {
-        // Extract the most useful error message
-        const simMsg = simErr.cause?.shortMessage || simErr.shortMessage || simErr.message || '';
-        logger.warn('Simulation failed:', simMsg);
+      // Skip simulation on Arc to prevent extreme latency, as Arc RPC struggles with simulateContract
+      if (!isArc) {
+        try {
+          await publicClient.simulateContract({
+            address: PROXY_CONTRACT_ADDRESS,
+            abi: PREDICTION_MARKET_PROXY_ABI,
+            functionName: functionName,
+            args: [BigInt(numericMarketId), numericChoice, amountInUnits],
+            account: address,
+          });
+          logger.info('Simulation passed, sending transaction...');
+        } catch (simErr) {
+          // Extract the most useful error message
+          const simMsg = simErr.cause?.shortMessage || simErr.shortMessage || simErr.message || '';
+          logger.warn('Simulation failed:', simMsg);
 
-        // If it's a known contract revert, throw a user-friendly error
-        if (simMsg.includes('already resolved') || simMsg.includes('Market resolved')) {
-          throw new Error('This market has already been resolved.');
-        } else if (simMsg.includes('expired') || simMsg.includes('ended')) {
-          throw new Error('This market has expired and is no longer accepting bets.');
-        } else if (simMsg.includes('allowance') || simMsg.includes('ERC20') || simMsg.includes('transfer')) {
-          throw new Error('USDC allowance issue. Please re-approve and try again.');
-        } else if (simMsg.includes('paused')) {
-          throw new Error('The contract is currently paused. Please try again later.');
-        }
-        // For RPC/network simulation errors or Arc's generic "Transaction failed" string, 
-        // proceed to writeContract anyway as it might just be a gas estimation failure.
-        const isGenericFailure = simMsg.includes('Transaction failed') || 
-                                simMsg.includes('Internal error') || 
-                                simMsg.includes('InternalRpcError');
+          // If it's a known contract revert, throw a user-friendly error
+          if (simMsg.includes('already resolved') || simMsg.includes('Market resolved')) {
+            throw new Error('This market has already been resolved.');
+          } else if (simMsg.includes('expired') || simMsg.includes('ended')) {
+            throw new Error('This market has expired and is no longer accepting bets.');
+          } else if (simMsg.includes('allowance') || simMsg.includes('ERC20') || simMsg.includes('transfer')) {
+            throw new Error('USDC allowance issue. Please re-approve and try again.');
+          } else if (simMsg.includes('paused')) {
+            throw new Error('The contract is currently paused. Please try again later.');
+          }
+          // For RPC/network simulation errors
+          const isGenericFailure = simMsg.includes('Transaction failed') || 
+                                  simMsg.includes('Internal error') || 
+                                  simMsg.includes('InternalRpcError');
 
-        if (!isGenericFailure && simMsg.includes('execution reverted')) {
-          // Real contract revert with specific reason — surface the error clearly
-          throw new Error(`Transaction would fail: ${simMsg || 'Unknown contract error. Market may be inactive.'}`);
-        } else {
-          logger.warn('Simulation error may be RPC-related or generic Arc failure, attempting writeContract anyway...', { simMsg });
+          if (!isGenericFailure && simMsg.includes('execution reverted')) {
+            // Real contract revert with specific reason — surface the error clearly
+            throw new Error(`Transaction would fail: ${simMsg || 'Unknown contract error. Market may be inactive.'}`);
+          } else {
+            logger.warn('Simulation error may be RPC-related or generic failure, attempting writeContract anyway...', { simMsg });
+          }
         }
+      } else {
+        logger.info('Skipping simulation on Arc to ensure instant wallet popup');
       }
 
       // ── Step 5: Send the transaction ──
+      // Bypass gas estimation on Arc to prevent wallet popup latency
+      const betGasLimit = isArc ? 500000n : undefined;
+      
       const txHash = await walletClient.writeContract({
         address: PROXY_CONTRACT_ADDRESS,
         abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: functionName,
         args: [BigInt(numericMarketId), numericChoice, amountInUnits],
         account: address,
+        gas: betGasLimit,
       });
 
       logger.info('Bet placement transaction submitted:', { txHash });

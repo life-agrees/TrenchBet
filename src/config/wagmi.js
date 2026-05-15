@@ -43,9 +43,9 @@ const createTransport = (publicUrls) => {
   const transports = publicUrls.map(url =>
     http(url, {
       batch: false,  // FIX: Disable batching to prevent free RPC nodes from silently dropping multicall payloads
-      retryCount: 3,
-      retryDelay: 1000,
-      timeout: 30000,
+      retryCount: 2, // Reduced from 3 to failover faster
+      retryDelay: 500, // Reduced from 1000ms
+      timeout: 8000, // Reduced from 30000ms (8 seconds is plenty. If an RPC takes longer, it's dead, switch to fallback)
     })
   );
 
@@ -82,8 +82,8 @@ export const config = getDefaultConfig({
   transports: {
     [baseSepoliaWithRPC.id]: createTransport(FREE_RPC_PROVIDERS.baseSepolia),
     [arcTestnet.id]: createTransport([
+      'https://arc-testnet.drpc.org', // Moved dRPC to top as it's often more stable than the native testnet RPC
       'https://rpc.testnet.arc.network',
-      'https://arc-testnet.drpc.org',
       'https://5042002.rpc.thirdweb.com'
     ]),
   },
