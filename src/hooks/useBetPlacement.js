@@ -203,15 +203,13 @@ export const useBetPlacement = () => {
 
       logger.info('USDC approval confirmed');
       
-      // Give a tiny buffer for RPC state propagation, but don't freeze the UI for 5 seconds
+      // Give a tiny buffer for RPC state propagation before returning success
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      // We don't strictly need to re-verify allowance if the tx succeeded, 
-      // but if we do, use the cache to prevent another network hang.
-      const hasAllowance = await checkAllowance(amount, true);
-      if (!hasAllowance) {
-        throw new Error('Allowance check failed after approval. Please try again.');
-      }
+      // We explicitly skip re-verifying the allowance here. 
+      // Since the transaction receipt is 'success', we KNOW they approved it.
+      // If we check the cache now, it will return the old value (0) because Wagmi 
+      // hasn't polled the new block state yet, which throws a false error.
       
       setNeedsApproval(false);
       setIsConfirming(false);
