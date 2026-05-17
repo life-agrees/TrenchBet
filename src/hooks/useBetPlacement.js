@@ -4,7 +4,7 @@ import { createLogger } from '../utils/logger';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { ERC20_ABI } from '../contracts/abis';
 import { useContractAddresses } from './useContractAddresses';
-import { parseUnits, formatUnits } from 'viem';
+import { parseUnits, formatUnits, encodeFunctionData } from 'viem';
 
 const logger = createLogger('useBetPlacement');
 
@@ -50,14 +50,18 @@ export const useBetPlacement = () => {
   }, []);
 
   /**
-   * Wait for transaction confirmation with polling
+   * Wait for transaction confirmation with polling.
+   * Arc produces ~1 block/sec, so we poll every 1.5s flat (no exponential backoff).
    */
-  const waitForConfirmation = useCallback(async (txHash, maxAttempts = 30) => {
+  const waitForConfirmation = useCallback(async (txHash, maxAttempts = 40) => {
     if (!publicClient) {
       throw new Error('Public client not available');
     }
     
     logger.info('Waiting for transaction confirmation:', { txHash });
+    
+    // Arc-optimized: flat 1.5s polling instead of exponential backoff
+    const pollInterval = isArc ? 1500 : 2000;
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -78,16 +82,15 @@ export const useBetPlacement = () => {
         logger.debug(`Waiting for transaction... attempt ${attempt + 1}/${maxAttempts}`);
       }
       
-      // Exponential backoff: 1s, 2s, 4s, max 5s
-      const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise(resolve => setTimeout(resolve, pollInterval));
     }
     
     throw new Error('Transaction confirmation timeout');
-  }, [publicClient]);
+  }, [publicClient, isArc]);
 
   /**
-   * PROXY PATTERN: Check if user has sufficient USDC allowance for proxy
+   * PROXY PATTERN: Check if user has sufficient USDC allowance for proxy.
+   * On Arc, ALWAYS use cache to avoid blocking the UI with slow RPC calls.
    */
   const checkAllowance = useCallback(async (amount, useCache = false) => {
     if (!address) {
@@ -103,9 +106,11 @@ export const useBetPlacement = () => {
       
       let allowance = proxyAllowance;
       
-      // Refresh allowance from chain only if requested or if cache is empty
-      if (!useCache || allowance === undefined) {
-        // Wrap the network call in a 3-second timeout so it never hangs the UI forever
+      // On Arc, ALWAYS use cache. Never block the UI with a network call.
+      const shouldUseCache = useCache || isArc;
+      
+      if (!shouldUseCache || allowance === undefined) {
+        // Wrap the network call in a 3-second timeout so it never hangs the UI
         const fetchPromise = refetchProxyAllowance();
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Allowance fetch timeout')), 3000)
@@ -115,8 +120,9 @@ export const useBetPlacement = () => {
           const { data } = await Promise.race([fetchPromise, timeoutPromise]);
           allowance = data;
         } catch (fetchErr) {
-          logger.warn('Allowance network check failed or timed out, assuming 0 to unblock UI', fetchErr);
-          allowance = 0n;
+          logger.warn('Allowance network check failed or timed out, using cached value', fetchErr);
+          // If cache exists, use it. Otherwise assume 0.
+          allowance = proxyAllowance ?? 0n;
         }
       }
       
@@ -132,10 +138,18 @@ export const useBetPlacement = () => {
       logger.error('Error checking allowance:', err);
       throw new Error('Failed to check USDC allowance: ' + err.message);
     }
-  }, [address, refetchProxyAllowance, proxyAllowance]);
+  }, [address, refetchProxyAllowance, proxyAllowance, isArc]);
 
   /**
-   * PROXY PATTERN: Approve USDC spending for proxy contract
+   * ══════════════════════════════════════════════════════════════
+   * APPROVE USDC — Arc "Raw Mode" for instant wallet popup
+   * ══════════════════════════════════════════════════════════════
+   * 
+   * On Arc, instead of using walletClient.writeContract() (which internally 
+   * makes 2-3 RPC calls for chainId, nonce, and gasPrice before opening the 
+   * wallet), we use walletClient.sendTransaction() with pre-encoded calldata.
+   * This sends the transaction directly to the wallet with ZERO pre-flight 
+   * RPC calls, making the wallet popup appear instantly.
    */
   const approveUSDC = useCallback(async (amount) => {
     if (!walletClient || !address) {
@@ -155,37 +169,54 @@ export const useBetPlacement = () => {
       setNeedsApproval(true);
       setIsPending(true);
 
-      // Send approval transaction
-      // On Arc, eth_estimateGas is very slow/fails. We bypass it by providing a manual gas limit.
-      const gasLimit = isArc ? 100000n : undefined;
-      
       let txHash;
-      try {
-        txHash = await walletClient.writeContract({
-          address: USDC_ADDRESS,
+
+      if (isArc) {
+        // ══ ARC RAW MODE ══
+        // Encode the approve(spender, amount) calldata manually
+        // and send via sendTransaction to skip ALL Viem middleware
+        const calldata = encodeFunctionData({
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [PROXY_CONTRACT_ADDRESS, amountInUnits],
-          account: address,
-          gas: gasLimit,
         });
-      } catch (approveErr) {
-        const isRpcSimFailure = approveErr.message?.includes('Internal error') ||
-          approveErr.message?.includes('InternalRpcError') ||
-          (approveErr.cause?.message || '').includes('Transaction failed');
-        
-        if (isRpcSimFailure && !gasLimit) {
-          logger.warn('Approve simulation failed on RPC, retrying with manual gas...');
+
+        logger.info('Arc Raw Mode: sending approve via sendTransaction (zero pre-flight RPC)');
+
+        txHash = await walletClient.sendTransaction({
+          to: USDC_ADDRESS,
+          data: calldata,
+          gas: 100000n,
+          account: address,
+        });
+      } else {
+        // ══ STANDARD MODE (Base Sepolia etc.) ══
+        try {
           txHash = await walletClient.writeContract({
             address: USDC_ADDRESS,
             abi: ERC20_ABI,
             functionName: 'approve',
             args: [PROXY_CONTRACT_ADDRESS, amountInUnits],
             account: address,
-            gas: 100000n, // ERC-20 approve is cheap; 100k gas is more than enough
           });
-        } else {
-          throw approveErr;
+        } catch (approveErr) {
+          const isRpcSimFailure = approveErr.message?.includes('Internal error') ||
+            approveErr.message?.includes('InternalRpcError') ||
+            (approveErr.cause?.message || '').includes('Transaction failed');
+          
+          if (isRpcSimFailure) {
+            logger.warn('Approve simulation failed on RPC, retrying with manual gas...');
+            txHash = await walletClient.writeContract({
+              address: USDC_ADDRESS,
+              abi: ERC20_ABI,
+              functionName: 'approve',
+              args: [PROXY_CONTRACT_ADDRESS, amountInUnits],
+              account: address,
+              gas: 100000n,
+            });
+          } else {
+            throw approveErr;
+          }
         }
       }
 
@@ -203,13 +234,9 @@ export const useBetPlacement = () => {
 
       logger.info('USDC approval confirmed');
       
-      // Give a tiny buffer for RPC state propagation before returning success
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       // We explicitly skip re-verifying the allowance here. 
-      // Since the transaction receipt is 'success', we KNOW they approved it.
-      // If we check the cache now, it will return the old value (0) because Wagmi 
-      // hasn't polled the new block state yet, which throws a false error.
+      // The transaction receipt is 'success', so the allowance IS set.
+      // Wagmi's cache won't reflect it yet, so checking would give a false negative.
       
       setNeedsApproval(false);
       setIsConfirming(false);
@@ -230,14 +257,23 @@ export const useBetPlacement = () => {
         throw new Error('Transaction nonce error. Please refresh and try again.');
       } else if (err.message?.toLowerCase().includes('rate limit')) {
         throw new Error('Network is busy (rate limited). Please wait a few seconds and try again.');
+      } else if (err.message?.toLowerCase().includes('timeout') || err.message?.toLowerCase().includes('timed out')) {
+        throw new Error('Network timed out. Please try again — your funds are safe.');
       }
       
       throw new Error(err.message || 'Failed to approve USDC');
     }
-  }, [walletClient, address, waitForConfirmation, checkAllowance]);
+  }, [walletClient, address, waitForConfirmation, USDC_ADDRESS, PROXY_CONTRACT_ADDRESS, isArc]);
 
   /**
-   * PROXY PATTERN: Execute the place bet transaction through proxy
+   * ══════════════════════════════════════════════════════════════
+   * EXECUTE PLACE BET — Arc "Raw Mode" for instant wallet popup
+   * ══════════════════════════════════════════════════════════════
+   * 
+   * Same strategy as approve: on Arc, we skip ALL pre-flight checks
+   * (market validity, allowance re-check, simulation) and send the 
+   * transaction directly to the wallet via sendTransaction with 
+   * pre-encoded calldata.
    */
   const executePlaceBet = useCallback(async (marketId, choice, amount, marketType) => {
     if (!walletClient || !address) {
@@ -268,71 +304,121 @@ export const useBetPlacement = () => {
 
     try {
       const amountInUnits = parseUnits(amount.toString(), 6);
-
-      // ── Step 1: Pre-flight market validity check ──
-      try {
-        const marketState = await publicClient.readContract({
-          address: PROXY_CONTRACT_ADDRESS,
-          abi: PREDICTION_MARKET_PROXY_ABI,
-          functionName: 'markets',
-          args: [BigInt(numericMarketId)],
-        });
-        if (marketState) {
-          const resolved  = Boolean(marketState.resolved  ?? marketState[9]);
-          const endTime   = Number(marketState.endTime    ?? marketState[4] ?? 0);
-          const startTime = Number(marketState.startTime  ?? marketState[3] ?? 0);
-          const nowSec    = Math.floor(Date.now() / 1000);
-
-          if (resolved) throw new Error('This market has already been resolved. Please choose an active market.');
-          if (startTime === 0) throw new Error('Market not found on this network.');
-          if (endTime > 0 && nowSec >= endTime) throw new Error('This market has already expired. Please choose an active market.');
-          
-          logger.info('Pre-flight market check passed:', { marketId: numericMarketId, resolved, endTime, nowSec });
-        }
-      } catch (preflightErr) {
-        if (preflightErr.message?.includes('already') || 
-            preflightErr.message?.includes('expired') ||
-            preflightErr.message?.includes('not found')) {
-          throw preflightErr;
-        }
-        logger.warn('Pre-flight check failed (non-critical):', preflightErr.message);
-      }
-
-      // ── Step 2: Verify USDC allowance is still valid ──
-      // The allowance might have staled or changed between approve and bet.
-      try {
-        const { data: currentAllowance } = await refetchProxyAllowance();
-        logger.info('Live allowance check before bet:', {
-          allowance: currentAllowance ? formatUnits(currentAllowance, 6) : '0',
-          required: amount.toString(),
-          sufficient: currentAllowance >= amountInUnits
-        });
-        if (currentAllowance < amountInUnits) {
-          throw new Error(`Insufficient USDC allowance. Approved: ${formatUnits(currentAllowance, 6)}, Required: ${amount}. Please re-approve.`);
-        }
-      } catch (allowanceErr) {
-        if (allowanceErr.message?.includes('Insufficient USDC allowance')) throw allowanceErr;
-        logger.warn('Live allowance check failed (non-critical):', allowanceErr.message);
-      }
-
-      // ── Step 3: Determine correct function ──
       const normalizedType = Number(marketType);
       const isBinary = normalizedType === 0;
       const functionName = isBinary ? 'placeBet' : 'placeBetAdvanced';
+
+      if (isArc) {
+        // ══════════════════════════════════════
+        // ARC FAST PATH — Zero pre-flight RPCs
+        // ══════════════════════════════════════
+        // Skip: market validity check (user is looking at it)
+        // Skip: allowance re-check (they just approved it)
+        // Skip: simulation (Arc RPC can't handle it)
+        // Just encode calldata and fire directly to wallet.
+        
+        logger.info(`Arc Fast Path: placing bet via sendTransaction (${functionName}):`, {
+          marketId: numericMarketId,
+          choice: numericChoice,
+          amountInUnits: amountInUnits.toString(),
+        });
+
+        setIsPending(true);
+
+        const calldata = encodeFunctionData({
+          abi: PREDICTION_MARKET_PROXY_ABI,
+          functionName: functionName,
+          args: [BigInt(numericMarketId), numericChoice, amountInUnits],
+        });
+
+        const txHash = await walletClient.sendTransaction({
+          to: PROXY_CONTRACT_ADDRESS,
+          data: calldata,
+          gas: 3000000n,
+          account: address,
+        });
+
+        logger.info('Bet placement transaction submitted:', { txHash });
+        setHash(txHash);
+        setIsPending(false);
+        setIsConfirming(true);
+
+        const receipt = await waitForConfirmation(txHash);
+        
+        if (receipt.status !== 'success') {
+          throw new Error('Bet placement transaction failed on-chain. The market may have expired or been resolved.');
+        }
+
+        logger.info('Bet placement confirmed');
+        setIsConfirming(false);
+        setIsSuccess(true);
+        setIsPlacingBet(false);
+        lastBetRef.current = txHash;
+        
+        return txHash;
+
+      } else {
+        // ══════════════════════════════════════
+        // STANDARD PATH (Base Sepolia etc.)
+        // ══════════════════════════════════════
+        // Full pre-flight checks for networks with fast RPCs.
+
+        // ── Step 1: Pre-flight market validity check ──
+        try {
+          const marketState = await publicClient.readContract({
+            address: PROXY_CONTRACT_ADDRESS,
+            abi: PREDICTION_MARKET_PROXY_ABI,
+            functionName: 'markets',
+            args: [BigInt(numericMarketId)],
+          });
+          if (marketState) {
+            const resolved  = Boolean(marketState.resolved  ?? marketState[9]);
+            const endTime   = Number(marketState.endTime    ?? marketState[4] ?? 0);
+            const startTime = Number(marketState.startTime  ?? marketState[3] ?? 0);
+            const nowSec    = Math.floor(Date.now() / 1000);
+
+            if (resolved) throw new Error('This market has already been resolved. Please choose an active market.');
+            if (startTime === 0) throw new Error('Market not found on this network.');
+            if (endTime > 0 && nowSec >= endTime) throw new Error('This market has already expired. Please choose an active market.');
+            
+            logger.info('Pre-flight market check passed:', { marketId: numericMarketId, resolved, endTime, nowSec });
+          }
+        } catch (preflightErr) {
+          if (preflightErr.message?.includes('already') || 
+              preflightErr.message?.includes('expired') ||
+              preflightErr.message?.includes('not found')) {
+            throw preflightErr;
+          }
+          logger.warn('Pre-flight check failed (non-critical):', preflightErr.message);
+        }
+
+        // ── Step 2: Verify USDC allowance is still valid ──
+        try {
+          const { data: currentAllowance } = await refetchProxyAllowance();
+          logger.info('Live allowance check before bet:', {
+            allowance: currentAllowance ? formatUnits(currentAllowance, 6) : '0',
+            required: amount.toString(),
+            sufficient: currentAllowance >= amountInUnits
+          });
+          if (currentAllowance < amountInUnits) {
+            throw new Error(`Insufficient USDC allowance. Approved: ${formatUnits(currentAllowance, 6)}, Required: ${amount}. Please re-approve.`);
+          }
+        } catch (allowanceErr) {
+          if (allowanceErr.message?.includes('Insufficient USDC allowance')) throw allowanceErr;
+          logger.warn('Live allowance check failed (non-critical):', allowanceErr.message);
+        }
       
-      logger.info(`Placing bet via proxy (${functionName}):`, {
-        marketId: numericMarketId,
-        choice: numericChoice,
-        amountInUnits: amountInUnits.toString(),
-        marketType: normalizedType,
-        proxyAddress: PROXY_CONTRACT_ADDRESS
-      });
+        logger.info(`Placing bet via proxy (${functionName}):`, {
+          marketId: numericMarketId,
+          choice: numericChoice,
+          amountInUnits: amountInUnits.toString(),
+          marketType: normalizedType,
+          proxyAddress: PROXY_CONTRACT_ADDRESS
+        });
 
-      setIsPending(true);
+        setIsPending(true);
 
-      // ── Step 4: Simulate first to get REAL revert reason ──
-      // Skip simulation on Arc to prevent extreme latency, as Arc RPC struggles with simulateContract
-      if (!isArc) {
+        // ── Step 3: Simulate first to get REAL revert reason ──
         try {
           await publicClient.simulateContract({
             address: PROXY_CONTRACT_ADDRESS,
@@ -343,11 +429,9 @@ export const useBetPlacement = () => {
           });
           logger.info('Simulation passed, sending transaction...');
         } catch (simErr) {
-          // Extract the most useful error message
           const simMsg = simErr.cause?.shortMessage || simErr.shortMessage || simErr.message || '';
           logger.warn('Simulation failed:', simMsg);
 
-          // If it's a known contract revert, throw a user-friendly error
           if (simMsg.includes('already resolved') || simMsg.includes('Market resolved')) {
             throw new Error('This market has already been resolved.');
           } else if (simMsg.includes('expired') || simMsg.includes('ended')) {
@@ -357,54 +441,45 @@ export const useBetPlacement = () => {
           } else if (simMsg.includes('paused')) {
             throw new Error('The contract is currently paused. Please try again later.');
           }
-          // For RPC/network simulation errors
           const isGenericFailure = simMsg.includes('Transaction failed') || 
-                                  simMsg.includes('Internal error') || 
-                                  simMsg.includes('InternalRpcError');
+                                    simMsg.includes('Internal error') || 
+                                    simMsg.includes('InternalRpcError');
 
           if (!isGenericFailure && simMsg.includes('execution reverted')) {
-            // Real contract revert with specific reason — surface the error clearly
             throw new Error(`Transaction would fail: ${simMsg || 'Unknown contract error. Market may be inactive.'}`);
           } else {
-            logger.warn('Simulation error may be RPC-related or generic failure, attempting writeContract anyway...', { simMsg });
+            logger.warn('Simulation error may be RPC-related, attempting writeContract anyway...', { simMsg });
           }
         }
-      } else {
-        logger.info('Skipping simulation on Arc to ensure instant wallet popup');
+
+        // ── Step 4: Send the transaction ──
+        const txHash = await walletClient.writeContract({
+          address: PROXY_CONTRACT_ADDRESS,
+          abi: PREDICTION_MARKET_PROXY_ABI,
+          functionName: functionName,
+          args: [BigInt(numericMarketId), numericChoice, amountInUnits],
+          account: address,
+        });
+
+        logger.info('Bet placement transaction submitted:', { txHash });
+        setHash(txHash);
+        setIsPending(false);
+        setIsConfirming(true);
+
+        const receipt = await waitForConfirmation(txHash);
+        
+        if (receipt.status !== 'success') {
+          throw new Error('Bet placement transaction failed on-chain');
+        }
+
+        logger.info('Bet placement confirmed');
+        setIsConfirming(false);
+        setIsSuccess(true);
+        setIsPlacingBet(false);
+        lastBetRef.current = txHash;
+        
+        return txHash;
       }
-
-      // ── Step 5: Send the transaction ──
-      // Bypass gas estimation on Arc to prevent wallet popup latency
-      // Increased from 500k to 3M to prevent Out-Of-Gas reverts on complex placeBetAdvanced calculations
-      const betGasLimit = isArc ? 3000000n : undefined;
-      
-      const txHash = await walletClient.writeContract({
-        address: PROXY_CONTRACT_ADDRESS,
-        abi: PREDICTION_MARKET_PROXY_ABI,
-        functionName: functionName,
-        args: [BigInt(numericMarketId), numericChoice, amountInUnits],
-        account: address,
-        gas: betGasLimit,
-      });
-
-      logger.info('Bet placement transaction submitted:', { txHash });
-      setHash(txHash);
-      setIsPending(false);
-      setIsConfirming(true);
-
-      const receipt = await waitForConfirmation(txHash);
-      
-      if (receipt.status !== 'success') {
-        throw new Error('Bet placement transaction failed on-chain');
-      }
-
-      logger.info('Bet placement confirmed');
-      setIsConfirming(false);
-      setIsSuccess(true);
-      setIsPlacingBet(false);
-      lastBetRef.current = txHash;
-      
-      return txHash;
     } catch (err) {
       logger.error('Error placing bet:', err);
       setIsPending(false);
@@ -425,11 +500,13 @@ export const useBetPlacement = () => {
         throw new Error('Transaction nonce error. Please refresh and try again.');
       } else if (err.message?.toLowerCase().includes('rate limit')) {
         throw new Error('Network is busy. Please wait a few seconds and try again.');
+      } else if (err.message?.toLowerCase().includes('timeout') || err.message?.toLowerCase().includes('timed out')) {
+        throw new Error('Network timed out. Please try again — your funds are safe.');
       }
       
       throw new Error(err.message || 'Failed to place bet');
     }
-  }, [walletClient, address, publicClient, PROXY_CONTRACT_ADDRESS, refetchProxyAllowance, waitForConfirmation, isReconnecting]);
+  }, [walletClient, address, publicClient, PROXY_CONTRACT_ADDRESS, USDC_ADDRESS, refetchProxyAllowance, waitForConfirmation, isReconnecting, isArc]);
 
 /**
  * Main placeBet function - handles approval ONLY (not betting)

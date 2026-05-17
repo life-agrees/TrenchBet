@@ -29,7 +29,7 @@ function getContractForMarketType(marketType, proxyAddress) {
 }
 
 export function useMarkets() {
-  const { PROXY: PROXY_CONTRACT_ADDRESS, chainId } = useContractAddresses();
+  const { PROXY: PROXY_CONTRACT_ADDRESS, chainId, isArc } = useContractAddresses();
   const publicClient = usePublicClient({ chainId });
   const [markets, setMarkets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,9 +154,11 @@ export function useMarkets() {
 
   useEffect(() => {
     fetchMarkets();
-    const interval = setInterval(fetchMarkets, DURATIONS.REFRESH_INTERVAL);
+    // Arc: poll every 30s instead of 10s to reduce RPC pressure and free connections for transactions
+    const refreshMs = isArc ? 30000 : DURATIONS.REFRESH_INTERVAL;
+    const interval = setInterval(fetchMarkets, refreshMs);
     return () => clearInterval(interval);
-  }, [fetchMarkets]);
+  }, [fetchMarkets, isArc]);
 
   const { liveMarkets, expiredMarkets } = useMemo(() => {
     const now = Date.now();
@@ -529,7 +531,10 @@ function getCoinName(asset) {
 }
 
 async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PROXY_CONTRACT_ADDRESS) {
-  const CHUNK_SIZE = 50;
+  const isArcNet = publicClient.chain?.id === 5042002;
+  // Arc has no multicall3 — individual calls go through the browser's connection pool.
+  // Limit to 5 concurrent to avoid saturating the 6-connection-per-origin limit.
+  const CHUNK_SIZE = isArcNet ? 5 : 50;
   const proxyMarkets = [];
 
   // Phase 1: Base Markets
@@ -560,18 +565,23 @@ async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PR
           }
         });
       } else {
-        // Fallback: Individual calls for chains like Arc
-        logger.info(`Chain ${publicClient.chain?.name} has no multicall3. Falling back to individual reads.`);
-        const results = await Promise.all(
-          chunk.map(id => 
-            publicClient.readContract({
+        // Fallback: Sequential-ish calls for chains like Arc (no multicall3)
+        // Process one at a time to avoid saturating browser connections
+        logger.info(`Chain ${publicClient.chain?.name} has no multicall3. Falling back to sequential reads.`);
+        const results = [];
+        for (const id of chunk) {
+          try {
+            const raw = await publicClient.readContract({
               address: PROXY_CONTRACT_ADDRESS,
               abi: PREDICTION_MARKET_PROXY_ABI,
               functionName: 'markets',
               args: [BigInt(id)],
-            }).catch(() => null)
-          )
-        );
+            });
+            results.push(raw);
+          } catch {
+            results.push(null);
+          }
+        }
         results.forEach((raw, idx) => {
           if (raw) {
             const marketId = chunk[idx];
@@ -694,10 +704,16 @@ async function fetchMarketsViaMulticall(publicClient, recentIds, resolvedMap, PR
       if (hasMulticall) {
         results = await publicClient.multicall({ contracts: chunk, allowFailure: true });
       } else {
-        // Fallback for Arc
-        const rawResults = await Promise.all(
-          chunk.map(call => publicClient.readContract(call).catch(() => null))
-        );
+        // Sequential fallback for Arc — avoids saturating browser connections
+        const rawResults = [];
+        for (const call of chunk) {
+          try {
+            const r = await publicClient.readContract(call);
+            rawResults.push(r);
+          } catch {
+            rawResults.push(null);
+          }
+        }
         results = rawResults.map(r => ({ status: r ? 'success' : 'failure', result: r }));
       }
 

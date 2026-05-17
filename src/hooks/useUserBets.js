@@ -244,9 +244,16 @@ const rawBetsLengthRef = useRef(0);
           if (hasMulticall) {
             results = await publicClient.multicall({ contracts, allowFailure: true });
           } else {
-            const rawResults = await Promise.all(
-              contracts.map(c => publicClient.readContract(c).catch(() => null))
-            );
+            // Sequential fallback for Arc — avoids saturating browser connections
+            const rawResults = [];
+            for (const c of contracts) {
+              try {
+                const r = await publicClient.readContract(c);
+                rawResults.push(r);
+              } catch {
+                rawResults.push(null);
+              }
+            }
             results = rawResults.map(r => ({ status: r ? 'success' : 'failure', result: r }));
           }
 
@@ -412,9 +419,9 @@ const rawBetsLengthRef = useRef(0);
     if (!effectiveAddress) return;
     const interval = setInterval(() => {
       fetchRawBets(false);
-    }, 10000);
+    }, isArc ? 30000 : 10000); // Arc: 30s to reduce RPC pressure
     return () => clearInterval(interval);
-  }, [effectiveAddress, fetchRawBets]);
+  }, [effectiveAddress, fetchRawBets, isArc]);
 
   const forceRefresh = useCallback(() => {
     setRefreshTrigger(prev => prev + 1);
