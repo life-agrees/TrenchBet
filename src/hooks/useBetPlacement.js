@@ -8,6 +8,13 @@ import { parseUnits, formatUnits, encodeFunctionData } from 'viem';
 
 const logger = createLogger('useBetPlacement');
 
+// Arc gas price: fetch once with a short timeout, fallback to a safe default.
+// This prevents wallets (especially OKX) from calling eth_gasPrice themselves
+// and hanging with a greyed-out Confirm button.
+const ARC_DEFAULT_GAS_PRICE = 1000000n; // 0.001 Gwei — Arc L2 gas is near-zero
+let cachedArcGasPrice = null;
+let gasPriceFetchedAt = 0;
+
 // PROXY PATTERN: All interactions go through the proxy contract
 // Handled dynamically via useContractAddresses inside the hook
 
@@ -19,6 +26,30 @@ export const useBetPlacement = () => {
 
   const publicClient = usePublicClient({ chainId });
   const { data: walletClient } = useWalletClient();
+
+  // Fetch Arc gas price with a 2s timeout, cache for 60s
+  const getArcGasPrice = useCallback(async () => {
+    if (!isArc) return undefined;
+    
+    // Use cached value if fresh (< 60 seconds old)
+    if (cachedArcGasPrice && Date.now() - gasPriceFetchedAt < 60000) {
+      return cachedArcGasPrice;
+    }
+    
+    try {
+      const price = await Promise.race([
+        publicClient.getGasPrice(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      ]);
+      cachedArcGasPrice = price;
+      gasPriceFetchedAt = Date.now();
+      logger.info('Fetched Arc gas price:', price.toString());
+      return price;
+    } catch {
+      logger.warn('Gas price fetch failed/timed out, using default:', ARC_DEFAULT_GAS_PRICE.toString());
+      return ARC_DEFAULT_GAS_PRICE;
+    }
+  }, [isArc, publicClient]);
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
@@ -183,10 +214,14 @@ export const useBetPlacement = () => {
 
         logger.info('Arc Raw Mode: sending approve via sendTransaction (zero pre-flight RPC)');
 
+        // Pre-fetch gas price so the wallet doesn't need to call eth_gasPrice
+        const gasPrice = await getArcGasPrice();
+
         txHash = await walletClient.sendTransaction({
           to: USDC_ADDRESS,
           data: calldata,
           gas: 100000n,
+          gasPrice,
           account: address,
         });
       } else {
@@ -331,10 +366,14 @@ export const useBetPlacement = () => {
           args: [BigInt(numericMarketId), numericChoice, amountInUnits],
         });
 
+        // Pre-fetch gas price so the wallet doesn't need to call eth_gasPrice
+        const gasPrice = await getArcGasPrice();
+
         const txHash = await walletClient.sendTransaction({
           to: PROXY_CONTRACT_ADDRESS,
           data: calldata,
           gas: 3000000n,
+          gasPrice,
           account: address,
         });
 
