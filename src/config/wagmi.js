@@ -39,6 +39,26 @@ const arcTestnet = {
   testnet: true,
 };
 
+export const xLayerTestnet = {
+  id: 1952,
+  name: 'X Layer Testnet',
+  nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+  rpcUrls: {
+    default: { http: [
+      'https://xlayertestrpc.okx.com/terigon',
+      'https://testrpc.xlayer.tech/terigon'
+    ] },
+    public: { http: [
+      'https://xlayertestrpc.okx.com/terigon',
+      'https://testrpc.xlayer.tech/terigon'
+    ] },
+  },
+  blockExplorers: {
+    default: { name: 'OKX Explorer', url: 'https://www.okx.com/web3/explorer/xlayer-test' },
+  },
+  testnet: true,
+};
+
 const createTransport = (publicUrls) => {
   const transports = publicUrls.map(url =>
     http(url, {
@@ -78,13 +98,17 @@ export const config = getDefaultConfig({
   walletConnectOptions: {
     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
   },
-  chains: [baseSepoliaWithRPC, arcTestnet],
+  chains: [baseSepoliaWithRPC, arcTestnet, xLayerTestnet],
   transports: {
     [baseSepoliaWithRPC.id]: createTransport(FREE_RPC_PROVIDERS.baseSepolia),
     [arcTestnet.id]: createTransport([
       'https://arc-testnet.drpc.org', // Moved dRPC to top as it's often more stable than the native testnet RPC
       'https://rpc.testnet.arc.network',
       'https://5042002.rpc.thirdweb.com'
+    ]),
+    [xLayerTestnet.id]: createTransport([
+      'https://xlayertestrpc.okx.com/terigon',
+      'https://testrpc.xlayer.tech/terigon'
     ]),
   },
   ssr: false,

@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, usePublicClient } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
 import { createLogger } from '../utils/logger';
-import { PROXY_ADDRESS } from '../utils/constants';
+import { useContractAddresses } from './useContractAddresses';
 
 const logger = createLogger('useAdminOwner');
 
@@ -28,7 +27,9 @@ const DEV_OWNER_ADDRESS = '0x52CEb1CC4Fe3cFaCC5F0cd12EA7215734CB0AA3d';
  */
 export const useAdminOwner = () => { // FIX 2: unused params removed
   const { address, isConnected } = useAccount();
-  const publicClient = usePublicClient({ chainId: baseSepolia.id }); // FIX 1: wagmi instead of window.ethereum
+  const { chainId, PROXY } = useContractAddresses(); // Dynamic: follows active chain
+  const publicClient = usePublicClient({ chainId }); // FIX: was hardcoded to xLayerTestnet.id
+  const PROXY_ADDRESS = PROXY;
 
   const [isOwner, setIsOwner]         = useState(false);
   const [isLoading, setIsLoading]     = useState(true);
@@ -96,7 +97,7 @@ export const useAdminOwner = () => { // FIX 2: unused params removed
     } finally {
       setIsLoading(false);
     }
-  }, [address, isConnected, publicClient]);
+  }, [address, isConnected, publicClient, PROXY_ADDRESS]);
 
   useEffect(() => {
     checkOwnership();

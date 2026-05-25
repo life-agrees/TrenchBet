@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { usePublicClient } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
-// FIX: Removed unused PRICE_FEEDS import from wagmi.js — it was imported
-// but never referenced anywhere in this file.
 import { CHAINLINK_RESOLVER_ABI } from '../contracts/abis';
-import { CHAINLINK_RESOLVER_ADDRESS, SUPPORTED_ASSETS } from '../utils/constants';
+import { SUPPORTED_ASSETS } from '../utils/constants';
 import { createLogger } from '../utils/logger';
+import { useContractAddresses } from './useContractAddresses';
 
 const logger = createLogger('useCurrentPrice');
 
@@ -21,11 +19,12 @@ const logger = createLogger('useCurrentPrice');
 export function useCurrentPrice(asset) {
   const [currentPrice, setCurrentPrice] = useState(null);
   const [isLoading, setIsLoading]       = useState(true);
-  const publicClient = usePublicClient({ chainId: baseSepolia.id });
+  const { chainId, CHAINLINK_RESOLVER } = useContractAddresses();
+  const publicClient = usePublicClient({ chainId });
 
   useEffect(() => {
     // Null asset is valid — parent may pass null to suppress fetching
-    if (!asset || !publicClient || !CHAINLINK_RESOLVER_ADDRESS) {
+    if (!asset || !publicClient || !CHAINLINK_RESOLVER) {
       setIsLoading(false);
       return;
     }
@@ -45,7 +44,7 @@ export function useCurrentPrice(asset) {
         }
 
         const price = await publicClient.readContract({
-          address: CHAINLINK_RESOLVER_ADDRESS,
+          address: CHAINLINK_RESOLVER,
           abi: CHAINLINK_RESOLVER_ABI,
           functionName: 'getLatestPrice',
           args: [upperAsset],
@@ -83,7 +82,8 @@ export function useCurrentPrice(asset) {
 export function useCurrentPrices(assets = ['BTC', 'ETH', 'LINK']) {
   const [prices, setPrices]   = useState({});
   const [isLoading, setIsLoading] = useState(true);
-  const publicClient = usePublicClient({ chainId: baseSepolia.id });
+  const { chainId, CHAINLINK_RESOLVER } = useContractAddresses();
+  const publicClient = usePublicClient({ chainId });
 
   // Stable serialised key so the effect doesn't re-run on array identity changes
   const assetsKey = JSON.stringify([...assets].sort());
@@ -91,7 +91,7 @@ export function useCurrentPrices(assets = ['BTC', 'ETH', 'LINK']) {
   useEffect(() => {
     const parsedAssets = JSON.parse(assetsKey);
 
-    if (!parsedAssets.length || !publicClient || !CHAINLINK_RESOLVER_ADDRESS) {
+    if (!parsedAssets.length || !publicClient || !CHAINLINK_RESOLVER) {
       setIsLoading(false);
       return;
     }
@@ -113,7 +113,7 @@ export function useCurrentPrices(assets = ['BTC', 'ETH', 'LINK']) {
 
             try {
               const price = await publicClient.readContract({
-                address: CHAINLINK_RESOLVER_ADDRESS,
+                address: CHAINLINK_RESOLVER,
                 abi: CHAINLINK_RESOLVER_ABI,
                 functionName: 'getLatestPrice',
                 args: [upper],

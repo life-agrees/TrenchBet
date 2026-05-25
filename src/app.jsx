@@ -39,6 +39,7 @@ import { calculateMarketPercentages, formatOddsDisplay } from './marketUtils';
 
 // New Layout & Dashboard Components
 import MainLayout from './components/Layout/MainLayout';
+import TrenchyV4Launchpad from './components/landing/TrenchyV4Launchpad';
 import DashboardView from './components/Dashboard/DashboardView';
 import PortfolioView from './components/Portfolio/PortfolioView';
 import WinShareCard from './components/WinShareCard';
@@ -440,6 +441,7 @@ const {
       referrals:   'referrals',
       achievements:'achievements',
       streaks:     'streaks',   // FIX  was missing
+      trenchyV4:   'trenchyV4',
       admin:       'admin',
       settings:    'settings',
       terms:       'terms',
@@ -585,6 +587,8 @@ const {
 
   const renderContent = () => {
     switch (currentView) {
+      case 'trenchyV4':
+        return <TrenchyV4Launchpad />;
       case 'dashboard':
         return isConnected ? (
           <DashboardView

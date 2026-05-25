@@ -21,6 +21,7 @@ export function useContractAddresses() {
     networkName: contracts.NAME,
     isArc: chainId === 5042002,
     isBase: chainId === 84532,
+    isXLayer: chainId === 1952,
     chainId
   };
 }

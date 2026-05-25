@@ -1,6 +1,12 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
+const getAccounts = () => {
+  const pk = process.env.ADMIN_PRIVATE_KEY || process.env.PRIVATE_KEY;
+  if (!pk) return [];
+  return [pk.startsWith("0x") ? pk : "0x" + pk];
+};
+
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
   solidity: {
@@ -16,18 +22,23 @@ module.exports = {
   networks: {
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL || "https://sepolia.base.org",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       chainId: 84532,
     },
     base: {
       url: process.env.BASE_RPC_URL || "https://mainnet.base.org",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       chainId: 8453,
     },
     arcTestnet: {
       url: "https://rpc.testnet.arc.network",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: getAccounts(),
       chainId: 5042002,
+    },
+    xLayerTestnet: {
+      url: "https://testrpc.xlayer.tech",
+      accounts: getAccounts(),
+      chainId: 1952,
     }
   },
   etherscan: {

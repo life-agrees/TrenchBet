@@ -63,6 +63,7 @@ const VIEW_META = {
   referrals:    { label: 'Referrals',    emoji: '👥' },
   achievements: { label: 'Achievements', emoji: '🏆' },
   streaks:      { label: 'Streaks',      emoji: '⚡' },
+  trenchyV4:    { label: 'TrenchyV4',    emoji: '🚀' },
   settings:     { label: 'Settings',     emoji: '⚙️' },
   admin:        { label: 'Admin Panel',  emoji: '🔧' },
 };

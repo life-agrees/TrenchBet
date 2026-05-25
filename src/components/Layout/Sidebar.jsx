@@ -159,6 +159,7 @@ const Sidebar = ({ currentView, onNavigate, isConnected, isWalletReconnecting, i
     { id: 'myBets',      label: 'My Portfolio', icon: Briefcase, requiresConnect: true },
     { id: 'markets',     label: 'Markets',      icon: Target,  requiresConnect: false, badge: 'LIVE' },
     { id: 'leaderboard', label: 'Leaderboard',  icon: Trophy,  requiresConnect: false },
+    { id: 'trenchyV4',   label: 'TrenchyV4',    icon: BarChart3, requiresConnect: false, badge: 'NEW' },
   ];
 
   const communityItems = [

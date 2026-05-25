@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { parseAbiItem, decodeEventLog } from 'viem';
 import { usePublicClient } from 'wagmi';
-import { baseSepolia } from 'wagmi/chains';
-import { formatUnits, parseAbiItem } from 'viem';
 import { DURATIONS, BATCH } from '../utils/constants';
 import { useContractAddresses } from './useContractAddresses';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
