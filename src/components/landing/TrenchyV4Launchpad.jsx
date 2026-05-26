@@ -40,6 +40,55 @@ export default function TrenchyV4Launchpad() {
   const [estimatedOutput, setEstimatedOutput] = useState('95.2');
   const [betAmount, setBetAmount] = useState('50');
 
+  // Interactive transaction simulator state
+  const [simState, setSimState] = useState({
+    isOpen: false,
+    type: '', // 'bet', 'swap', 'ape'
+    step: 0,
+    choice: true,
+    amount: '0',
+    output: '0',
+  });
+
+  // Automatically advance simulation steps with highly authentic pacing
+  useEffect(() => {
+    if (!simState.isOpen) return;
+    if (simState.step >= 4) {
+      // Execute final mutations on completion to make the playground highly reactive
+      if (simState.type === 'swap') {
+        const amt = parseFloat(simState.amount) || 0;
+        if (simState.choice) {
+          // YES -> NO (reduces YES price, increases NO price)
+          setPriceYES(prev => Math.max(0.2, prev - 0.025));
+          setPriceNO(prev => Math.min(0.8, prev + 0.025));
+        } else {
+          // NO -> YES (increases YES price, reduces NO price)
+          setPriceYES(prev => Math.min(0.8, prev + 0.025));
+          setPriceNO(prev => Math.max(0.2, prev - 0.025));
+        }
+      } else if (simState.type === 'bet') {
+        const amt = parseFloat(simState.amount) || 0;
+        // Increase milestone volume by a multiple (simulate trading activity generated)
+        setMilestoneVolume(prev => prev + amt * 12);
+        // Increase tax collected by 1.5% of simulated volume
+        setAccumulatedTax(prev => prev + Math.floor(amt * 12 * 0.015));
+      } else if (simState.type === 'ape') {
+        const amt = parseFloat(simState.amount) || 0;
+        // Increase milestone volume by a larger multiple
+        setMilestoneVolume(prev => prev + amt * 25);
+        setAccumulatedTax(prev => prev + Math.floor(amt * 25 * 0.015));
+      }
+      return;
+    }
+
+    const delays = [800, 1000, 1200, 1000];
+    const timer = setTimeout(() => {
+      setSimState(prev => ({ ...prev, step: prev.step + 1 }));
+    }, delays[simState.step]);
+
+    return () => clearTimeout(timer);
+  }, [simState.isOpen, simState.step]);
+
   // Dynamically calculate swap estimates to enforce YES + NO = 1 USDC invariant in real-time
   useEffect(() => {
     const amt = parseFloat(swapAmount) || 0;
@@ -58,23 +107,40 @@ export default function TrenchyV4Launchpad() {
 
   // Handler for placing a milestone bet (Concept 1)
   const handlePlaceBet = (choice) => {
-    alert(`🎯 Bet Placed on TrenchyBet Milestone Market!\nChoice: ${choice ? 'YES (Hits $1M)' : 'NO (Launch fails/Hedge)'}\nAmount: ${betAmount} USDC\n\nThis wagers USDC and mints standard outcome tokens tradeable in the TrenchyBinaryAMM pool.`);
+    setSimState({
+      isOpen: true,
+      type: 'bet',
+      step: 0,
+      choice: choice,
+      amount: betAmount,
+      output: '0',
+    });
   };
 
   // Handler for binary AMM swap (Concept 4)
   const handleSwap = () => {
-    alert(`⚖️ Uniswap V4 Custom Swap Executed via TrenchyBinaryAMM!\nSwapped: ${swapAmount} ${swapDirection ? 'YES' : 'NO'}\nReceived: ${estimatedOutput} ${swapDirection ? 'NO' : 'YES'}\n\nEnforcing P_yes + P_no = 1 USDC invariant. Virtual reserves dynamically rebalanced!`);
-    
-    // Animate reserve shifts
-    const amt = parseFloat(swapAmount) || 0;
-    if (swapDirection) {
-      setPriceYES(prev => Math.max(0.2, prev - 0.015));
-      setPriceNO(prev => Math.min(0.8, prev + 0.015));
-    } else {
-      setPriceYES(prev => Math.min(0.8, prev + 0.015));
-      setPriceNO(prev => Math.max(0.2, prev - 0.015));
-    }
+    setSimState({
+      isOpen: true,
+      type: 'swap',
+      step: 0,
+      choice: swapDirection,
+      amount: swapAmount,
+      output: estimatedOutput,
+    });
   };
+
+  // Handler for Ape & Hedge (Concept 3)
+  const handleApeAndHedge = () => {
+    setSimState({
+      isOpen: true,
+      type: 'ape',
+      step: 0,
+      choice: false, // NO is the hedge
+      amount: betAmount,
+      output: '0',
+    });
+  };
+
 
   return (
     <div className="min-h-screen text-white p-4 md:p-8 font-sans pb-24">
@@ -311,7 +377,7 @@ export default function TrenchyV4Launchpad() {
                     </div>
 
                     <button
-                      onClick={() => alert(`🦍 Ape & Hedge Executed!\n\n1. BOUGHT $TRENCHY on Uniswap V4 with ${betAmount} USDC.\n2. BOUGHT "NO" outcome tokens to hedge against the launch failing.\n\nDownside completely protected via composable hooks!`)}
+                      onClick={handleApeAndHedge}
                       className="w-full mt-2 bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 text-dark-950 py-3.5 rounded-xl font-black transition-all duration-300 active:scale-95 shadow-[0_0_20px_rgba(205,255,0,0.3)] flex items-center justify-center gap-2"
                     >
                       🦍 One-Click Ape & Hedge
@@ -491,6 +557,180 @@ export default function TrenchyV4Launchpad() {
             </div>
           </div>
         )}
+
+
+      {/* V4 HOOK PLAYGROUND SIMULATOR OVERLAY */}
+      {simState.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-md bg-[#0d0f12] border border-white/10 rounded-3xl p-6 md:p-8 relative overflow-hidden shadow-[0_0_50px_rgba(192,255,0,0.15)] flex flex-col justify-between">
+            {/* Background glow effects */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#c0ff00]/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-[#CDFF00]/10 rounded-full blur-3xl"></div>
+
+            <div className="relative space-y-6">
+              {/* Modal Title & Web3 Loader */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#c0ff00]/10 border border-[#c0ff00]/20 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-[#c0ff00] animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-md font-bold text-white uppercase tracking-wider">Uniswap V4 Hook Playground</h3>
+                    <p className="text-xs text-neutral-400 font-medium">Concept Execution Sandbox</p>
+                  </div>
+                </div>
+                {simState.step >= 4 && (
+                  <button 
+                    onClick={() => setSimState(prev => ({ ...prev, isOpen: false }))}
+                    className="text-neutral-400 hover:text-white transition-colors"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Transaction Specs Panel */}
+              <div className="bg-black/40 rounded-2xl border border-white/5 p-4 space-y-2">
+                <div className="flex justify-between text-xs">
+                  <span className="text-neutral-500 font-bold uppercase tracking-wider">Sandbox Action</span>
+                  <span className="text-white font-extrabold">
+                    {simState.type === 'swap' && 'CUSTOM SWAP'}
+                    {simState.type === 'bet' && 'MILESTONE BET'}
+                    {simState.type === 'ape' && '🦍 ONE-CLICK APE & HEDGE'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-neutral-500 font-bold uppercase tracking-wider">Parameters</span>
+                  <span className="font-mono text-[#c0ff00] font-bold">
+                    {simState.type === 'swap' && `${simState.amount} ${simState.choice ? 'YES' : 'NO'} → ~${simState.output} ${simState.choice ? 'NO' : 'YES'}`}
+                    {simState.type === 'bet' && `${simState.amount} USDC on ${simState.choice ? 'YES' : 'NO'}`}
+                    {simState.type === 'ape' && `${simState.amount} USDC Split (TRENCHY + Hedge)`}
+                  </span>
+                </div>
+              </div>
+
+              {/* Step Logs List */}
+              <div className="space-y-4 relative">
+                {/* Visual Connector Line */}
+                <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-white/10 -z-10"></div>
+
+                {/* Step Item Builder */}
+                {[0, 1, 2, 3, 4].map((idx) => {
+                  let stepLabel = '';
+                  let stepDesc = '';
+                  
+                  if (simState.type === 'swap') {
+                    const stepLabels = [
+                      'Establish Sandbox Connection',
+                      'Build Uniswap V4 SwapParams',
+                      'Trigger custom beforeSwap() hook',
+                      'Enforce outcome token price invariant',
+                      'Simulated Swap Executed Successfully!'
+                    ];
+                    const stepDescs = [
+                      'Connecting to OKX Wallet & syncing X Layer Testnet custom sandbox...',
+                      `Params: { zeroForOne: ${simState.choice}, amountSpecified: ${simState.amount} }`,
+                      'TrenchyBinaryAMM hook intercepts swap to execute virtual reserve calculations.',
+                      'Adjusting YES and NO outcome pool reserves to maintain exact P_yes + P_no = $1.00.',
+                      `Virtual reserves updated on-screen! Invariant pricing successfully demonstrated.`
+                    ];
+                    stepLabel = stepLabels[idx];
+                    stepDesc = stepDescs[idx];
+                  } else if (simState.type === 'bet') {
+                    const stepLabels = [
+                      'Initialize Bet Vault Session',
+                      'Verify Target Milestone Status',
+                      'Trigger placeBet() in Hook Contract',
+                      'Record Position & Airdrop Odds',
+                      'Milestone Position Registered!'
+                    ];
+                    const stepDescs = [
+                      `Handshake completed. Requesting authorization to wager ${simState.amount} USDC.`,
+                      `Active Milestone: $1,000,000 Volume. Odds: ${simState.choice ? '1.8x' : '2.2x'}.`,
+                      'Encoding call for TrenchyMilestoneHook.sol at base proxy address.',
+                      'Depositing tax-lock details. Minting outcome tokens into indexer record.',
+                      `Success! Your wager is active. Progress bar updated with fresh simulated data.`
+                    ];
+                    stepLabel = stepLabels[idx];
+                    stepDesc = stepDescs[idx];
+                  } else if (simState.type === 'ape') {
+                    const stepLabels = [
+                      'Compile Multi-Contract Bundle',
+                      'Uniswap V4 $TRENCHY Swap',
+                      'TrenchyMilestoneHook Tax Redirect',
+                      'TrenchyBinaryAMM Counter-Hedge Buy',
+                      'Ape & Hedge Vault Lock Ready!'
+                    ];
+                    const stepDescs = [
+                      `Combining Token Buy & AMM Hedge into a single mock transaction pipeline.`,
+                      `Buying $TRENCHY on Uniswap V4 using 50% of the collateral.`,
+                      `Tax vault intercepts 1.5% fee and allocates for permanent liquidity lock.`,
+                      `Automatically bought "NO" outcome tokens via TrenchyBinaryAMM pool for principal hedge.`,
+                      `Your principal is now fully insured against milestone failure! Custom logic verified.`
+                    ];
+                    stepLabel = stepLabels[idx];
+                    stepDesc = stepDescs[idx];
+                  }
+
+                  const isCompleted = simState.step > idx;
+                  const isActive = simState.step === idx;
+
+                  return (
+                    <div key={idx} className={`flex gap-4 items-start transition-all duration-300 ${isCompleted ? 'opacity-100' : isActive ? 'opacity-100 scale-102' : 'opacity-30'}`}>
+                      {/* Step Indicator Dot */}
+                      <div className="shrink-0 flex items-center justify-center">
+                        {isCompleted ? (
+                          <div className="w-8 h-8 rounded-full bg-success/20 border border-success/40 flex items-center justify-center">
+                            <svg className="w-4 h-4 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        ) : isActive ? (
+                          <div className="w-8 h-8 rounded-full bg-[#c0ff00]/20 border border-[#c0ff00]/40 flex items-center justify-center relative">
+                            <span className="absolute inset-0.5 rounded-full bg-[#c0ff00] animate-ping opacity-75"></span>
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#c0ff00] relative"></span>
+                          </div>
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-black border border-white/10 flex items-center justify-center">
+                            <span className="w-2 h-2 rounded-full bg-neutral-600"></span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Step Text details */}
+                      <div className="space-y-1">
+                        <h4 className={`text-xs md:text-sm font-bold ${isActive ? 'text-[#c0ff00]' : isCompleted ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                          {stepLabel}
+                        </h4>
+                        {isActive && (
+                          <p className="text-[11px] md:text-xs text-neutral-400 font-medium leading-relaxed max-w-sm">
+                            {stepDesc}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Action completion button */}
+              {simState.step >= 4 && (
+                <button
+                  onClick={() => setSimState(prev => ({ ...prev, isOpen: false }))}
+                  className="w-full mt-4 bg-success hover:bg-success-400 text-[#0d0f12] font-bold py-3.5 rounded-2xl shadow-lg shadow-success/20 transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 text-center text-sm md:text-base animate-fadeIn"
+                >
+                  Close Playground & Review Updates
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>
