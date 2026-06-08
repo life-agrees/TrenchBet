@@ -4,7 +4,7 @@
  */
 
 import { readContract, multicall } from 'wagmi/actions';
-import { CONTRACTS, config } from '../config/wagmi.jsx';
+import { CONTRACTS, config } from '../config/wagmi';
 
 // Use PROXY contract for all interactions
 const PREDICTION_MARKET_ADDRESS = CONTRACTS.PROXY;

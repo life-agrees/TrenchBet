@@ -1,17 +1,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useReadContract, useBlockNumber } from 'wagmi';
 import { multicall, readContract } from 'wagmi/actions';
-import { config } from '../config/wagmi.jsx';
+import { config } from '../config/wagmi';
 import { PREDICTION_MARKET_PROXY_ABI } from '../contracts/proxyAbi';
 import { PROXY_ADDRESS, DURATIONS, TIME, PRICE } from '../utils/constants';
+import { useContractAddresses } from './useContractAddresses';
 import { createLogger } from '../utils/logger';
 import { calculateMarketPercentages, calculateFixedOddsPercentage } from '../marketUtils';
 
-// Use the proxy address for all market interactions
-const MARKET_CONTRACT = {
-  address: PROXY_ADDRESS,
-  abi: PREDICTION_MARKET_PROXY_ABI
-};
+// NOTE: MARKET_CONTRACT is constructed per-network inside the hook
 
 
 
@@ -31,10 +28,14 @@ export function useMarketsOptimized() {
   // Get current block number to trigger refresh
   const { data: blockNumber } = useBlockNumber({ watch: true });
 
+  // Get proxy address for current chain
+  const { PROXY } = useContractAddresses();
+  const MARKET_CONTRACT = useMemo(() => ({ address: PROXY, abi: PREDICTION_MARKET_PROXY_ABI }), [PROXY]);
+
   // Fetch market counter to know how many markets exist
   const { data: marketCounter, isError: isCounterError, refetch: refetchCounter } = useReadContract({
     address: MARKET_CONTRACT.address,
-    abi: MARKET_CONTRACT.abi,
+    abi: PREDICTION_MARKET_PROXY_ABI,
     functionName: 'marketCounter',
     watch: true,
   });
@@ -75,7 +76,7 @@ export function useMarketsOptimized() {
       // Prepare multicall contracts - use 'markets' mapping via proxy
       const contracts = marketIds.map(id => ({
         address: MARKET_CONTRACT.address,
-        abi: MARKET_CONTRACT.abi,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'markets',
         args: [BigInt(id)],
       }));
@@ -94,7 +95,7 @@ export function useMarketsOptimized() {
             logger.warn(`Failed to fetch market ${marketIds[index]}:`, result.error);
             return null;
           }
-          return processMarketData(result.result, marketIds[index]);
+          return processMarketData(result.result, marketIds[index], MARKET_CONTRACT.address);
         })
       );
       
@@ -186,7 +187,7 @@ export function useMarketsOptimized() {
 /**
  * Fetch additional market data based on market type
  */
-async function fetchAdditionalMarketData(marketId, marketType) {
+async function fetchAdditionalMarketData(marketId, marketType, proxyAddress) {
   try {
     const additionalData = {
       options: [],
@@ -199,8 +200,8 @@ async function fetchAdditionalMarketData(marketId, marketType) {
     // Fetch multipliers for all market types
     try {
       const oddsResult = await readContract(config, {
-        address: MARKET_CONTRACT.address,
-        abi: MARKET_CONTRACT.abi,
+        address: proxyAddress,
+        abi: PREDICTION_MARKET_PROXY_ABI,
         functionName: 'getCurrentOdds',
         args: [BigInt(marketId)],
       });
@@ -217,8 +218,8 @@ async function fetchAdditionalMarketData(marketId, marketType) {
       // Multi-Choice: fetch options
       try {
         const optionsResult = await readContract(config, {
-          address: MARKET_CONTRACT.address,
-          abi: MARKET_CONTRACT.abi,
+          address: proxyAddress,
+          abi: PREDICTION_MARKET_PROXY_ABI,
           functionName: 'getMultiChoiceOptions',
           args: [BigInt(marketId)],
         });
@@ -233,8 +234,8 @@ async function fetchAdditionalMarketData(marketId, marketType) {
       // Range: fetch range data
       try {
         const rangeResult = await readContract(config, {
-          address: MARKET_CONTRACT.address,
-          abi: MARKET_CONTRACT.abi,
+          address: proxyAddress,
+          abi: PREDICTION_MARKET_PROXY_ABI,
           functionName: 'getRangeMarketData',
           args: [BigInt(marketId)],
         });
@@ -252,8 +253,8 @@ async function fetchAdditionalMarketData(marketId, marketType) {
       // Time-Based: fetch time market data
       try {
         const timeResult = await readContract(config, {
-          address: MARKET_CONTRACT.address,
-          abi: MARKET_CONTRACT.abi,
+          address: proxyAddress,
+          abi: PREDICTION_MARKET_PROXY_ABI,
           functionName: 'getTimeMarketData',
           args: [BigInt(marketId)],
         });
@@ -295,7 +296,7 @@ function formatDuration(seconds) {
 /**
  * Process raw market data from contract
  */
-async function processMarketData(market, marketId) {
+async function processMarketData(market, marketId, proxyAddress) {
   if (!market) return null;
 
   try {
@@ -315,7 +316,7 @@ async function processMarketData(market, marketId) {
     const marketType = Number(market.marketType || 0);
 
     // Fetch additional data based on market type
-    const additionalData = await fetchAdditionalMarketData(marketId, marketType);
+    const additionalData = await fetchAdditionalMarketData(marketId, marketType, proxyAddress);
 
     const marketData = {
       id: marketId,

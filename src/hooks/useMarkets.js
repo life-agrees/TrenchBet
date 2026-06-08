@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { parseAbiItem, decodeEventLog } from 'viem';
+import { parseAbiItem, decodeEventLog, formatUnits } from 'viem';
 import { usePublicClient } from 'wagmi';
 import { DURATIONS, BATCH } from '../utils/constants';
 import { useContractAddresses } from './useContractAddresses';
